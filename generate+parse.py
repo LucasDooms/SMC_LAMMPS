@@ -26,7 +26,7 @@ def readParameters(filename='parameters'):
             parameters[line[0]] = line[1]
         else:
             parameters[line[0]] = line[1:]
-   
+
     parameterFile.close()
 
     return parameters
@@ -816,6 +816,6 @@ parameterfile = open(filename_para, 'w')
 parameterfile.write("# LAMMPS parameter file\n\n")
 
 for key in readParameters():
-	parameterfile.write("variable %s equal %s\n\n"       %(key, readParameters()[key]))
+    parameterfile.write("variable %s equal %s\n\n"       %(key, readParameters()[key]))
 
 parameterfile.close()
