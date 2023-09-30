@@ -1,6 +1,7 @@
 import math
 import numpy as np
-import subprocess
+from sys import argv
+from pathlib import Path
 #import matplotlib.pyplot as plt
 
 
@@ -9,9 +10,9 @@ import subprocess
 #################################################################################
 
 
-def readParameters(filename='parameters'):
-
-    parameterFile = open(filename, 'r')
+def readParameters(path = Path('.'), filename='parameters'):
+    # '/' operator combines the paths
+    parameterFile = open(path / filename, 'r')
 
     # Remove lines starting with '#'
     lines = [x.split(' ') for x in parameterFile.read().split('\n') if len(x)>0 and x[0] != '#']
@@ -36,7 +37,11 @@ def readParameters(filename='parameters'):
 #                               Input parameters                                #
 #################################################################################
 
-parameters = readParameters()
+if len(argv) != 2:
+    raise Exception("Provide a folder path")
+path = Path(argv[1])
+
+parameters = readParameters(path)
 
 # Initial loop size (DNA beads)
 loop = int(parameters['loop'])
@@ -91,10 +96,12 @@ foldingStiffness = float(parameters['foldingStiffness'])
 asymmetryStiffness = float(parameters['asymmetryStiffness'])
 
 # Name of generated data file
-filename_data = str('datafile')
+filename_data = 'datafile'
+filepath_data = path / filename_data
 
 # Name of generated parameter file
-filename_para = str('parameterfile')
+filename_para = 'parameterfile'
+filepath_para = path /filename_para
 
 
 #################################################################################
@@ -518,7 +525,7 @@ rSiteD += shift.reshape(1,3)
 #################################################################################
 
 
-datafile = open(filename_data, 'w')
+datafile = open(filepath_data, 'w')
 
 
 #### Header ####
@@ -812,7 +819,7 @@ plt.show()
 #################################################################################
 
 
-parameterfile = open(filename_para, 'w')
+parameterfile = open(filepath_para, 'w')
 
 parameterfile.write("# LAMMPS parameter file\n\n")
 
