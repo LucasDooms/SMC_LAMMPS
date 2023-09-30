@@ -36,58 +36,59 @@ def readParameters(filename='parameters'):
 #                               Input parameters                                #
 #################################################################################
 
+parameters = readParameters()
 
 # Initial loop size (DNA beads)
-loop = int(readParameters()['loop'])
+loop = int(parameters['loop'])
 
 # Diameter of initial loop (nm)
-diameter = int(readParameters()['diameter'])
+diameter = int(parameters['diameter'])
 
 
 # Number of DNA beads
-nDNA = int(readParameters()['N'])
+nDNA = int(parameters['N'])
 
 # Number of base pairs per DNA bead
-DNAdiscr = float(readParameters()['n'])
+DNAdiscr = float(parameters['n'])
 
 # Length of each coiled-coil arm (nm)
-armLength = float(readParameters()['armLength'])
+armLength = float(parameters['armLength'])
 
 # Width of ATP bridge (nm)
-bridgeWidth = float(readParameters()['bridgeWidth'])
+bridgeWidth = float(parameters['bridgeWidth'])
 
 # Radius of lower circular-arc compartment (nm)
-HKradius = float(readParameters()['HKradius'])
+HKradius = float(parameters['HKradius'])
 
 # LJ energy of repulsion (kT units)
-epsilon3 = float(readParameters()['epsilon3'])
+epsilon3 = float(parameters['epsilon3'])
 
 # LJ energy of lower site (kT units)
-epsilon6 = float(readParameters()['epsilon6'])
+epsilon6 = float(parameters['epsilon6'])
 
 # LJ cutoff of lower site (nm)
-cutoff6 = float(readParameters()['cutoff6'])
+cutoff6 = float(parameters['cutoff6'])
 
 # SMC-DNA repulsion radius (nm)
-intRadSMCvsDNA = float(readParameters()['intRadSMCvsDNA'])
+intRadSMCvsDNA = float(parameters['intRadSMCvsDNA'])
 
 # Bending stiffness of arm-bridge angle (kT units)
-armsStiffness = float(readParameters()['armsStiffness'])
+armsStiffness = float(parameters['armsStiffness'])
 
 # Bending stiffness of elbows (kT units)
-elbowsStiffness = float(readParameters()['elbowsStiffness'])
+elbowsStiffness = float(parameters['elbowsStiffness'])
 
 # Alignment stiffness of binding sites (kT units)
-siteStiffness = float(readParameters()['siteStiffness'])
+siteStiffness = float(parameters['siteStiffness'])
 
 # Folding angle of lower compartment (degrees)
-foldingAngleAPO = float(readParameters()['foldingAngleAPO'])
+foldingAngleAPO = float(parameters['foldingAngleAPO'])
 
 # Folding stiffness of lower compartment (kT units)
-foldingStiffness = float(readParameters()['foldingStiffness'])
+foldingStiffness = float(parameters['foldingStiffness'])
 
 # Folding asymmetry stiffness of lower compartment (kT units)
-asymmetryStiffness = float(readParameters()['asymmetryStiffness'])
+asymmetryStiffness = float(parameters['asymmetryStiffness'])
 
 # Name of generated data file
 filename_data = str('datafile')
@@ -102,10 +103,10 @@ filename_para = str('parameterfile')
 
 
 # Simulation temperature (K)
-T = float(readParameters()['T'])
+T = float(parameters['T'])
 
 # Boltzmann's constant (pN nm / K)
-kB = float(readParameters()['kB'])
+kB = float(parameters['kB'])
 
 
 #################################### Masses #####################################
@@ -815,7 +816,7 @@ parameterfile = open(filename_para, 'w')
 
 parameterfile.write("# LAMMPS parameter file\n\n")
 
-for key in readParameters():
-    parameterfile.write("variable %s equal %s\n\n"       %(key, readParameters()[key]))
+for key in parameters:
+    parameterfile.write("variable %s equal %s\n\n"       %(key, parameters[key]))
 
 parameterfile.close()
