@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Dict
 from enum import Enum
 import numpy as np
 
@@ -110,16 +110,28 @@ class Generator:
                 bai_types.add(atom_group.polymer_bond_type)
         return sorted(bai_types, key=lambda bai_type: bai_type.index)
 
+    def get_bai_dict_by_type(self) -> Dict[(BAI_Kind, List[BAI])]:
+        bai_by_kind: Dict[(BAI_Kind, List[BAI])] = {kind: list() for kind in BAI_Kind}
+        for bai in self.bais:
+            bai_by_kind[bai.type.kind].append(bai)
+        return bai_by_kind
+
     def write_amounts(self, file) -> None:
         file.write("%s atoms\n"       %self.get_total_atoms())
-        totalBonds = len(self.bais)
+
+        length_lookup = {key: len(value) for (key, value) in self.get_bai_dict_by_type().items()}
+
+        totalBonds = length_lookup[BAI_Kind.BOND]
         for atom_group in self.atom_groups:
-            if atom_group.polymer_bond_type is None:
-                continue
-            totalBonds += len(atom_group.positions) - 1
+            if atom_group.polymer_bond_type is not None:
+                totalBonds += len(atom_group.positions) - 1
+
+        totalAngles = length_lookup[BAI_Kind.ANGLE]
+        totalImpropers = length_lookup[BAI_Kind.IMPROPER]
+
         file.write("%s bonds\n"       %totalBonds)
-        # file.write("%s angles\n"      %nAngles)
-        # file.write("%s impropers\n\n" %nImpropers)
+        file.write("%s angles\n"      %totalAngles)
+        file.write("%s impropers\n\n" %totalImpropers)
 
     def write_types(self, file) -> None:
         file.write("%s atom types\n"       %len(self.get_all_atom_types()))
