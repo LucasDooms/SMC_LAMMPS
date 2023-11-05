@@ -89,7 +89,11 @@ class Generator:
         self.bais: List[BAI] = []
         self.atom_group_map: List[int] = []
         self.pair_interactions: List[PairWise] = []
-    
+        self.box_width = None
+
+    def set_system_size(self, box_width: float) -> None:
+        self.box_width = box_width
+
     def get_total_atoms(self) -> int:
         return sum(map(lambda atom_group: atom_group.n, self.atom_groups))
 
@@ -141,6 +145,16 @@ class Generator:
         file.write("%s bond types\n"       %len(self.get_all_types(BAI_Kind.BOND)))
         file.write("%s angle types\n"      %len(self.get_all_types(BAI_Kind.ANGLE)))
         file.write("%s improper types\n\n" %len(self.get_all_types(BAI_Kind.IMPROPER)))
+
+    def write_system_size(self, file) -> None:
+        file.write("# System size\n")
+
+        if self.box_width is None:
+            raise Exception("box_width was not set")
+        half_width = self.box_width / 2.0
+        file.write("%s %s xlo xhi\n"   %(-half_width/2, half_width/2))
+        file.write("%s %s ylo yhi\n"   %(-half_width/2, half_width/2))
+        file.write("%s %s zlo zhi\n\n" %(-half_width/2, half_width/2))
 
     def write_masses(self, file) -> None:
         file.write("Masses\n\n")
@@ -228,6 +242,7 @@ class Generator:
         file.write("\n")
         self.write_types(file)
         file.write("\n")
+        self.write_system_size(file)
         self.write_masses(file)
         self.write_BAI_coeffs(file)
         self.write_pair_interactions(file)
@@ -239,6 +254,7 @@ def test_simple_atoms():
     positions = np.zeros(shape=(100, 3))
     gen = Generator()
     gen.atom_groups.append(AtomGroup(positions, AtomType()))
+    gen.set_system_size(10)
     with open("test.gen", 'w') as file:
         gen.write(file)
 
@@ -247,6 +263,7 @@ def test_simple_atoms_polymer():
     positions = np.zeros(shape=(100, 3))
     gen = Generator()
     gen.atom_groups.append(AtomGroup(positions, AtomType(), polymer_bond_type=BAI_Type(BAI_Kind.BOND)))
+    gen.set_system_size(10)
     with open("test.gen", 'w') as file:
         gen.write(file)
 
@@ -255,6 +272,7 @@ def test_with_bonds():
     positions = np.zeros(shape=(25, 3))
 
     gen = Generator()
+    gen.set_system_size(10)
 
     bt1 = BAI_Type(BAI_Kind.BOND)
     bt2 = BAI_Type(BAI_Kind.BOND)
