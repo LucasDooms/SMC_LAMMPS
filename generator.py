@@ -47,10 +47,13 @@ class AtomGroup:
     """
 
     def __init__(self, positions: np.ndarray[np.ndarray[float]],
-                 atom_type: AtomType, polymer_bond_type: BondType | None = None) -> None:
+                 atom_type: AtomType, polymer_bond_type: BAI_Type | None = None) -> None:
         self.n = len(positions)
         self.positions = positions
         self.type = atom_type
+        if polymer_bond_type is not None:
+            if polymer_bond_type.kind != BAI_Kind.BOND:
+                raise ValueError("polymer_bond_type must be of kind BOND")
         self.polymer_bond_type = polymer_bond_type
 
 
@@ -59,10 +62,10 @@ AtomIdentifier = Tuple[AtomGroup, int]
 
 class BAI:
 
-    def __init__(self, type: BAI_Type, *atoms) -> None:
+    def __init__(self, type: BAI_Type, *atoms: AtomIdentifier) -> None:
         """Length of atoms should be 2 for Bond, 3 for Angle, 4 for Improper"""
         self.type = type
-        self.atoms: List[AtomIdentifier] = atoms
+        self.atoms: List[AtomIdentifier] = list(atoms)
 
 
 class PairWise:
