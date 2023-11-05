@@ -206,23 +206,6 @@ class Generator:
                 formatter = ("%s " * length)[:-1] + "\n"
                 file.write(formatter %(*(self.get_atom_index(bai.atoms[i]) for i in range(length)),))
                 global_index += 1
-    #
-    # def write_bonds(self, file) -> None:
-    #     file.write("\nBonds\n\n")
-    #
-    #     global_index = 1
-    #
-    #     for atom_group in self.atom_groups:
-    #         if atom_group.polymer_bond_type is None:
-    #             continue
-    #         for j in range(len(atom_group.positions) - 1):
-    #             file.write(f"%s {atom_group.polymer_bond_type.index} %s %s\n" %(global_index, j + 1, j + 2) )
-    #             global_index += 1
-    #
-    #     for bond in self.bais:
-    #         file.write(f"%s {bond.type.index} %s %s\n"
-    #                    %(global_index, self.get_atom_index(bond.atoms[0]), self.get_atom_index(bond.atoms[1])) )
-    #         global_index += 1
 
     def write(self, file) -> None:
         self.write_header(file)
