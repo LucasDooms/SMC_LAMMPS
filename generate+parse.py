@@ -101,7 +101,7 @@ filepath_data = path / filename_data
 
 # Name of generated parameter file
 filename_para = 'parameterfile'
-filepath_para = path /filename_para
+filepath_para = path / filename_para
 
 
 #################################################################################
