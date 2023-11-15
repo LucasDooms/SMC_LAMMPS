@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
 #import matplotlib.pyplot as plt
@@ -100,8 +101,8 @@ filename_data = 'datafile'
 filepath_data = path / filename_data
 
 # Name of generated parameter file
-filename_para = 'parameterfile'
-filepath_para = path / filename_para
+filename_param = 'parameterfile'
+filepath_param = path / filename_param
 
 
 #################################################################################
@@ -524,57 +525,8 @@ rSiteD += shift.reshape(1,3)
 #                                Print to file                                  #
 #################################################################################
 
-
-datafile = open(filepath_data, 'w')
-
-
-#### Header ####
-
-
-# Total number of atoms, bonds, angles and dihedrals
-nAtoms     = nDNA + 4*nArmSegm + nHK + nATP + nSiteU + nSiteM + nSiteD
-nBonds     = nDNA + 13
-nAngles    = nDNA + 2
-nImpropers = 5
-
-# Total number of atom, bond, angle and improper types
-nAtomTypes     = 7
-nBondTypes     = 4
-nAngleTypes    = 3
-nImproperTypes = 3
-
-datafile.write("# LAMMPS data file\n")
-datafile.write("%s atoms\n"       %nAtoms)
-datafile.write("%s bonds\n"       %nBonds)
-datafile.write("%s angles\n"      %nAngles)
-datafile.write("%s impropers\n\n" %nImpropers)
-
-datafile.write("%s atom types\n"       %nAtomTypes)
-datafile.write("%s bond types\n"       %nBondTypes)
-datafile.write("%s angle types\n"      %nAngleTypes)
-datafile.write("%s improper types\n\n" %nImproperTypes)
-
-datafile.write("# System size\n")
-datafile.write("%s %s xlo xhi\n"   %(-boxWidth/2, boxWidth/2))
-datafile.write("%s %s ylo yhi\n"   %(-boxWidth/2, boxWidth/2))
-datafile.write("%s %s zlo zhi\n\n" %(-boxWidth/2, boxWidth/2))
-
-
-#### Body ####
-
-
 # Divide total mass evenly among the segments
 mSMC = mSMCtotal / ( 4*nArmSegm + nHK + nATP + nSiteU + nSiteM + nSiteD )
-
-datafile.write("Masses\n\n")
-datafile.write("1 %s\n"   %(mDNA)) # DNA
-datafile.write("2 %s\n"   %(mSMC)) # Arms and kleisin
-datafile.write("3 %s\n"   %(mSMC)) # ATP bridge
-datafile.write("4 %s\n"   %(mSMC)) # Upper site
-datafile.write("5 %s\n"   %(mSMC)) # Middle site
-datafile.write("6 %s\n"   %(mSMC)) # Lower site
-datafile.write("7 %s\n\n" %(mSMC)) # Reference site
-
 
 # Relative bond fluctuations
 bondFlDNA = 1e-2
@@ -591,20 +543,15 @@ kBondAlign2 = 200*kB*T / SMCspacing**2
 
 
 indL = np.argmin(np.linalg.norm(rSiteU[-2]-rArmUL, axis=1))
+indL = int(indL) # result should be an int if array is one dimensional
 indR = np.argmin(np.linalg.norm(rSiteU[-2]-rArmUR, axis=1))
+indR = int(indR)
 bondMin1 = np.linalg.norm(rSiteU[-2]-rArmUL[indL])
 bondMin2 = np.linalg.norm(rSiteU[-2]-rArmUL[-1])
 
 # Maximum bond length
 maxLengthDNA = DNAbondLength*bondMax
 maxLengthSMC =    SMCspacing*bondMax
-
-datafile.write("Bond Coeffs # hybrid\n\n")
-datafile.write("1 fene/expand %s %s %s %s %s\n" %(kBondDNA, maxLengthDNA, 0, 0, DNAbondLength))
-datafile.write("2 fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
-datafile.write("3 harmonic %s %s\n"             %(kBondAlign1, bondMin1))
-datafile.write("4 harmonic %s %s\n\n"           %(kBondAlign2, bondMin2))
-
 
 # DNA bending rigidity
 kDNA = DNAstiff * kB*T / DNAbondLength
@@ -615,13 +562,6 @@ kDNA = DNAstiff * kB*T / DNAbondLength
 kElbows = elbowsStiffness*kB*T
 kArms   =   armsStiffness*kB*T
 
-datafile.write("Angle Coeffs # hybrid\n\n")
-datafile.write("1 cosine %s\n"        %  kDNA )
-datafile.write("2 harmonic %s %s\n"   % ( kElbows, 180 ) )
-#datafile.write("3 harmonic %s %s\n\n" % ( kArms,  np.rad2deg( math.acos( bridgeWidth / 2 / armLength ) ) ) )
-datafile.write("3 harmonic %s %s\n\n" % ( kArms,  np.rad2deg( math.acos( bridgeWidth / armLength ) ) ) )
-
-
 # Fixes site orientation (prevents free rotation, should be stiff)
 kAlignSite = siteStiffness*kB*T
 
@@ -631,62 +571,9 @@ kFolding = foldingStiffness*kB*T
 # Makes folding asymmetric (should be stiff)
 kAsymmetry = asymmetryStiffness*kB*T
 
-# We impose zero improper angle
-datafile.write("Improper Coeffs # harmonic\n\n")
-datafile.write("1 %s %s\n"   %( kAlignSite, 0 ))
-datafile.write("2 %s %s\n"   %( kFolding,   180 - foldingAngleAPO ))
-datafile.write("3 %s %s\n\n" %( kAsymmetry,  math.fabs(90 - foldingAngleAPO) ))
-
-
-# Pair coefficients
-datafile.write("PairIJ Coeffs # hybrid\n\n")
-
-datafile.write("1 1 lj/cut %s %s %s\n" %(epsilonDNAvsDNA,   sigmaDNAvsDNA,   rcutDNAvsDNA))
-datafile.write("1 2 lj/cut %s %s %s\n" %(epsilonSMCvsDNA,   sigmaSMCvsDNA,   rcutSMCvsDNA))
-datafile.write("1 3 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("1 4 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("1 5 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("1 6 lj/cut %s %s %s\n" %(epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA))
-datafile.write("1 7 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("2 2 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("2 3 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("2 4 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("2 5 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("2 6 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("2 7 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("3 3 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("3 4 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("3 5 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("3 6 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("3 7 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("4 4 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("4 5 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("4 6 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("4 7 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("5 5 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("5 6 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("5 7 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("6 6 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("6 7 lj/cut %s %s %s\n" %(0, 0, 0))
-datafile.write("7 7 lj/cut %s %s %s\n" %(0, 0, 0))
-
-# The indexing of the SMC follows a clockwise order, 
-# starting from the bottom-left arm and ending at
-# the right part of the ATP bridge.
-
-datafile.write("\nAtoms # molecular\n\n")
-
-# LAMMPS indices for each atom
-IDdNA   = np.arange(nDNA)     + 1
-IDarmDL = np.arange(nArmSegm) + 1 + IDdNA[-1]
-IDarmUL = np.arange(nArmSegm) + 1 + IDarmDL[-1]
-IDarmUR = np.arange(nArmSegm) + 1 + IDarmUL[-1]
-IDarmDR = np.arange(nArmSegm) + 1 + IDarmUR[-1]
-IDhK    = np.arange(nHK)      + 1 + IDarmDR[-1]
-IDaTP   = np.arange(nATP)     + 1 + IDhK[-1]
-IDsiteU = np.arange(nSiteU)   + 1 + IDaTP[-1]
-IDsiteM = np.arange(nSiteM)   + 1 + IDsiteU[-1]
-IDsiteD = np.arange(nSiteD)   + 1 + IDsiteM[-1]
+# SET UP DATAFILE GENERATOR
+gen = Generator()
+gen.set_system_size(boxWidth)
 
 # Molecule for each rigid body
 molDNA   = 1
@@ -700,103 +587,145 @@ molSiteU = 8
 molSiteM = molATP
 molSiteD = molHK
 
-# DNA
-for index in range(nDNA):
-    datafile.write("%s %s 1 %s %s %s\n" %(IDdNA[index], molDNA, rDNA[index,0], rDNA[index,1], rDNA[index,2]) )
+dna_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondDNA, maxLengthDNA, 0, 0, DNAbondLength))
+dna_type = AtomType(mDNA)
+dna_group = AtomGroup(
+    positions=rDNA,
+    atom_type=dna_type,
+    molecule_index=molDNA,
+    polymer_bond_type=dna_bond
+)
+
+armHK_type = AtomType(mSMC)
+atp_type = AtomType(mSMC)
+siteU_type = AtomType(mSMC)
+siteM_type = AtomType(mSMC)
+siteD_type = AtomType(mSMC)
+refSite_type = AtomType(mSMC)
+
+armDL_group = AtomGroup(rArmDL, armHK_type, molArmDL)
+armUL_group = AtomGroup(rArmUL, armHK_type, molArmUL)
+armUR_group = AtomGroup(rArmUR, armHK_type, molArmUR)
+armDR_group = AtomGroup(rArmDR, armHK_type, molArmDR)
+hk_group = AtomGroup(rHK, armHK_type, molHK)
+
+atp_group = AtomGroup(rATP, atp_type, molATP)
+
+# split U in two parts
+
+cut = 3
+siteU_group = AtomGroup(rSiteU[:cut], siteU_type, molSiteU)
+siteU_arm_group = AtomGroup(rSiteU[cut:], armHK_type, molSiteU)
+
+# split M in three parts
+
+cut = 2
+siteM_group = AtomGroup(rSiteM[:cut], siteM_type, molSiteM)
+# ref site
+siteM_ref_group = AtomGroup(rSiteM[cut:cut+1], refSite_type, molSiteM)
+siteM_atp_group = AtomGroup(rSiteM[cut+1:], atp_type, molSiteM)
+
+# split B in two parts
+
+cut = 3
+siteD_group = AtomGroup(rSiteD[:cut], siteD_type, molSiteD)
+siteD_arm_group = AtomGroup(rSiteD[cut:], armHK_type, molSiteD)
+
+gen.atom_groups += [
+    dna_group,
+    armDL_group,
+    armUL_group,
+    armUR_group,
+    armDR_group,
+    hk_group,
+    atp_group,
+    siteU_group,
+    siteU_arm_group,
+    siteM_group,
+    siteM_ref_group,
+    siteM_atp_group,
+    siteD_group,
+    siteD_arm_group
+]
 
 
-# Coiled-coil arms
-for index in range(nArmSegm):
-    datafile.write("%s %s 2 %s %s %s\n" %(IDarmDL[index], molArmDL, rArmDL[index,0], rArmDL[index,1], rArmDL[index,2]) )
-for index in range(nArmSegm):
-    datafile.write("%s %s 2 %s %s %s\n" %(IDarmUL[index], molArmUL, rArmUL[index,0], rArmUL[index,1], rArmUL[index,2]) )
-for index in range(nArmSegm):
-    datafile.write("%s %s 2 %s %s %s\n" %(IDarmUR[index], molArmUR, rArmUR[index,0], rArmUR[index,1], rArmUR[index,2]) )
-for index in range(nArmSegm):
-    datafile.write("%s %s 2 %s %s %s\n" %(IDarmDR[index], molArmDR, rArmDR[index,0], rArmDR[index,1], rArmDR[index,2]) )
+# Pair coefficients
+pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
+pair_inter.add_interaction(dna_type, dna_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
+pair_inter.add_interaction(dna_type, armHK_type, epsilonSMCvsDNA, sigmaSMCvsDNA, rcutSMCvsDNA)
+pair_inter.add_interaction(dna_type, siteD_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
 
-# Kleisin circular-arc part
-for index in range(nHK):
-    datafile.write("%s %s 2 %s %s %s\n" %(IDhK[index], molHK, rHK[index,0], rHK[index,1], rHK[index,2]) )    
+gen.pair_interactions.append(pair_inter)
 
-# ATP 
-for index in range(nATP):
-    datafile.write("%s %s 3 %s %s %s\n" %(IDaTP[index], molATP, rATP[index,0], rATP[index,1], rATP[index,2]) )    
-
-# Top sites
-for index in range(nSiteU):
-    if index < 3:
-        datafile.write("%s %s 4 %s %s %s\n" %(IDsiteU[index], molSiteU, rSiteU[index,0], rSiteU[index,1], rSiteU[index,2]) )
-    else:
-        datafile.write("%s %s 2 %s %s %s\n" %(IDsiteU[index], molSiteU, rSiteU[index,0], rSiteU[index,1], rSiteU[index,2]) )
-
-# Middle sites
-for index in range(nSiteM):
-    if index < 2:
-        datafile.write("%s %s 5 %s %s %s\n" %(IDsiteM[index], molSiteM, rSiteM[index,0], rSiteM[index,1], rSiteM[index,2]) )
-    elif index == 2:
-        datafile.write("%s %s 7 %s %s %s\n" %(IDsiteM[index], molSiteM, rSiteM[index,0], rSiteM[index,1], rSiteM[index,2]) )
-    else:
-        datafile.write("%s %s 3 %s %s %s\n" %(IDsiteM[index], molSiteM, rSiteM[index,0], rSiteM[index,1], rSiteM[index,2]) )
-
-# Bottom sites
-for index in range(nSiteD):
-    if index < 3:
-        datafile.write("%s %s 6 %s %s %s\n" %(IDsiteD[index], molSiteD, rSiteD[index,0], rSiteD[index,1], rSiteD[index,2]) )
-    else:
-        datafile.write("%s %s 2 %s %s %s\n" %(IDsiteD[index], molSiteD, rSiteD[index,0], rSiteD[index,1], rSiteD[index,2]) )
-
-
-datafile.write("\nBonds\n\n")
-
-# DNA connectivity
-for index in range(nDNA-1):
-    datafile.write("%s 1 %s %s\n" %(index+1, IDdNA[index], IDdNA[index+1]) )
 
 # Every joint is kept in place through bonds
-datafile.write("%s 2 %s %s\n"   %(nDNA,      IDarmDL[-1], IDarmUL[ 0]))
-datafile.write("%s 2 %s %s\n"   %(nDNA+1,    IDarmUL[-1], IDarmUR[ 0]))
-datafile.write("%s 2 %s %s\n"   %(nDNA+2,    IDarmUR[-1], IDarmDR[ 0]))
-datafile.write("%s 2 %s %s\n"   %(nDNA+3,    IDarmUL[-1], IDsiteU[-1]))
-datafile.write("%s 2 %s %s\n"   %(nDNA+4,    IDarmDR[-1],   IDaTP[-1]))
-datafile.write("%s 2 %s %s\n"   %(nDNA+5,      IDaTP[ 0], IDarmDL[ 0]))
-datafile.write("%s 2 %s %s\n"   %(nDNA+6,      IDaTP[-1],    IDhK[ 0]))
-datafile.write("%s 2 %s %s\n"   %(nDNA+7,       IDhK[-1],   IDaTP[ 0]))
-datafile.write("%s 3 %s %s\n"   %(nDNA+8,  IDarmUL[indL], IDsiteU[-2]))
-datafile.write("%s 3 %s %s\n"   %(nDNA+9,  IDarmUL[indL], IDsiteU[-3]))
-datafile.write("%s 3 %s %s\n"   %(nDNA+10, IDarmUR[indR], IDsiteU[-2]))
-datafile.write("%s 3 %s %s\n"   %(nDNA+11, IDarmUR[indR], IDsiteU[-3]))
-datafile.write("%s 4 %s %s\n"   %(nDNA+12,   IDarmUL[-1], IDsiteU[-2]))
-datafile.write("%s 4 %s %s\n\n" %(nDNA+13,   IDarmUL[-1], IDsiteU[-3]))
+bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
+bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, bondMin1))
+bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n\n"           %(kBondAlign2, bondMin2))
 
+bonds = [
+    BAI(bond_t2, (armDL_group, -1), (armUL_group, 0)),
+    BAI(bond_t2, (armUL_group, -1), (armUR_group, 0)),
+    BAI(bond_t2, (armUR_group, -1), (armDR_group, 0)),
+    BAI(bond_t2, (armUL_group, -1), (siteU_arm_group, -1)),
+    BAI(bond_t2, (armDR_group, -1), (atp_group, -1)),
+    BAI(bond_t2, (atp_group,  0), (armDL_group, 0)),
+    BAI(bond_t2, (atp_group, -1), (hk_group, 0)),
+    BAI(bond_t2, (hk_group, -1), (atp_group, 0)),
+    BAI(bond_t3, (armUL_group, indL), (siteU_arm_group, -2)),
+    BAI(bond_t3, (armUL_group, indL), (siteU_arm_group, -3)),
+    BAI(bond_t3, (armUR_group, indR), (siteU_arm_group, -2)),
+    BAI(bond_t3, (armUR_group, indR), (siteU_arm_group, -3)),
+    BAI(bond_t4, (armUL_group, -1), (siteU_arm_group, -2)),
+    BAI(bond_t4, (armUL_group, -1), (siteU_arm_group, -3)),
+] 
 
-datafile.write("\nAngles\n\n")
+gen.bais += bonds
+
+angle_t1 = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
+angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n"   % ( kElbows, 180 ) )
+angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n\n" % ( kArms,  np.rad2deg( math.acos( bridgeWidth / armLength ) ) ) )
 
 # DNA stiffness
+dna_angle_list = []
 for index in range(nDNA-2):
-    datafile.write("%s 1 %s %s %s\n" %(index+1, IDdNA[index], IDdNA[index+1], IDdNA[index+2]))
+    dna_angle_list.append(BAI(
+        angle_t1,
+        (dna_group, index),
+        (dna_group, index + 1),
+        (dna_group, index + 2)
+    ))
 
-# Arm-arm angles
-datafile.write("%s 2 %s %s %s\n" %(nDNA-1, IDarmDL[ 0], IDarmUL[ 0], IDarmUL[-1]))
-datafile.write("%s 2 %s %s %s\n" %(nDNA,   IDarmUR[ 0], IDarmUR[-1], IDarmDR[-1]))
-# Arm-ATP angles
-datafile.write("%s 3 %s %s %s\n" %(nDNA+1, IDarmDL[-1], IDarmDL[ 0], IDaTP[-1]))
-datafile.write("%s 3 %s %s %s\n" %(nDNA+2, IDarmDR[ 0], IDarmDR[-1], IDaTP[ 0]))
+arm_arm_angle1 = BAI(angle_t2, (armDL_group, 0), (armUL_group, 0), (armUL_group, -1))
+arm_arm_angle2 = BAI(angle_t2, (armUR_group, 0), (armUR_group, -1), (armDR_group, -1))
 
+arm_atp_angle1 = BAI(angle_t3, (armDL_group, -1), (armDL_group, 0), (atp_group, -1))
+arm_atp_angle2 = BAI(angle_t3, (armDR_group, 0), (armDR_group, -1), (atp_group, 0))
 
-datafile.write("\nImpropers\n\n")
+gen.bais += dna_angle_list + [arm_arm_angle1, arm_arm_angle2, arm_atp_angle1, arm_atp_angle2]
+
+# We impose zero improper angle
+imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kAlignSite, 0 ) )
+imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kFolding,   180 - foldingAngleAPO ) )
+imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n\n" %( kAsymmetry,  math.fabs(90 - foldingAngleAPO) ) )
 
 # Fix orientation of ATP/kleisin bridge
-datafile.write("1 1 %s %s %s %s\n"   %(IDarmDL[-1], IDarmDL[ 0], IDaTP[-1], IDsiteM[1]))
-datafile.write("2 1 %s %s %s %s\n"   %(IDarmDR[ 0], IDarmDR[-1], IDaTP[ 0], IDsiteM[1]))
-# Folding angle
-datafile.write("7 2 %s %s %s %s\n"   %(IDarmDL[-1], IDarmDL[ 0], IDaTP[-1], IDhK[nHK//2]))
-datafile.write("8 2 %s %s %s %s\n"   %(IDarmDR[ 0], IDarmDR[-1], IDaTP[ 0], IDhK[nHK//2]))
-# Folding asymmetry
-datafile.write("9 3 %s %s %s %s\n\n" %(IDsiteM[2], IDarmDL[ 0], IDarmDR[-1], IDhK[nHK//2]))
+# WARNING: siteM is split into groups, be careful with index
+atp_HK_improper1 = BAI(imp_t1, (armDL_group, -1), (armDL_group, 0), (atp_group, -1), (siteM_group, 1))
+atp_HK_improper2 = BAI(imp_t1, (armDR_group, 0), (armDR_group, -1), (atp_group, 0), (siteM_group, 1))
+
+folding_angle_improper1 = BAI(imp_t2, (armDL_group, -1), (armDL_group, 0), (atp_group, -1), (hk_group, nHK//2))
+folding_angle_improper2 = BAI(imp_t2, (armDR_group, 0), (armDR_group, -1), (atp_group, 0), (hk_group, nHK//2))
+
+# WARNING: indices M changed
+folding_asymmetry_improper = BAI(imp_t3, (siteM_ref_group, 0), (armDL_group, 0), (armDR_group, -1), (hk_group, nHK//2))
+# datafile.write("9 3 %s %s %s %s\n\n" %(IDsiteM[2], IDarmDL[ 0], IDarmDR[-1], IDhK[nHK//2]))
+
+gen.bais += [atp_HK_improper1, atp_HK_improper2, folding_angle_improper1, folding_angle_improper2, folding_asymmetry_improper]
 
 
-datafile.close()
+with open(filepath_data, 'w') as datafile:
+    gen.write(datafile)
 
 
 """
@@ -819,7 +748,7 @@ plt.show()
 #################################################################################
 
 
-parameterfile = open(filepath_para, 'w')
+parameterfile = open(filepath_param, 'w')
 
 parameterfile.write("# LAMMPS parameter file\n\n")
 

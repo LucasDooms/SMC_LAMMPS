@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Tuple, Set, Dict
+from typing import List, Tuple, Set, Dict, Any
 from enum import Enum
 import numpy as np
 
@@ -46,11 +46,12 @@ class AtomGroup:
         polymer_bond_type : if None -> no bonds, otherwise all atoms will from bonds as a polymer
     """
 
-    def __init__(self, positions: np.ndarray[np.ndarray[float]],
-                 atom_type: AtomType, polymer_bond_type: BAI_Type | None = None) -> None:
+    def __init__(self, positions: List[List[float]],
+                 atom_type: AtomType, molecule_index: int, polymer_bond_type: BAI_Type | None = None) -> None:
         self.n = len(positions)
         self.positions = positions
         self.type = atom_type
+        self.molecule_index = molecule_index
         if polymer_bond_type is not None:
             if polymer_bond_type.kind != BAI_Kind.BOND:
                 raise ValueError("polymer_bond_type must be of kind BOND")
@@ -70,16 +71,54 @@ class BAI:
 
 class PairWise:
 
-    def __init__(self, header: str) -> None:
+    def __init__(self, header: str, template: str, default: List[Any]) -> None:
         self.header = header
-        self.pairs: List[Tuple[AtomType, AtomType, str]] = []
+        self.template = template
+        self.default = default
+        self.pairs: List[Tuple[AtomType, AtomType, List[Any]]] = []
 
-    def add_interaction(self, atom_type1, atom_type2, interaction: str) -> PairWise:
+    def add_interaction(self, atom_type1: AtomType, atom_type2: AtomType, *args: Any) -> PairWise:
         self.pairs.append(
-            (atom_type1, atom_type2, interaction)
+            (atom_type1, atom_type2, list(args))
         )
 
         return self
+
+    def get_all_interactions(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType, str]]:
+        present_atom_types = set()
+        for pair in self.pairs:
+            present_atom_types.add(pair[0])
+            present_atom_types.add(pair[1])
+
+        all_inters: List[Tuple[AtomType, AtomType]] = []
+        all_atom_types = sorted(all_atom_types, key=lambda atom_type: atom_type.index)
+        for i in range(len(all_atom_types)):
+            for j in range(i, len(all_atom_types)):
+                all_inters.append((all_atom_types[i], all_atom_types[j]))
+        
+        def pair_in_inter(interaction: Tuple[AtomType, AtomType]) -> Tuple[AtomType, AtomType, List[Any]] | None:
+            for pair in self.pairs:
+                if interaction[0] == pair[0] and interaction[1] == pair[1]:
+                    return pair
+                if interaction[1] == pair[0] and interaction[0] == pair[1]:
+                    return pair
+
+            return None
+
+        final_pairs: List[Tuple[AtomType, AtomType, str]] = []
+
+        for inter in all_inters:
+            pair = pair_in_inter(inter)
+            if pair is None:
+                final_pairs.append(
+                    (inter[0], inter[1], self.template.format(*self.default))
+                )
+            else:
+                final_pairs.append(
+                    (pair[0], pair[1], self.template.format(*pair[2]))
+                )
+
+        return final_pairs
 
 
 class Generator:
@@ -152,9 +191,9 @@ class Generator:
         if self.box_width is None:
             raise Exception("box_width was not set")
         half_width = self.box_width / 2.0
-        file.write("%s %s xlo xhi\n"   %(-half_width/2, half_width/2))
-        file.write("%s %s ylo yhi\n"   %(-half_width/2, half_width/2))
-        file.write("%s %s zlo zhi\n\n" %(-half_width/2, half_width/2))
+        file.write("%s %s xlo xhi\n"   %(-half_width, half_width))
+        file.write("%s %s ylo yhi\n"   %(-half_width, half_width))
+        file.write("%s %s zlo zhi\n\n" %(-half_width, half_width))
 
     def write_masses(self, file) -> None:
         file.write("Masses\n\n")
@@ -185,27 +224,40 @@ class Generator:
                 global_index += 1
 
     def write_pair_interactions(self, file) -> None:
+        all_atom_types = self.get_all_atom_types()
         for pair in self.pair_interactions:
             file.write(pair.header)
-            for atom_type1, atom_type2, text in pair.pairs:
-                file.write(f"{atom_type1.index}, {atom_type2.index} " + text)
+            for atom_type1, atom_type2, text in pair.get_all_interactions(all_atom_types):
+                file.write(f"{atom_type1.index} {atom_type2.index} " + text)
+
+    # def get_atom_index(self, atomId: AtomIdentifier) -> int:
+    #     index = self.atom_groups.index(atomId[0])
+    #     if len(self.atom_group_map) <= index:
+    #         self.atom_group_map = [0] + list(map(lambda atom_group: len(atom_group.positions), self.atom_groups))
+    #         self.atom_group_map = list(np.array(self.atom_group_map).cumsum())
+    #         self.atom_group_map = [el + 1 for el in self.atom_group_map]
+    #     return self.atom_group_map[index] + atomId[1]
 
     def get_atom_index(self, atomId: AtomIdentifier) -> int:
+        if not self.atom_group_map:
+            raise Exception("write_atoms must be called first")
+
         index = self.atom_groups.index(atomId[0])
-        if len(self.atom_group_map) <= index:
-            self.atom_group_map = [0] + list(map(lambda atom_group: len(atom_group.positions), self.atom_groups))
-            self.atom_group_map = [el + 1 for el in self.atom_group_map]
+        if atomId[1] < 0:
+            atom_group_length = len(atomId[0].positions)
+            atomId = (atomId[0], atomId[1] + atom_group_length)
         return self.atom_group_map[index] + atomId[1]
 
     def write_atoms(self, file) -> None:
         file.write("\nAtoms # molecular\n\n")
 
         index_offset = 1
-        for i, atom_group in enumerate(self.atom_groups):
+        for atom_group in self.atom_groups:
+            self.atom_group_map.append(index_offset)
             for j, position in enumerate(atom_group.positions):
-                file.write(f"%s %s {i + 1} %s %s %s\n" %(j + index_offset, -1, *position) )
+                file.write(f"%s %s {atom_group.type.index} %s %s %s\n" %(j + index_offset, atom_group.molecule_index, *position) )
             index_offset += len(atom_group.positions)
-    
+
     @staticmethod
     def get_BAI_header(kind: BAI_Kind) -> str:
         lookup = {
@@ -229,8 +281,8 @@ class Generator:
                         file.write(f"%s {atom_group.polymer_bond_type.index} %s %s\n" %(global_index, j + 1, j + 2) )
                         global_index += 1
 
-            for bai in filter(lambda bai: bai.type.kind == kind, self.bais):
-                length = length_lookup[kind]
+            length = length_lookup[kind]
+            for bai in filter(lambda bai: bai.type.kind == kind, self.bais):    
                 file.write(f"%s {bai.type.index} " %(global_index) )
                 formatter = ("%s " * length)[:-1] + "\n"
                 file.write(formatter %(*(self.get_atom_index(bai.atoms[i]) for i in range(length)),))
@@ -253,7 +305,7 @@ class Generator:
 def test_simple_atoms():
     positions = np.zeros(shape=(100, 3))
     gen = Generator()
-    gen.atom_groups.append(AtomGroup(positions, AtomType()))
+    gen.atom_groups.append(AtomGroup(positions, AtomType(), 1))
     gen.set_system_size(10)
     with open("test.gen", 'w') as file:
         gen.write(file)
@@ -262,7 +314,7 @@ def test_simple_atoms():
 def test_simple_atoms_polymer():
     positions = np.zeros(shape=(100, 3))
     gen = Generator()
-    gen.atom_groups.append(AtomGroup(positions, AtomType(), polymer_bond_type=BAI_Type(BAI_Kind.BOND)))
+    gen.atom_groups.append(AtomGroup(positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND)))
     gen.set_system_size(10)
     with open("test.gen", 'w') as file:
         gen.write(file)
@@ -277,10 +329,10 @@ def test_with_bonds():
     bt1 = BAI_Type(BAI_Kind.BOND)
     bt2 = BAI_Type(BAI_Kind.BOND)
 
-    group1 = AtomGroup(positions, AtomType(), polymer_bond_type=bt2)
+    group1 = AtomGroup(positions, AtomType(), 1, polymer_bond_type=bt2)
     gen.atom_groups.append(group1)
 
-    group2 = AtomGroup(np.copy(positions), AtomType())
+    group2 = AtomGroup(np.copy(positions), AtomType(), 3)
     gen.atom_groups.append(group2)
 
     gen.bais.append(
@@ -310,11 +362,34 @@ def test_with_bonds():
     with open("test.gen", 'w') as file:
         gen.write(file)
 
-    
+
+def test_with_pairs():
+    positions = np.zeros(shape=(25, 3))
+
+    gen = Generator()
+    gen.set_system_size(10)
+
+    at1 = AtomType()
+    group1 = AtomGroup(positions, at1, 1)
+    gen.atom_groups.append(group1)
+
+    group2 = AtomGroup(np.copy(positions), AtomType(), 3)
+    gen.atom_groups.append(group2)
+
+    pairwise = PairWise("PairIJ Coeffs # hybrid\n", "lj/cut {} {} {}\n", [0, 0, 0])
+    pairwise.add_interaction(at1, at1, 1, 2, 3)
+
+    gen.pair_interactions.append(pairwise)
+
+    with open("test.gen", 'w') as file:
+        gen.write(file)
+
+
 def all_tests():
     # test_simple_atoms()
     # test_simple_atoms_polymer()
-    test_with_bonds()
+    # test_with_bonds()
+    test_with_pairs()
 
 
 def main():
