@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from numpy.random import default_rng
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
@@ -282,11 +283,12 @@ rArmDR[:,2] = np.linspace( zArm/2,    zArm, nArmSegm)
 
 # A bit of randomness, to avoid exact overlap (pressure is messed up in LAMMPS)
 SMALL = 1e-9
+rng_arms = default_rng(seed=8671288977726523465)
 
-rArmDL += np.random.standard_normal(rArmDL.shape) * SMALL
-rArmUL += np.random.standard_normal(rArmUL.shape) * SMALL
-rArmUR += np.random.standard_normal(rArmUR.shape) * SMALL
-rArmDR += np.random.standard_normal(rArmDR.shape) * SMALL
+rArmDL += rng_arms.standard_normal(size=rArmDL.shape) * SMALL
+rArmUL += rng_arms.standard_normal(size=rArmUL.shape) * SMALL
+rArmUR += rng_arms.standard_normal(size=rArmUR.shape) * SMALL
+rArmDR += rng_arms.standard_normal(size=rArmDR.shape) * SMALL
 
 
 ################################# ATP bridge ####################################
@@ -306,7 +308,8 @@ rATP[:,2] = np.linspace(-bridgeWidth/2, bridgeWidth/2, nATP)
 
 
 # A bit of randomness
-rATP += np.random.standard_normal(rATP.shape) * SMALL
+rng_atp = default_rng(seed=4685150768879447999)
+rATP += rng_atp.standard_normal(rATP.shape) * SMALL
 
 
 ################################ Heads/Kleisin ##################################
@@ -341,7 +344,8 @@ rHK[:,1] = radius * np.sin(phi) - HKradius + radius
 rHK[:,2] = radius * np.cos(phi)
 
 # A bit of randomness
-rHK += np.random.standard_normal(rHK.shape) * SMALL
+rng_rhk = default_rng(seed=8305832029550348799)
+rHK += rng_rhk.standard_normal(size=rHK.shape) * SMALL
 
 
 ############################### Interaction sites ###############################
@@ -425,9 +429,10 @@ rSiteD[16] = rSiteD[2] + SMCspacing * np.array([ siteDhDist,0,0])
 
 
 # Add randomness
-rSiteU += np.random.standard_normal(rSiteU.shape) * SMALL
-rSiteM += np.random.standard_normal(rSiteM.shape) * SMALL
-rSiteD += np.random.standard_normal(rSiteD.shape) * SMALL
+rng_sites = default_rng(seed=8343859591397577529)
+rSiteU += rng_sites.standard_normal(size=rSiteU.shape) * SMALL
+rSiteM += rng_sites.standard_normal(size=rSiteM.shape) * SMALL
+rSiteD += rng_sites.standard_normal(size=rSiteD.shape) * SMALL
 
 
 ############################# Fold upper compartment ############################
