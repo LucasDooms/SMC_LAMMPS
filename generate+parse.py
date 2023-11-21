@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from numpy.random import default_rng
+from scipy.spatial.transform import Rotation
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
@@ -437,20 +438,19 @@ rSiteD += rng_sites.standard_normal(size=rSiteD.shape) * SMALL
 
 ############################# Fold upper compartment ############################
 
-
-c = math.cos(math.radians(foldingAngleAPO))
-s = math.sin(math.radians(foldingAngleAPO))
-
-# Rotation matrix (counter-clockwise about z axis)
-rotMat = np.array([ [c,s,0] , [-s,c,0], [0,0,1] ])
+# Rotation matrix (clockwise about z axis)
+rotMat = Rotation.from_rotvec(-math.radians(foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
 
 # Rotations
-rArmDL = np.einsum('ij,...j->...i', rotMat, rArmDL)
-rArmUL = np.einsum('ij,...j->...i', rotMat, rArmUL)
-rArmUR = np.einsum('ij,...j->...i', rotMat, rArmUR)
-rArmDR = np.einsum('ij,...j->...i', rotMat, rArmDR)
-rSiteU = np.einsum('ij,...j->...i', rotMat, rSiteU)
-rSiteM = np.einsum('ij,...j->...i', rotMat, rSiteM)
+def transpose_rotate_transpose(rotation, array):
+    return rotation.dot(array.transpose()).transpose()
+
+rArmDL = transpose_rotate_transpose(rotMat, rArmDL)
+rArmUL = transpose_rotate_transpose(rotMat, rArmUL)
+rArmUR = transpose_rotate_transpose(rotMat, rArmUR)
+rArmDR = transpose_rotate_transpose(rotMat, rArmDR)
+rSiteU = transpose_rotate_transpose(rotMat, rSiteU)
+rSiteM = transpose_rotate_transpose(rotMat, rSiteM)
 
 
 #################################################################################
