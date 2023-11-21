@@ -513,17 +513,18 @@ rDNA[:,0] -= DNAbondLength*(nDNA-nArcedDNA)/2
 
 
 # Makes sure that the SMC encircles DNA at the right position and at the start of the initial loop
-shift = [-DNAbondLength*(nDNA-loop+nArcedDNA)/2,0,0] - rSiteD[1] - np.array([0,1,0]) * sigmaSiteDvsDNA * 2**(1/6)
+shift = np.array([-DNAbondLength * (nDNA - loop + nArcedDNA) / 2.0, 0, 0]) - rSiteD[1] - np.array([0,1,0]) * sigmaSiteDvsDNA * 2**(1/6)
+shift = shift.reshape(1,3)
 
-rArmDL += shift.reshape(1,3)
-rArmUL += shift.reshape(1,3)
-rArmUR += shift.reshape(1,3)
-rArmDR += shift.reshape(1,3)
-rHK    += shift.reshape(1,3)
-rATP   += shift.reshape(1,3)
-rSiteU += shift.reshape(1,3)
-rSiteM += shift.reshape(1,3)
-rSiteD += shift.reshape(1,3)
+rArmDL += shift
+rArmUL += shift
+rArmUR += shift
+rArmDR += shift
+rHK    += shift
+rATP   += shift
+rSiteU += shift
+rSiteM += shift
+rSiteD += shift
 
 
 #################################################################################
