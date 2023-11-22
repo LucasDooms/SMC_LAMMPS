@@ -1,0 +1,2 @@
+pair_coeff 1 3 soft $(v_epsilon3*v_kB*v_T) $(v_sigma*2^(1/6))	# Bridge on soft
+pair_coeff 1 5 soft $(v_epsilon5*v_kB*v_T) $(v_sigma*2^(1/6))	# Middle site on soft
