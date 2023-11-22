@@ -754,11 +754,8 @@ plt.show()
 #################################################################################
 
 
-parameterfile = open(filepath_param, 'w')
+with open(filepath_param, 'w') as parameterfile:
+    parameterfile.write("# LAMMPS parameter file\n\n")
 
-parameterfile.write("# LAMMPS parameter file\n\n")
-
-for key in parameters:
-    parameterfile.write("variable %s equal %s\n\n"       %(key, parameters[key]))
-
-parameterfile.close()
+    for key in parameters:
+        parameterfile.write("variable %s equal %s\n\n"       %(key, parameters[key]))
