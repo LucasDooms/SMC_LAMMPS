@@ -1,9 +1,0 @@
-pair_coeff     1 3 lj/cut 0                      0                    0           # Bridge off
-pair_coeff     1 4 lj/cut 0                      0                    0           # Top    site off
-pair_coeff     1 5 lj/cut 0                      0                    0           # Middle site off
-pair_coeff     1 6 lj/cut $(v_epsilon6*v_kB*v_T) ${sigma}             ${cutoff6}  # Lower  site on
-angle_coeff    3 harmonic ${angle3kappa}         ${angle3angleAPO1}               # Arms close
-improper_coeff 2          ${improper2kappa}      ${improper2angleAPO}             # Lower compartment unfolds
-improper_coeff 3          ${improper3kappa}      ${improper3angleAPO}             # Lower compartment unfolds
-
-# angle_coeff    3 harmonic ${angle3kappa}         ${angle3angleAPO2}               # Arms close MORE

@@ -301,6 +301,32 @@ class Generator:
         self.write_atoms(file)
         self.write_bai(file)
 
+    @staticmethod
+    def get_script_bai_command_name(pair_or_BAI: BAI_Kind | None) -> str:
+        name = ""
+        match pair_or_BAI:
+            case None:
+                name = "pair_coeff"
+            case BAI_Kind.BOND:
+                name = "bond_coeff"
+            case BAI_Kind.ANGLE:
+                name = "angle_coeff"
+            case BAI_Kind.IMPROPER:
+                name = "improper_coeff"
+            case _:
+                raise Exception("unkown type")
+        return name
+
+    def write_script_bai_coeffs(self, file, pair_or_BAI: BAI_Kind | None, format_string: str, *args) -> None:
+        cmd_name = self.get_script_bai_command_name(pair_or_BAI)
+        # parse args:
+        # if pair type -> get atom indices (two AtomType instances)
+        # else (bai) -> get BAI_Type index
+        # in both cases -> assume arguments have .index field
+        format_args = [arg.index for arg in args]
+        formatted_string = format_string.format(*format_args)
+        file.write(cmd_name + " " + formatted_string)
+
 
 def test_simple_atoms():
     positions = np.zeros(shape=(100, 3))

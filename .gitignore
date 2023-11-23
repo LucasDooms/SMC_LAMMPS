@@ -3,3 +3,4 @@ output.lammpstrj
 datafile
 parameterfile
 log.lammps
+*/states/*

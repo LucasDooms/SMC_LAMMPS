@@ -68,11 +68,26 @@ bridgeWidth = float(parameters['bridgeWidth'])
 # Radius of lower circular-arc compartment (nm)
 HKradius = float(parameters['HKradius'])
 
+# TODO: what is this?
+sigma = float(parameters['sigma'])
+
 # LJ energy of repulsion (kT units)
 epsilon3 = float(parameters['epsilon3'])
 
+# LJ energy of repulsion (kT units) TODO: what is this?
+epsilon4 = float(parameters['epsilon4'])
+
+# LJ energy of repulsion (kT units) TODO: what is this?
+epsilon5 = float(parameters['epsilon5'])
+
 # LJ energy of lower site (kT units)
 epsilon6 = float(parameters['epsilon6'])
+
+# TODO: what is this?
+cutoff4 = float(parameters['cutoff4'])
+
+# TODO: what is this?
+cutoff5 = float(parameters['cutoff5'])
 
 # LJ cutoff of lower site (nm)
 cutoff6 = float(parameters['cutoff6'])
@@ -92,11 +107,17 @@ siteStiffness = float(parameters['siteStiffness'])
 # Folding angle of lower compartment (degrees)
 foldingAngleAPO = float(parameters['foldingAngleAPO'])
 
+# TODO
+foldingAngleATP = float(parameters['foldingAngleATP'])
+
 # Folding stiffness of lower compartment (kT units)
 foldingStiffness = float(parameters['foldingStiffness'])
 
 # Folding asymmetry stiffness of lower compartment (kT units)
 asymmetryStiffness = float(parameters['asymmetryStiffness'])
+
+# TODO
+armsAngleATP = float(parameters['armsAngleATP'])
 
 # Name of generated data file
 filename_data = 'datafile'
@@ -732,6 +753,90 @@ gen.bais += [atp_HK_improper1, atp_HK_improper2, folding_angle_improper1, foldin
 
 with open(filepath_data, 'w') as datafile:
     gen.write(datafile)
+
+
+# TODO
+angle3kappa = armsStiffness * kB * T
+angle3angleATP = armsAngleATP
+
+improper2kappa = foldingStiffness * kB * T
+improper2angleAPO = 180 - foldingAngleAPO
+
+improper3kappa = asymmetryStiffness * kB * T
+improper3angleAPO = abs(90 - foldingAngleAPO)
+
+angle3angleAPO1 = 180 / math.pi * np.arccos(bridgeWidth / armLength)
+angle3angleAPO1 = 180 / math.pi * np.arccos(2 * bridgeWidth / armLength)
+
+improper2angleATP = 180 - foldingAngleATP
+improper3angleATP = abs(90 - foldingAngleATP)
+
+bridge_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, atp_type]
+bridge_on = [None, "{} {} " + f"lj/cut {epsilon3 * kB * T} {sigma} {sigma * 2**(1/6)}\n", dna_type, atp_type]
+
+bridge_soft_off = [None, "{} {} soft 0 0\n", dna_type, atp_type]
+bridge_soft_on = [None, "{} {} soft " + f"{epsilon3 * kB * T} {sigma * 2**(1/6)}\n", dna_type, atp_type]
+
+top_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
+top_site_on = [None, "{} {} " + f"lj/cut {epsilon4 * kB * T} {sigma} {cutoff4}\n", dna_type, siteU_type]
+
+middle_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteM_type]
+middle_site_on = [None, "{} {} " + f"lj/cut {epsilon5 * kB * T} {sigma} {cutoff5}\n", dna_type, siteM_type]
+
+middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
+middle_site_soft_on = [None, "{} {} soft " + f"{epsilon5 * kB * T} {sigma * 2**(1/6)}\n", dna_type, siteM_type]
+
+lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
+lower_site_on = [None, "{} {} " + f"lj/cut {epsilon6 * kB * T} {sigma} {cutoff6}\n", dna_type, siteD_type]
+
+arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO1}\n", angle_t3]
+arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleATP}\n", angle_t3]
+
+lower_compartment_folds1 = [BAI_Kind.IMPROPER, "{} "+ f"{improper2kappa} {improper2angleATP}\n", imp_t2]
+lower_compartment_unfolds1 = [BAI_Kind.IMPROPER, "{} "+ f"{improper2kappa} {improper2angleAPO}\n", imp_t2]
+
+lower_compartment_folds2 = [BAI_Kind.IMPROPER, "{} " + f"{improper3kappa} {improper3angleATP}\n", imp_t3]
+lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{improper3kappa} {improper3angleAPO}\n", imp_t3]
+
+# make sure the directory exists
+states_path = path / "states"
+states_path.mkdir(exist_ok=True)
+
+with open(states_path / "adp_bound", 'w') as adp_bound_file:
+    gen.write_script_bai_coeffs(adp_bound_file, *bridge_off)
+    gen.write_script_bai_coeffs(adp_bound_file, *top_site_on)
+    gen.write_script_bai_coeffs(adp_bound_file, *middle_site_off)
+    gen.write_script_bai_coeffs(adp_bound_file, *lower_site_off)
+    gen.write_script_bai_coeffs(adp_bound_file, *arms_open)
+    gen.write_script_bai_coeffs(adp_bound_file, *lower_compartment_unfolds1)
+    gen.write_script_bai_coeffs(adp_bound_file, *lower_compartment_unfolds2)
+
+with open(states_path / "apo", 'w') as apo_file:
+    gen.write_script_bai_coeffs(apo_file, *bridge_off)
+    gen.write_script_bai_coeffs(apo_file, *top_site_off)
+    gen.write_script_bai_coeffs(apo_file, *middle_site_off)
+    gen.write_script_bai_coeffs(apo_file, *lower_site_on)
+    gen.write_script_bai_coeffs(apo_file, *arms_close)
+    gen.write_script_bai_coeffs(apo_file, *lower_compartment_unfolds1)
+    gen.write_script_bai_coeffs(apo_file, *lower_compartment_unfolds2)
+    
+    # gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
+
+with open(states_path / "atp_bound_1", 'w') as atp_bound_1_file:
+    gen.write_script_bai_coeffs(atp_bound_1_file, *bridge_soft_on)
+    gen.write_script_bai_coeffs(atp_bound_1_file, *middle_site_soft_on)
+
+with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
+    gen.write_script_bai_coeffs(atp_bound_2_file, *bridge_soft_off)
+    gen.write_script_bai_coeffs(atp_bound_2_file, *middle_site_soft_off)
+    gen.write_script_bai_coeffs(atp_bound_2_file, *bridge_on)
+    gen.write_script_bai_coeffs(atp_bound_2_file, *top_site_on)
+    gen.write_script_bai_coeffs(atp_bound_2_file, *middle_site_on)
+# pair_coeff     1 5 lj/cut $(v_epsilon6*v_kB*v_T) ${sigma}             ${cutoff6}         # Middle site on, as strong as lower site
+    gen.write_script_bai_coeffs(atp_bound_2_file, *lower_site_on)
+    gen.write_script_bai_coeffs(atp_bound_2_file, *arms_open)
+    gen.write_script_bai_coeffs(atp_bound_2_file, *lower_compartment_folds1)
+    gen.write_script_bai_coeffs(atp_bound_2_file, *lower_compartment_folds2)
 
 
 """
