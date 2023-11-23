@@ -89,6 +89,7 @@ armsAngleATP = 130.
 
 epsilon3 = 3.
 epsilon4 = 6.
+# TODO change middle site as strong as lower site
 epsilon5 = 6.
 epsilon6 = 100.
 
