@@ -71,7 +71,8 @@ class BAI:
 
 class PairWise:
 
-    def __init__(self, header: str, template: str, default: List[Any]) -> None:
+    def __init__(self, header: str, template: str, default: List[Any] | None) -> None:
+        """if default is None -> don't insert missing interactions"""
         self.header = header
         self.template = template
         self.default = default
@@ -84,7 +85,7 @@ class PairWise:
 
         return self
 
-    def get_all_interactions(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType, str]]:
+    def get_all_interaction_pairs(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType]] :
         present_atom_types = set()
         for pair in self.pairs:
             present_atom_types.add(pair[0])
@@ -95,6 +96,11 @@ class PairWise:
         for i in range(len(all_atom_types)):
             for j in range(i, len(all_atom_types)):
                 all_inters.append((all_atom_types[i], all_atom_types[j]))
+
+        return all_inters
+
+    def get_all_interactions(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType, str]]:
+        all_inters = self.get_all_interaction_pairs(all_atom_types)
         
         def pair_in_inter(interaction: Tuple[AtomType, AtomType]) -> Tuple[AtomType, AtomType, List[Any]] | None:
             for pair in self.pairs:
@@ -110,9 +116,10 @@ class PairWise:
         for inter in all_inters:
             pair = pair_in_inter(inter)
             if pair is None:
-                final_pairs.append(
-                    (inter[0], inter[1], self.template.format(*self.default))
-                )
+                if self.default is not None:
+                    final_pairs.append(
+                        (inter[0], inter[1], self.template.format(*self.default))
+                    )
             else:
                 final_pairs.append(
                     (pair[0], pair[1], self.template.format(*pair[2]))
