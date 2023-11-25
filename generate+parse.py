@@ -5,119 +5,26 @@ from scipy.spatial.transform import Rotation
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
+from importlib import import_module
+import default_parameters
 #import matplotlib.pyplot as plt
 
-
-#################################################################################
-#                             Parse parameters-file                              #
-#################################################################################
-
-
-def readParameters(path = Path('.'), filename='parameters'):
-    # '/' operator combines the paths
-    parameterFile = open(path / filename, 'r')
-
-    # Remove lines starting with '#'
-    lines = [x.split(' ') for x in parameterFile.read().split('\n') if len(x)>0 and x[0] != '#']
-
-    # Remove '=' and spaces
-    lines = [[y.strip() for y in x if y!='=' and y!=''] for x in lines]
-
-    parameters = {}
-
-    for line in lines:
-        if len(line) < 3:
-            parameters[line[0]] = line[1]
-        else:
-            parameters[line[0]] = line[1:]
-
-    parameterFile.close()
-
-    return parameters
-
-
-#################################################################################
-#                               Input parameters                                #
-#################################################################################
 
 if len(argv) != 2:
     raise Exception("Provide a folder path")
 path = Path(argv[1])
 
-parameters = readParameters(path)
+parameters = import_module((path / "parameters").as_posix().replace('/', '.'))
 
-# Initial loop size (DNA beads)
-loop = int(parameters['loop'])
+class Parameters:
 
-# Diameter of initial loop (nm)
-diameter = int(parameters['diameter'])
+    def __getattr__(self, var_name):
+        return getattr(parameters, var_name, getattr(default_parameters, var_name))
 
+    def __dir__(self):
+        return list(set(dir(parameters)) | set(dir(default_parameters)))
 
-# Number of DNA beads
-nDNA = int(parameters['N'])
-
-# Number of base pairs per DNA bead
-DNAdiscr = float(parameters['n'])
-
-# Length of each coiled-coil arm (nm)
-armLength = float(parameters['armLength'])
-
-# Width of ATP bridge (nm)
-bridgeWidth = float(parameters['bridgeWidth'])
-
-# Radius of lower circular-arc compartment (nm)
-HKradius = float(parameters['HKradius'])
-
-# TODO: what is this?
-sigma = float(parameters['sigma'])
-
-# LJ energy of repulsion (kT units)
-epsilon3 = float(parameters['epsilon3'])
-
-# LJ energy of repulsion (kT units) TODO: what is this?
-epsilon4 = float(parameters['epsilon4'])
-
-# LJ energy of repulsion (kT units) TODO: what is this?
-epsilon5 = float(parameters['epsilon5'])
-
-# LJ energy of lower site (kT units)
-epsilon6 = float(parameters['epsilon6'])
-
-# TODO: what is this?
-cutoff4 = float(parameters['cutoff4'])
-
-# TODO: what is this?
-cutoff5 = float(parameters['cutoff5'])
-
-# LJ cutoff of lower site (nm)
-cutoff6 = float(parameters['cutoff6'])
-
-# SMC-DNA repulsion radius (nm)
-intRadSMCvsDNA = float(parameters['intRadSMCvsDNA'])
-
-# Bending stiffness of arm-bridge angle (kT units)
-armsStiffness = float(parameters['armsStiffness'])
-
-# Bending stiffness of elbows (kT units)
-elbowsStiffness = float(parameters['elbowsStiffness'])
-
-# Alignment stiffness of binding sites (kT units)
-siteStiffness = float(parameters['siteStiffness'])
-
-# Folding angle of lower compartment (degrees)
-foldingAngleAPO = float(parameters['foldingAngleAPO'])
-
-# TODO
-foldingAngleATP = float(parameters['foldingAngleATP'])
-
-# Folding stiffness of lower compartment (kT units)
-foldingStiffness = float(parameters['foldingStiffness'])
-
-# Folding asymmetry stiffness of lower compartment (kT units)
-asymmetryStiffness = float(parameters['asymmetryStiffness'])
-
-# TODO
-armsAngleATP = float(parameters['armsAngleATP'])
+par = Parameters()
 
 # Name of generated data file
 filename_data = 'datafile'
@@ -127,6 +34,9 @@ filepath_data = path / filename_data
 filename_param = 'parameterfile'
 filepath_param = path / filename_param
 
+nDNA = par.N
+DNAdiscr = par.n
+
 
 #################################################################################
 #                               Other parameters                                #
@@ -134,10 +44,10 @@ filepath_param = path / filename_param
 
 
 # Simulation temperature (K)
-T = float(parameters['T'])
+T = par.T
 
 # Boltzmann's constant (pN nm / K)
-kB = float(parameters['kB'])
+kB = par.kB
 
 
 #################################### Masses #####################################
@@ -197,7 +107,7 @@ DNAcontourLength = DNAbondLength * nDNA
 # Desirable SMC spacing (radius of 1 SMC bead is R = intRadSMCvsDNA)
 # Equal to R:   Minimum diameter = sqrt(3)    = 1.73 R
 # Equal to R/2: Minimum diameter = sqrt(15)/2 = 1.94 R
-SMCspacing = intRadSMCvsDNA/2
+SMCspacing = par.intRadSMCvsDNA/2
 
 
 #################
@@ -242,7 +152,7 @@ boxWidth = 2*DNAcontourLength
 ###########
 
 sigmaDNAvsDNA   = intRadDNAvsDNA
-epsilonDNAvsDNA = epsilon3
+epsilonDNAvsDNA = par.epsilon3
 rcutDNAvsDNA    = sigmaDNAvsDNA * 2**(1/6)
 
 
@@ -250,8 +160,8 @@ rcutDNAvsDNA    = sigmaDNAvsDNA * 2**(1/6)
 # SMC-DNA #
 ###########
 
-sigmaSMCvsDNA   = intRadSMCvsDNA
-epsilonSMCvsDNA = epsilon3
+sigmaSMCvsDNA   = par.intRadSMCvsDNA
+epsilonSMCvsDNA = par.epsilon3
 rcutSMCvsDNA    = sigmaSMCvsDNA * 2**(1/6)
 
 
@@ -263,10 +173,10 @@ rcutSMCvsDNA    = sigmaSMCvsDNA * 2**(1/6)
 sigmaSiteDvsDNA = sigmaSMCvsDNA
 
 # Cutoff distance of LJ attraction
-rcutSiteDvsDNA = cutoff6
+rcutSiteDvsDNA = par.cutoff6
 
 # Epsilon parameter of LJ attraction
-epsilonSiteDvsDNA = epsilon6 * kB*T
+epsilonSiteDvsDNA = par.epsilon6 * kB*T
 
 
 #################################################################################
@@ -278,7 +188,7 @@ epsilonSiteDvsDNA = epsilon6 * kB*T
 
 
 # Number of beads forming each arm segment (err on the high side)
-nArmSegm = math.ceil(armLength / 2 / SMCspacing)
+nArmSegm = math.ceil(par.armLength / 2 / SMCspacing)
 
 # Create list of 3 zeros for later coordinates of each arm bead for each arm segment (U=up, D=down, L=left, R=right)
 rArmDL = np.zeros((nArmSegm,3))
@@ -287,8 +197,8 @@ rArmUR = np.zeros((nArmSegm,3))
 rArmDR = np.zeros((nArmSegm,3))
 
 # z and y lengths of each arm (2 aligned segments), for the initial triangular geometry
-zArm = bridgeWidth / 2
-yArm = ( armLength**2 - zArm**2 )**0.5 
+zArm = par.bridgeWidth / 2
+yArm = ( par.armLength**2 - zArm**2 )**0.5 
 
 # y positions
 rArmDL[:,1] = np.linspace(      0,  yArm/2, nArmSegm)
@@ -317,7 +227,7 @@ rArmDR += rng_arms.standard_normal(size=rArmDR.shape) * SMALL
 
 
 # Number of beads forming the ATP ring (err on the high side)
-nATP = math.ceil( bridgeWidth / SMCspacing )
+nATP = math.ceil( par.bridgeWidth / SMCspacing )
 
 # We want an odd number (necessary for angle/dihedral interactions)
 if nATP%2 == 0:
@@ -326,7 +236,7 @@ if nATP%2 == 0:
 
 # Positions
 rATP      = np.zeros((nATP,3))
-rATP[:,2] = np.linspace(-bridgeWidth/2, bridgeWidth/2, nATP)
+rATP[:,2] = np.linspace(-par.bridgeWidth/2, par.bridgeWidth/2, nATP)
 
 
 # A bit of randomness
@@ -338,11 +248,11 @@ rATP += rng_atp.standard_normal(rATP.shape) * SMALL
 
 
 # Circle-arc radius
-radius = ( HKradius**2 + (bridgeWidth/2)**2 ) / ( 2 * HKradius )
+radius = ( par.HKradius**2 + (par.bridgeWidth/2)**2 ) / ( 2 * par.HKradius )
 
 # Opening angle of circular arc
-phi0 = 2 * math.asin( bridgeWidth / 2 / radius )
-if HKradius > bridgeWidth/2:
+phi0 = 2 * math.asin( par.bridgeWidth / 2 / radius )
+if par.HKradius > par.bridgeWidth/2:
     phi0 = 2*math.pi - phi0
 
 
@@ -356,13 +266,13 @@ if nHK%2 == 0:
 
 # Polar angle
 phi = np.linspace(-(math.pi-phi0)/2, -(math.pi+phi0)/2, nHK) 
-if HKradius > bridgeWidth/2:
+if par.HKradius > par.bridgeWidth/2:
     phi = np.linspace((phi0-math.pi)/2, -math.pi-(phi0-math.pi)/2, nHK)
 
 
 # Positions
 rHK      = np.zeros((nHK,3))
-rHK[:,1] = radius * np.sin(phi) - HKradius + radius
+rHK[:,1] = radius * np.sin(phi) - par.HKradius + radius
 rHK[:,2] = radius * np.cos(phi)
 
 # A bit of randomness
@@ -460,7 +370,7 @@ rSiteD += rng_sites.standard_normal(size=rSiteD.shape) * SMALL
 ############################# Fold upper compartment ############################
 
 # Rotation matrix (clockwise about z axis)
-rotMat = Rotation.from_rotvec(-math.radians(foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
+rotMat = Rotation.from_rotvec(-math.radians(par.foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
 
 # Rotations
 def transpose_rotate_transpose(rotation, array):
@@ -481,7 +391,7 @@ rSiteM = transpose_rotate_transpose(rotMat, rSiteM)
 
 # Number of beads forming the arced DNA piece (err on the high side)
 
-nArcedDNA = math.ceil( math.pi * diameter / 2 / DNAbondLength )
+nArcedDNA = math.ceil( math.pi * par.diameter / 2 / DNAbondLength )
 
 
 # We want an odd number (necessary for angle/dihedral interactions)
@@ -495,7 +405,7 @@ nUpperDNA = int((nDNA-nArcedDNA)/2)
 
 rUpperDNAtemp      = np.zeros((nUpperDNA,3))
 rUpperDNAtemp[:,0] = np.arange(1, nUpperDNA+1) * DNAbondLength
-rUpperDNAtemp[:,1] = diameter
+rUpperDNAtemp[:,1] = par.diameter
 
 rUpperDNA = rUpperDNAtemp[::-1]
 
@@ -505,8 +415,8 @@ rUpperDNA = rUpperDNAtemp[::-1]
 angle = np.linspace(math.pi/2, 3*math.pi/2, nArcedDNA)
 
 rArcedDNA      = np.zeros((nArcedDNA,3))
-rArcedDNA[:,0] = (diameter/2)*np.cos(angle)
-rArcedDNA[:,1] = (diameter/2)*np.sin(angle) + diameter/2
+rArcedDNA[:,0] = (par.diameter/2)*np.cos(angle)
+rArcedDNA[:,1] = (par.diameter/2)*np.sin(angle) + par.diameter/2
 
 
 # Lower DNA piece
@@ -534,7 +444,7 @@ rDNA[:,0] -= DNAbondLength*(nDNA-nArcedDNA)/2
 
 
 # Makes sure that the SMC encircles DNA at the right position and at the start of the initial loop
-shift = np.array([-DNAbondLength * (nDNA - loop + nArcedDNA) / 2.0, 0, 0]) - rSiteD[1] - np.array([0,1,0]) * sigmaSiteDvsDNA * 2**(1/6)
+shift = np.array([-DNAbondLength * (nDNA - par.loop + nArcedDNA) / 2.0, 0, 0]) - rSiteD[1] - np.array([0,1,0]) * sigmaSiteDvsDNA * 2**(1/6)
 shift = shift.reshape(1,3)
 
 rArmDL += shift
@@ -586,17 +496,17 @@ kDNA = DNAstiff * kB*T / DNAbondLength
 # Angular trap constants
 # kElbows: Bending of elbows (kinkable arms, hence soft)
 # kArms:   Arms opening angle wrt ATP bridge (should be stiff)
-kElbows = elbowsStiffness*kB*T
-kArms   =   armsStiffness*kB*T
+kElbows = par.elbowsStiffness*kB*T
+kArms   =   par.armsStiffness*kB*T
 
 # Fixes site orientation (prevents free rotation, should be stiff)
-kAlignSite = siteStiffness*kB*T
+kAlignSite = par.siteStiffness*kB*T
 
 # Folding stiffness of lower compartment (should be stiff)
-kFolding = foldingStiffness*kB*T
+kFolding = par.foldingStiffness*kB*T
 
 # Makes folding asymmetric (should be stiff)
-kAsymmetry = asymmetryStiffness*kB*T
+kAsymmetry = par.asymmetryStiffness*kB*T
 
 # SET UP DATAFILE GENERATOR
 gen = Generator()
@@ -716,7 +626,7 @@ gen.bais += bonds
 
 angle_t1 = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n"   % ( kElbows, 180 ) )
-angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n\n" % ( kArms,  np.rad2deg( math.acos( bridgeWidth / armLength ) ) ) )
+angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n\n" % ( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
 
 # DNA stiffness
 dna_angle_list = []
@@ -738,8 +648,8 @@ gen.bais += dna_angle_list + [arm_arm_angle1, arm_arm_angle2, arm_atp_angle1, ar
 
 # We impose zero improper angle
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kAlignSite, 0 ) )
-imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kFolding,   180 - foldingAngleAPO ) )
-imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n\n" %( kAsymmetry,  math.fabs(90 - foldingAngleAPO) ) )
+imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kFolding,   180 - par.foldingAngleAPO ) )
+imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n\n" %( kAsymmetry,  math.fabs(90 - par.foldingAngleAPO) ) )
 
 # Fix orientation of ATP/kleisin bridge
 # WARNING: siteM is split into groups, be careful with index
@@ -761,38 +671,38 @@ with open(filepath_data, 'w') as datafile:
 
 
 # TODO
-angle3kappa = armsStiffness * kB * T
-angle3angleATP = armsAngleATP
+angle3kappa = par.armsStiffness * kB * T
+angle3angleATP = par.armsAngleATP
 
-improper2kappa = foldingStiffness * kB * T
-improper2angleAPO = 180 - foldingAngleAPO
+improper2kappa = par.foldingStiffness * kB * T
+improper2angleAPO = 180 - par.foldingAngleAPO
 
-improper3kappa = asymmetryStiffness * kB * T
-improper3angleAPO = abs(90 - foldingAngleAPO)
+improper3kappa = par.asymmetryStiffness * kB * T
+improper3angleAPO = abs(90 - par.foldingAngleAPO)
 
-angle3angleAPO1 = 180 / math.pi * np.arccos(bridgeWidth / armLength)
-angle3angleAPO1 = 180 / math.pi * np.arccos(2 * bridgeWidth / armLength)
+angle3angleAPO1 = 180 / math.pi * np.arccos(par.bridgeWidth / par.armLength)
+angle3angleAPO1 = 180 / math.pi * np.arccos(2 * par.bridgeWidth / par.armLength)
 
-improper2angleATP = 180 - foldingAngleATP
-improper3angleATP = abs(90 - foldingAngleATP)
+improper2angleATP = 180 - par.foldingAngleATP
+improper3angleATP = abs(90 - par.foldingAngleATP)
 
 bridge_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, atp_type]
-bridge_on = [None, "{} {} " + f"lj/cut {epsilon3 * kB * T} {sigma} {sigma * 2**(1/6)}\n", dna_type, atp_type]
+bridge_on = [None, "{} {} " + f"lj/cut {par.epsilon3 * kB * T} {par.sigma} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
 
 bridge_soft_off = [None, "{} {} soft 0 0\n", dna_type, atp_type]
-bridge_soft_on = [None, "{} {} soft " + f"{epsilon3 * kB * T} {sigma * 2**(1/6)}\n", dna_type, atp_type]
+bridge_soft_on = [None, "{} {} soft " + f"{par.epsilon3 * kB * T} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
 
 top_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
-top_site_on = [None, "{} {} " + f"lj/cut {epsilon4 * kB * T} {sigma} {cutoff4}\n", dna_type, siteU_type]
+top_site_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kB * T} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
 
 middle_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteM_type]
-middle_site_on = [None, "{} {} " + f"lj/cut {epsilon5 * kB * T} {sigma} {cutoff5}\n", dna_type, siteM_type]
+middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kB * T} {par.sigma} {par.cutoff5}\n", dna_type, siteM_type]
 
 middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
-middle_site_soft_on = [None, "{} {} soft " + f"{epsilon5 * kB * T} {sigma * 2**(1/6)}\n", dna_type, siteM_type]
+middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kB * T} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
 
 lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
-lower_site_on = [None, "{} {} " + f"lj/cut {epsilon6 * kB * T} {sigma} {cutoff6}\n", dna_type, siteD_type]
+lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kB * T} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 
 arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO1}\n", angle_t3]
 arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleATP}\n", angle_t3]
@@ -864,8 +774,14 @@ plt.show()
 #################################################################################
 
 
+def get_variables_from_module(module):
+    all_vars = dir(module)
+    return list(filter(lambda name: not name.startswith("_"), all_vars))
+
+
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 
-    for key in parameters:
-        parameterfile.write("variable %s equal %s\n\n"       %(key, parameters[key]))
+    params = get_variables_from_module(par)
+    for key in params:
+        parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))

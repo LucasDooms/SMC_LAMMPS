@@ -19,6 +19,6 @@ args = parser.parse_args()
 path = Path(args.directory)
 
 if args.generate:
-    subprocess.run(f"python generate+parse.py {path.absolute()}".split(" "))
+    subprocess.run(f"python generate+parse.py {path}".split(" "))
 
 subprocess.run(f"{args.executable} -in {Path(args.input).absolute()}", cwd=path.absolute())
