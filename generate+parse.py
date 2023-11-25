@@ -603,7 +603,7 @@ gen.pair_interactions.append(pair_soft_inter)
 # Every joint is kept in place through bonds
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
 bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, bondMin1))
-bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n\n"           %(kBondAlign2, bondMin2))
+bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"           %(kBondAlign2, bondMin2))
 
 bonds = [
     BAI(bond_t2, (armDL_group, -1), (armUL_group, 0)),
@@ -626,7 +626,7 @@ gen.bais += bonds
 
 angle_t1 = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n"   % ( kElbows, 180 ) )
-angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n\n" % ( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
+angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" % ( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
 
 # DNA stiffness
 dna_angle_list = []
@@ -649,7 +649,7 @@ gen.bais += dna_angle_list + [arm_arm_angle1, arm_arm_angle2, arm_atp_angle1, ar
 # We impose zero improper angle
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kAlignSite, 0 ) )
 imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kFolding,   180 - par.foldingAngleAPO ) )
-imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n\n" %( kAsymmetry,  math.fabs(90 - par.foldingAngleAPO) ) )
+imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry,  math.fabs(90 - par.foldingAngleAPO) ) )
 
 # Fix orientation of ATP/kleisin bridge
 # WARNING: siteM is split into groups, be careful with index

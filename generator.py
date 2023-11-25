@@ -184,13 +184,17 @@ class Generator:
 
         file.write("%s bonds\n"       %totalBonds)
         file.write("%s angles\n"      %totalAngles)
-        file.write("%s impropers\n\n" %totalImpropers)
+        file.write("%s impropers\n" %totalImpropers)
+
+        file.write("\n")
 
     def write_types(self, file) -> None:
         file.write("%s atom types\n"       %len(self.get_all_atom_types()))
         file.write("%s bond types\n"       %len(self.get_all_types(BAI_Kind.BOND)))
         file.write("%s angle types\n"      %len(self.get_all_types(BAI_Kind.ANGLE)))
-        file.write("%s improper types\n\n" %len(self.get_all_types(BAI_Kind.IMPROPER)))
+        file.write("%s improper types\n" %len(self.get_all_types(BAI_Kind.IMPROPER)))
+
+        file.write("\n")
 
     def write_system_size(self, file) -> None:
         file.write("# System size\n")
@@ -200,7 +204,9 @@ class Generator:
         half_width = self.box_width / 2.0
         file.write("%s %s xlo xhi\n"   %(-half_width, half_width))
         file.write("%s %s ylo yhi\n"   %(-half_width, half_width))
-        file.write("%s %s zlo zhi\n\n" %(-half_width, half_width))
+        file.write("%s %s zlo zhi\n" %(-half_width, half_width))
+
+        file.write("\n")
 
     def write_masses(self, file) -> None:
         file.write("Masses\n\n")
@@ -229,6 +235,7 @@ class Generator:
                     continue
                 file.write(f"{global_index} " + bai_type.coefficients)
                 global_index += 1
+            file.write("\n")
 
     def write_pair_interactions(self, file) -> None:
         all_atom_types = self.get_all_atom_types()
@@ -236,6 +243,7 @@ class Generator:
             file.write(pair.header)
             for atom_type1, atom_type2, text in pair.get_all_interactions(all_atom_types):
                 file.write(f"{atom_type1.index} {atom_type2.index} " + text)
+            file.write("\n")
 
     # def get_atom_index(self, atomId: AtomIdentifier) -> int:
     #     index = self.atom_groups.index(atomId[0])
@@ -256,7 +264,7 @@ class Generator:
         return self.atom_group_map[index] + atomId[1]
 
     def write_atoms(self, file) -> None:
-        file.write("\nAtoms # molecular\n\n")
+        file.write("Atoms # molecular\n\n")
 
         index_offset = 1
         for atom_group in self.atom_groups:
@@ -265,12 +273,14 @@ class Generator:
                 file.write(f"%s %s {atom_group.type.index} %s %s %s\n" %(j + index_offset, atom_group.molecule_index, *position) )
             index_offset += len(atom_group.positions)
 
+        file.write("\n")
+
     @staticmethod
     def get_BAI_header(kind: BAI_Kind) -> str:
         lookup = {
-            BAI_Kind.BOND: "\nBonds\n\n",
-            BAI_Kind.ANGLE: "\nAngles\n\n",
-            BAI_Kind.IMPROPER: "\nImpropers\n\n"
+            BAI_Kind.BOND: "Bonds\n\n",
+            BAI_Kind.ANGLE: "Angles\n\n",
+            BAI_Kind.IMPROPER: "Impropers\n\n"
         }
         return lookup[kind]
 
@@ -295,13 +305,14 @@ class Generator:
                 file.write(formatter %(*(self.get_atom_index(bai.atoms[i]) for i in range(length)),))
                 global_index += 1
 
+            file.write("\n")
+
     def write(self, file) -> None:
         self.write_header(file)
         self.write_amounts(file)
-        file.write("\n")
         self.write_types(file)
-        file.write("\n")
         self.write_system_size(file)
+        file.write("\n")
         self.write_masses(file)
         self.write_BAI_coeffs(file)
         self.write_pair_interactions(file)
