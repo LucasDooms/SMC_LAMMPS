@@ -717,41 +717,56 @@ lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{improper3kappa} {imp
 states_path = path / "states"
 states_path.mkdir(exist_ok=True)
 
+def apply(function, file, list_of_args):
+    for args in list_of_args:
+        function(file, *args)
+
 with open(states_path / "adp_bound", 'w') as adp_bound_file:
-    gen.write_script_bai_coeffs(adp_bound_file, *bridge_off)
-    gen.write_script_bai_coeffs(adp_bound_file, *top_site_on)
-    gen.write_script_bai_coeffs(adp_bound_file, *middle_site_off)
-    gen.write_script_bai_coeffs(adp_bound_file, *lower_site_off)
-    gen.write_script_bai_coeffs(adp_bound_file, *arms_open)
-    gen.write_script_bai_coeffs(adp_bound_file, *lower_compartment_unfolds1)
-    gen.write_script_bai_coeffs(adp_bound_file, *lower_compartment_unfolds2)
+    options = [
+       bridge_off,
+       top_site_on,
+       middle_site_off,
+       lower_site_off,
+       arms_open,
+       lower_compartment_unfolds1,
+       lower_compartment_unfolds2
+    ]
+    apply(gen.write_script_bai_coeffs, adp_bound_file, options)
 
 with open(states_path / "apo", 'w') as apo_file:
-    gen.write_script_bai_coeffs(apo_file, *bridge_off)
-    gen.write_script_bai_coeffs(apo_file, *top_site_off)
-    gen.write_script_bai_coeffs(apo_file, *middle_site_off)
-    gen.write_script_bai_coeffs(apo_file, *lower_site_on)
-    gen.write_script_bai_coeffs(apo_file, *arms_close)
-    gen.write_script_bai_coeffs(apo_file, *lower_compartment_unfolds1)
-    gen.write_script_bai_coeffs(apo_file, *lower_compartment_unfolds2)
+    options = [
+        bridge_off,
+        top_site_off,
+        middle_site_off,
+        lower_site_on,
+        arms_close,
+        lower_compartment_unfolds1,
+        lower_compartment_unfolds2
+    ]
+    apply(gen.write_script_bai_coeffs, apo_file, options)
     
     # gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
 
 with open(states_path / "atp_bound_1", 'w') as atp_bound_1_file:
-    gen.write_script_bai_coeffs(atp_bound_1_file, *bridge_soft_on)
-    gen.write_script_bai_coeffs(atp_bound_1_file, *middle_site_soft_on)
+    options = [
+        bridge_soft_on,
+        middle_site_soft_on
+    ]
+    apply(gen.write_script_bai_coeffs, atp_bound_1_file, options)
 
 with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
-    gen.write_script_bai_coeffs(atp_bound_2_file, *bridge_soft_off)
-    gen.write_script_bai_coeffs(atp_bound_2_file, *middle_site_soft_off)
-    gen.write_script_bai_coeffs(atp_bound_2_file, *bridge_on)
-    gen.write_script_bai_coeffs(atp_bound_2_file, *top_site_on)
-    gen.write_script_bai_coeffs(atp_bound_2_file, *middle_site_on)
-# pair_coeff     1 5 lj/cut $(v_epsilon6*v_kB*v_T) ${sigma}             ${cutoff6}         # Middle site on, as strong as lower site
-    gen.write_script_bai_coeffs(atp_bound_2_file, *lower_site_on)
-    gen.write_script_bai_coeffs(atp_bound_2_file, *arms_open)
-    gen.write_script_bai_coeffs(atp_bound_2_file, *lower_compartment_folds1)
-    gen.write_script_bai_coeffs(atp_bound_2_file, *lower_compartment_folds2)
+    options = [
+        bridge_soft_off,
+        middle_site_soft_off,
+        bridge_on,
+        top_site_on,
+        middle_site_on,
+        lower_site_on,
+        arms_open,
+        lower_compartment_folds1,
+        lower_compartment_folds2
+    ]
+    apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
 
 
 """
