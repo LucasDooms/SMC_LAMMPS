@@ -4,6 +4,20 @@ from enum import Enum
 import numpy as np
 
 
+"""
+generator.py
+------------
+How to use:
+    - create a Generator instance
+    - create AtomType instances for each type you need
+    - create BAI_Type for Bond/Angle/Improper types
+    - define AtomGroup with positions and type
+    - define BAI for interactions between specific atoms
+    - define PairWise, and use add_interaction to define global interactions
+    - append all defined AtomGroup, BAI, and PairWise instances to the lists in Generator
+    - call Generator.write(file) to create the final datafile
+"""
+
 class AtomType:
 
     index = 1
@@ -20,6 +34,7 @@ class BAI_Kind(Enum):
     IMPROPER = 3
 
 
+# number of arguments (atom ids) needed to define a BAI interaction
 length_lookup = dict({
     BAI_Kind.BOND: 2,
     BAI_Kind.ANGLE: 3,
@@ -32,6 +47,9 @@ class BAI_Type:
     indices = {kind: 1 for kind in BAI_Kind}
 
     def __init__(self, kind: BAI_Kind, coefficients: str = "") -> None:
+        """coefficients will be printed after the index in a datafile
+        e.g. 3 harmonic 2 5
+        (where 3 is the index and the rest is the coefficients string)"""
         self.index = self.indices[kind]
         self.indices[kind] += 1
         self.kind = kind
@@ -41,9 +59,10 @@ class BAI_Type:
 class AtomGroup:
 
     """
-        positions: list of 3d positions of (n) atoms
-        mass (float): mass of each atom
-        polymer_bond_type : if None -> no bonds, otherwise all atoms will from bonds as a polymer
+        positions: list of 3d positions of (n) atoms [[x, y, z], ...]
+        atom_type: type of the atoms
+        molecule_index (int): the molecule index which is needed for atom_style molecule
+        polymer_bond_type: if None -> no bonds, otherwise all atoms will form bonds as a polymer
     """
 
     def __init__(self, positions: List[List[float]],
@@ -63,6 +82,10 @@ AtomIdentifier = Tuple[AtomGroup, int]
 
 class BAI:
 
+    """
+        Represents a Bond/Angle/Improper interaction between a certain number of atoms
+    """
+
     def __init__(self, type: BAI_Type, *atoms: AtomIdentifier) -> None:
         """Length of atoms should be 2 for Bond, 3 for Angle, 4 for Improper"""
         self.type = type
@@ -70,6 +93,15 @@ class BAI:
 
 
 class PairWise:
+
+    """
+        Represents pair interactions between all atoms of two atoms ids.
+
+        header: string defining the interaction style, e.g. "PairIJ Coeffs # hybrid"
+        template: a string with empty formatters `{}` for the interaction parameters, e.g. "lj/cut {} {} {}"
+        default: a list of default parameters (used to fill out all interactions, since LAMMPS requires them
+                                               to all be explicitly defined)
+    """
 
     def __init__(self, header: str, template: str, default: List[Any] | None) -> None:
         """if default is None -> don't insert missing interactions"""
@@ -85,7 +117,13 @@ class PairWise:
 
         return self
 
-    def get_all_interaction_pairs(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType]] :
+    def write(self, file, atom_types: List[AtomType]) -> None:
+        file.write(self.header)
+        for atom_type1, atom_type2, text in self.get_all_interactions(atom_types):
+            file.write(f"{atom_type1.index} {atom_type2.index} " + text)
+        file.write("\n")
+
+    def get_all_interaction_pairs(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType]]:
         present_atom_types = set()
         for pair in self.pairs:
             present_atom_types.add(pair[0])
@@ -240,10 +278,7 @@ class Generator:
     def write_pair_interactions(self, file) -> None:
         all_atom_types = self.get_all_atom_types()
         for pair in self.pair_interactions:
-            file.write(pair.header)
-            for atom_type1, atom_type2, text in pair.get_all_interactions(all_atom_types):
-                file.write(f"{atom_type1.index} {atom_type2.index} " + text)
-            file.write("\n")
+            pair.write(file, all_atom_types)
 
     # def get_atom_index(self, atomId: AtomIdentifier) -> int:
     #     index = self.atom_groups.index(atomId[0])
