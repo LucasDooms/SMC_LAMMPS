@@ -130,7 +130,7 @@ siteMhDist = 2
 
 
 # Distance of bottom binding sites from kleisin (units of bead spacing)
-siteDvDist = 0.5
+siteDvDist = -0.2
 
 # Horizontal distance between bottom binding sites (units bead spacing)
 siteDhDist = 2
@@ -352,9 +352,9 @@ rSiteD[2] = rHK[nHK//2] + SMCspacing * np.array([+siteDhDist,  siteDvDist, 0])
 
 # Repulsive beads, forming a surrounding shell
 for index in range(len(phi)):
-    rSiteD[3 +index] = rSiteD[0] - SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-    rSiteD[7 +index] = rSiteD[1] - SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-    rSiteD[11+index] = rSiteD[2] - SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
+    rSiteD[3 +index] = rSiteD[0] - SMCspacing * np.array([ 0, -np.sin(phi[index]), -np.cos(phi[index]) ])
+    rSiteD[7 +index] = rSiteD[1] - SMCspacing * np.array([ 0, -np.sin(phi[index]), -np.cos(phi[index]) ])
+    rSiteD[11+index] = rSiteD[2] - SMCspacing * np.array([ 0, -np.sin(phi[index]), -np.cos(phi[index]) ])
 
 # Horizontal shield at two ends
 rSiteD[15] = rSiteD[0] + SMCspacing * np.array([-siteDhDist,0,0])
@@ -406,33 +406,52 @@ if nArcedDNA%2 == 0:
 nUpperDNA = int((nDNA-nArcedDNA)/2)
 
 rUpperDNAtemp      = np.zeros((nUpperDNA,3))
-rUpperDNAtemp[:,0] = par.diameter
+rUpperDNAtemp[:,0] = diameter
 rUpperDNAtemp[:,1] = np.arange(1, nUpperDNA+1) * DNAbondLength
 
 rUpperDNA = rUpperDNAtemp[::-1]
 
-
 # Arced DNA piece
 
-angle = np.linspace(math.pi/2, 3*math.pi/2, nArcedDNA)
+nArcSemi = int(nArcedDNA * 2/3)
+nArcQuart = nArcedDNA - nArcSemi
 
-rArcedDNA      = np.zeros((nArcedDNA,3))
-rArcedDNA[:,0] = (par.diameter/2)*np.cos(angle)
-rArcedDNA[:,1] = (par.diameter/2)*np.sin(angle) + par.diameter/2
+# since there will be overlap: use one extra, then delete it later (after pieces are assembled)
+angle = np.linspace(0, -math.pi/2, nArcQuart + 1)
+
+rArcQuart      = np.zeros((len(angle), 3))
+rArcQuart[:,0] = (diameter/2)*np.cos(angle)
+rArcQuart[:,1] = (diameter/2)*np.sin(angle)
+
+angle = np.linspace(math.pi/2, 3*math.pi/2, nArcSemi + 1)
+
+rArcSemi      = np.zeros((len(angle), 3))
+rArcSemi[:,0] = (diameter/2)*np.cos(angle)
+rArcSemi[:,1] = (diameter/2)*np.sin(angle)
 
 
 # Lower DNA piece
 
-nLowerDNA = int((nDNA-nArcedDNA)/2)
+nLowerDNA = nDNA - nUpperDNA - nArcedDNA
 
-rLowerDNA      = np.zeros((nLowerDNA,3))
-rLowerDNA[:,0] = np.arange(1, nLowerDNA+1) * DNAbondLength
+rLowerDNA      = np.zeros((nLowerDNA + 1,3))
+rLowerDNA[:,0] = np.arange(len(rLowerDNA)) * DNAbondLength
 
 
 # Total DNA
 
-rDNA = np.concatenate((rUpperDNA,rArcedDNA,rLowerDNA))
+# attach pieces together
+def displace(reference, move):
+    """Displaces the start of the move array to align to the end of the reference array"""
+    move += reference[-1] - move[0]
 
+pieces = [rUpperDNA, rArcQuart, rArcSemi, rLowerDNA]
+for i in range(len(pieces) - 1):
+    displace(pieces[i], pieces[i + 1])
+    # delete overlap
+    pieces[i + 1] = pieces[i + 1][1:]
+
+rDNA = np.concatenate(pieces)
 
 # Shift X-coordinate to get DNA end-points at X = 0
 
@@ -441,23 +460,15 @@ rDNA[:,0] -= DNAbondLength*(nDNA-nArcedDNA)/2
 
 
 #################################################################################
-#                                  Shift SMC                                    #
+#                             Shift DNA to SMC                                  #
 #################################################################################
 
 
-# Makes sure that the SMC encircles DNA at the right position and at the start of the initial loop
-shift = np.array([-DNAbondLength * (nDNA - par.loop + nArcedDNA) / 2.0, 0, 0]) - rSiteD[1] - np.array([0,1,0]) * sigmaSiteDvsDNA * 2**(1/6)
-shift = shift.reshape(1,3)
-
-rArmDL += shift
-rArmUL += shift
-rArmUR += shift
-rArmDR += shift
-rHK    += shift
-rATP   += shift
-rSiteU += shift
-rSiteM += shift
-rSiteD += shift
+# make sure SMC touches the DNA at the lower site (siteD)
+desired_y_pos = rSiteD[1][1] - 0.74 * par.sigma
+shift_y = desired_y_pos - rDNA[-1][1]
+shift = np.array([DNAbondLength * nLowerDNA / 2.0, shift_y, 0]).reshape(1, 3)
+rDNA += shift
 
 
 #################################################################################

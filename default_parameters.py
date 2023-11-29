@@ -16,14 +16,14 @@ kB = 0.013806504
 gamma = 0.5
 
 # Printing period (time steps)
-output_steps = 10000
+output_steps = 1
 #output_steps = 200000
 
 # Simulation timestep (ns)
 timestep = 2e-4
 
 # Seed
-seed = 123
+seed = 1234
 
 # Number of DNA beads
 N = 501
@@ -42,13 +42,13 @@ runs = 10
 cycles = 2
 
 # Average number of steps for ATP binding
-stepsATP = 2000000
+stepsATP = 1000
 
 # Average number of steps for ATP hydrolysis
-stepsADP = 8000000
+stepsADP = 40000
 
 # Average number of steps for returning to APO
-stepsAPO = 2000000
+stepsAPO = 1000
 
 
 ##################### Geometry #####################
