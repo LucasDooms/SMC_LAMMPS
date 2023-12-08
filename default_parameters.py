@@ -90,12 +90,12 @@ armsAngleATP = 130.
 epsilon3 = 3.
 epsilon4 = 6.
 epsilon5 = 6.
-epsilon6 = 100.
+epsilon6 = 0.
 
 # LJ cutoff (nm)
 cutoff4 = 3.5
 cutoff5 = 3.5
-cutoff6 = 3.
+cutoff6 = 5.
 
 
 ################# Bending energies #################

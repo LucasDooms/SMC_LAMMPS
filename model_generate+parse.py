@@ -291,7 +291,7 @@ rHK += rng_rhk.standard_normal(size=rHK.shape) * SMALL
 # Number of beads per site
 nSiteU = 18
 nSiteM =  8
-nSiteD = 17
+nSiteD = 3
 
 rSiteU = np.zeros((nSiteU,3))
 rSiteM = np.zeros((nSiteM,3))
@@ -311,10 +311,10 @@ rSiteU[1] = rArmUL[-1] + SMCspacing * np.array([          0, -siteUvDist, 0])
 rSiteU[2] = rArmUL[-1] + SMCspacing * np.array([+siteUhDist, -siteUvDist, 0])
 
 # Repulsive beads, forming a surrounding shell
-for index in range(len(phi)):
-    rSiteU[3 +index] = rSiteU[0] + SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-    rSiteU[7 +index] = rSiteU[1] + SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-    rSiteU[11+index] = rSiteU[2] + SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
+for i in range(len(phi)):
+    rSiteU[3 +i] = rSiteU[0] + SMCspacing * np.array([ 0, np.sin(phi[i]), np.cos(phi[i]) ])
+    rSiteU[7 +i] = rSiteU[1] + SMCspacing * np.array([ 0, np.sin(phi[i]), np.cos(phi[i]) ])
+    rSiteU[11+i] = rSiteU[2] + SMCspacing * np.array([ 0, np.sin(phi[i]), np.cos(phi[i]) ])
 
 # Horizontal shield at two ends
 rSiteU[15] = rSiteU[0] + SMCspacing * np.array([-siteUhDist,0,0])
@@ -335,8 +335,8 @@ rSiteM[1] = rATP[nATP//2] + SMCspacing * np.array([          0, siteMvDist, 0])
 rSiteM[2] = rATP[nATP//2] + SMCspacing * np.array([ 1, 0, 0])
 
 # Repulsive beads, forming a surrounding shell
-for index in range(len(phi)):
-    rSiteM[3+index] = rSiteM[0] - SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
+for i in range(len(phi)):
+    rSiteM[3+i] = rSiteM[0] - SMCspacing * np.array([ 0, np.sin(phi[i]), np.cos(phi[i]) ])
 
 # Horizontal shield at one end
 rSiteM[7] = rSiteM[0] + SMCspacing * np.array([-siteMhDist, 0, 0])
@@ -346,19 +346,19 @@ rSiteM[7] = rSiteM[0] + SMCspacing * np.array([-siteMhDist, 0, 0])
 
 
 # Attractive beads
-rSiteD[0] = rHK[nHK//2] + SMCspacing * np.array([-siteDhDist,  siteDvDist, 0])
-rSiteD[1] = rHK[nHK//2] + SMCspacing * np.array([          0,  siteDvDist, 0])
-rSiteD[2] = rHK[nHK//2] + SMCspacing * np.array([+siteDhDist,  siteDvDist, 0])
+nAttractiveBeads = 3
+middleOfAttractiveBeads = (nAttractiveBeads - 1) / 2
+for i in range(nAttractiveBeads):
+    rSiteD[i] = rHK[nHK//2] + SMCspacing * np.array([siteDhDist * (i - middleOfAttractiveBeads),  siteDvDist, 0])
 
-# Repulsive beads, forming a surrounding shell
-for index in range(len(phi)):
-    rSiteD[3 +index] = rSiteD[0] - SMCspacing * np.array([ 0, -np.sin(phi[index]), -np.cos(phi[index]) ])
-    rSiteD[7 +index] = rSiteD[1] - SMCspacing * np.array([ 0, -np.sin(phi[index]), -np.cos(phi[index]) ])
-    rSiteD[11+index] = rSiteD[2] - SMCspacing * np.array([ 0, -np.sin(phi[index]), -np.cos(phi[index]) ])
-
-# Horizontal shield at two ends
-rSiteD[15] = rSiteD[0] + SMCspacing * np.array([-siteDhDist,0,0])
-rSiteD[16] = rSiteD[2] + SMCspacing * np.array([ siteDhDist,0,0])
+# # Repulsive beads, forming a surrounding shell
+# for i in range(len(phi)):
+#     for j in range(nAttractiveBeads):
+#         rSiteD[nAttractiveBeads + j * len(phi) + i] = rSiteD[j] - SMCspacing * np.array([ 0, -np.sin(phi[i]), -np.cos(phi[i]) ])
+#
+# # Horizontal shield at two ends
+# rSiteD[15] = rSiteD[0] + SMCspacing * np.array([-siteDhDist,0,0])
+# rSiteD[16] = rSiteD[2] + SMCspacing * np.array([ siteDhDist,0,0])
 
 
 # Add randomness
@@ -392,7 +392,7 @@ rSiteM = transpose_rotate_transpose(rotMat, rSiteM)
 # form vertical + quarter circle + semi circle + horizontal parts
 
 # Number of beads forming the arced DNA piece (err on the high side)
-diameter = 7
+diameter = 14
 nArcedDNA = math.ceil( 3 / 4 * math.pi * diameter / DNAbondLength ) # 3 / 4 = 1 / 2 + 1 / 4 = semi + quarter
 
 
@@ -457,19 +457,26 @@ rDNA = np.concatenate(pieces)
 
 rDNA[:,0] -= DNAbondLength*(nDNA-nArcedDNA)/2
 
+# Rotate (flip the x-component)
+
+rDNA[:,0] *= -1
 
 
 #################################################################################
 #                             Shift DNA to SMC                                  #
 #################################################################################
 
-
 # make sure SMC touches the DNA at the lower site (siteD)
-desired_y_pos = rSiteD[1][1] - 0.74 * par.sigma
+desired_y_pos = rSiteD[1][1] - 0.6 * par.cutoff6
 shift_y = desired_y_pos - rDNA[-1][1]
-shift = np.array([DNAbondLength * nLowerDNA / 2.0, shift_y, 0]).reshape(1, 3)
+desired_x_pos = rSiteD[1][0]
+shift_x = desired_x_pos - rDNA[-(nLowerDNA - 7)][0]
+shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
 rDNA += shift
 
+# find closest DNA bead to siteD
+distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
+closest_DNA_index = int(np.argmin(distances))
 
 #################################################################################
 #                                Print to file                                  #
@@ -637,18 +644,22 @@ bonds = [
 
 gen.bais += bonds
 
+# add rigid 'bond' between siteD and DNA by setting them as the same molecule id
+gen.molecule_override[(dna_group, closest_DNA_index)] = molSiteD
+
+
 angle_t1 = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n"   % ( kElbows, 180 ) )
 angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" % ( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
 
 # DNA stiffness
 dna_angle_list = []
-for index in range(nDNA-2):
+for i in range(nDNA-2):
     dna_angle_list.append(BAI(
         angle_t1,
-        (dna_group, index),
-        (dna_group, index + 1),
-        (dna_group, index + 2)
+        (dna_group, i),
+        (dna_group, i + 1),
+        (dna_group, i + 2)
     ))
 
 arm_arm_angle1 = BAI(angle_t2, (armDL_group, 0), (armUL_group, 0), (armUL_group, -1))
@@ -813,3 +824,7 @@ with open(filepath_param, 'w') as parameterfile:
     params = get_variables_from_module(par)
     for key in params:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
+
+    parameterfile.write(f"variable siteDIndex equal {gen.get_atom_index((siteD_group, 1))}\n")
+
+    parameterfile.write(f"variable closestIndex equal {gen.get_atom_index((dna_group, closest_DNA_index))}\n")

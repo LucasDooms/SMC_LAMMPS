@@ -47,13 +47,17 @@ read_data datafile
 # Group all type 1 molecules as 'DNA' and all other types as 'SMC'
 group DNA id 2:$(v_N-1)
 group SMC molecule > 1
+# group lowerBindingSite id ${siteDIndex} ${closestIndex}
 
 # DNA Langevin integration (nve + langevin = Brownian dynamics)
 fix 1a DNA nve
 fix 1b DNA langevin $T $T ${gamma} ${seed}
 
+# # bind DNA bead to the lower binding site forever
+# fix 3 lowerBindingSite rigid group 1 lowerBindingSite
 # SMC is set of rigid bodies, each type of SMC-atom is a rigid body ('rigid molecule'), with Langevin integration
 fix 2 SMC rigid molecule langevin $T $T ${gamma} ${seed}
+
 
 # Stretching force applied to the first and last DNA atom/bead, only in x-direction
 #group DNAleft  id 1

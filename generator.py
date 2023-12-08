@@ -174,6 +174,7 @@ class Generator:
         self.atom_group_map: List[int] = []
         self.pair_interactions: List[PairWise] = []
         self.box_width = None
+        self.molecule_override: Dict[AtomIdentifier, int] = dict()
 
     def set_system_size(self, box_width: float) -> None:
         self.box_width = box_width
@@ -298,15 +299,26 @@ class Generator:
             atomId = (atomId[0], atomId[1] + atom_group_length)
         return self.atom_group_map[index] + atomId[1]
 
-    def write_atoms(self, file) -> None:
-        file.write("Atoms # molecular\n\n")
-
+    def _set_up_atom_group_map(self) -> None:
         index_offset = 1
         for atom_group in self.atom_groups:
             self.atom_group_map.append(index_offset)
-            for j, position in enumerate(atom_group.positions):
-                file.write(f"%s %s {atom_group.type.index} %s %s %s\n" %(j + index_offset, atom_group.molecule_index, *position) )
             index_offset += len(atom_group.positions)
+
+    def write_atoms(self, file) -> None:
+        file.write("Atoms # molecular\n\n")
+
+        self._set_up_atom_group_map()
+        molecule_override_ids = {self.get_atom_index(atomId): molId for atomId, molId in self.molecule_override.items()}
+
+        for atom_group in self.atom_groups:
+            for j, position in enumerate(atom_group.positions):
+                atom_id = self.get_atom_index((atom_group, j))
+                try:
+                    mol_id = molecule_override_ids[atom_id]
+                except KeyError:
+                    mol_id = atom_group.molecule_index
+                file.write(f"%s %s {atom_group.type.index} %s %s %s\n" %(atom_id, mol_id, *position) )
 
         file.write("\n")
 
