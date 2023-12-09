@@ -104,18 +104,18 @@ variable cycle loop ${cycles}
 run $(v_stepsATP/2)
 
 # ATP-bound state
-include states/atp_bound_1
+include states/atp_bound_2
 run 10000
 
 include states/atp_bound_2
 run $(v_stepsADP-10000)
 
 # ADP-bound state
-include states/adp_bound
+include states/atp_bound_2
 run $(v_stepsAPO)
 
 # APO state
-include states/apo
+include states/atp_bound_2
 run $(v_stepsATP/2)
 
 #print "${stepCurrent}" append ${timesfile} screen no

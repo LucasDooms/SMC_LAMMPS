@@ -290,7 +290,7 @@ rHK += rng_rhk.standard_normal(size=rHK.shape) * SMALL
 
 # Number of beads per site
 nSiteU = 18
-nSiteM =  8
+nSiteM = 3
 nSiteD = 3
 
 rSiteU = np.zeros((nSiteU,3))
@@ -335,11 +335,11 @@ rSiteM[1] = rATP[nATP//2] + SMCspacing * np.array([          0, siteMvDist, 0])
 rSiteM[2] = rATP[nATP//2] + SMCspacing * np.array([ 1, 0, 0])
 
 # Repulsive beads, forming a surrounding shell
-for i in range(len(phi)):
-    rSiteM[3+i] = rSiteM[0] - SMCspacing * np.array([ 0, np.sin(phi[i]), np.cos(phi[i]) ])
+# for i in range(len(phi)):
+#     rSiteM[3+i] = rSiteM[0] - SMCspacing * np.array([ 0, np.sin(phi[i]), np.cos(phi[i]) ])
 
 # Horizontal shield at one end
-rSiteM[7] = rSiteM[0] + SMCspacing * np.array([-siteMhDist, 0, 0])
+# rSiteM[7] = rSiteM[0] + SMCspacing * np.array([-siteMhDist, 0, 0])
 
 
 # LOWER SITE
@@ -393,6 +393,7 @@ rSiteM = transpose_rotate_transpose(rotMat, rSiteM)
 
 # Number of beads forming the arced DNA piece (err on the high side)
 diameter = 14
+nArcStraight = 10
 nArcedDNA = math.ceil( 3 / 4 * math.pi * diameter / DNAbondLength ) # 3 / 4 = 1 / 2 + 1 / 4 = semi + quarter
 
 
@@ -403,7 +404,7 @@ if nArcedDNA%2 == 0:
 
 # Upper DNA piece
 
-nUpperDNA = int((nDNA-nArcedDNA)/2)
+nUpperDNA = int((nDNA-nArcedDNA-nArcStraight)/2)
 
 rUpperDNAtemp      = np.zeros((nUpperDNA,3))
 rUpperDNAtemp[:,0] = diameter
@@ -423,6 +424,9 @@ rArcQuart      = np.zeros((len(angle), 3))
 rArcQuart[:,0] = (diameter/2)*np.cos(angle)
 rArcQuart[:,1] = (diameter/2)*np.sin(angle)
 
+rArcStraight = np.zeros((nArcStraight + 1, 3))
+rArcStraight[:,0] = -np.arange(len(rArcStraight)) * DNAbondLength
+
 angle = np.linspace(math.pi/2, 3*math.pi/2, nArcSemi + 1)
 
 rArcSemi      = np.zeros((len(angle), 3))
@@ -432,7 +436,7 @@ rArcSemi[:,1] = (diameter/2)*np.sin(angle)
 
 # Lower DNA piece
 
-nLowerDNA = nDNA - nUpperDNA - nArcedDNA
+nLowerDNA = nDNA - nUpperDNA - nArcedDNA - nArcStraight
 
 rLowerDNA      = np.zeros((nLowerDNA + 1,3))
 rLowerDNA[:,0] = np.arange(len(rLowerDNA)) * DNAbondLength
@@ -445,7 +449,7 @@ def displace(reference, move):
     """Displaces the start of the move array to align to the end of the reference array"""
     move += reference[-1] - move[0]
 
-pieces = [rUpperDNA, rArcQuart, rArcSemi, rLowerDNA]
+pieces = [rUpperDNA, rArcQuart, rArcStraight, rArcSemi, rLowerDNA]
 for i in range(len(pieces) - 1):
     displace(pieces[i], pieces[i + 1])
     # delete overlap
@@ -467,10 +471,10 @@ rDNA[:,0] *= -1
 #################################################################################
 
 # make sure SMC touches the DNA at the lower site (siteD)
-desired_y_pos = rSiteD[1][1] - 0.6 * par.cutoff6
+desired_y_pos = rSiteD[1][1] - 0.4 * par.cutoff6
 shift_y = desired_y_pos - rDNA[-1][1]
 desired_x_pos = rSiteD[1][0]
-shift_x = desired_x_pos - rDNA[-(nLowerDNA - 7)][0]
+shift_x = desired_x_pos - rDNA[-(nLowerDNA - 3)][0]
 shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
 rDNA += shift
 
@@ -782,13 +786,13 @@ with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
     options = [
         bridge_soft_off,
         middle_site_soft_off,
-        bridge_on,
+        bridge_off,
         top_site_on,
         middle_site_on,
         lower_site_on,
         arms_open,
-        lower_compartment_folds1,
-        lower_compartment_folds2
+        lower_compartment_unfolds1,
+        lower_compartment_unfolds2
     ]
     apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
 

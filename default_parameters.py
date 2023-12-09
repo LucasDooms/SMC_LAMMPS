@@ -89,12 +89,12 @@ armsAngleATP = 130.
 
 epsilon3 = 3.
 epsilon4 = 6.
-epsilon5 = 6.
+epsilon5 = 10.
 epsilon6 = 0.
 
 # LJ cutoff (nm)
 cutoff4 = 3.5
-cutoff5 = 3.5
+cutoff5 = 4.
 cutoff6 = 5.
 
 
