@@ -5,6 +5,7 @@ from scipy.spatial.transform import Rotation
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
+from dna_creator import get_dna_coordinates
 from importlib import import_module
 import default_parameters
 #import matplotlib.pyplot as plt
@@ -388,74 +389,24 @@ rSiteM = transpose_rotate_transpose(rotMat, rSiteM)
 #                                     DNA                                       #
 #################################################################################
 
-
-# Number of beads forming the arced DNA piece (err on the high side)
-
-nArcedDNA = math.ceil( math.pi * par.diameter / 2 / DNAbondLength )
-
-
-# We want an odd number (necessary for angle/dihedral interactions)
-if nArcedDNA%2 == 0:
-    nArcedDNA += 1
-
-
-# Upper DNA piece
-
-nUpperDNA = int((nDNA-nArcedDNA)/2)
-
-rUpperDNAtemp      = np.zeros((nUpperDNA,3))
-rUpperDNAtemp[:,0] = np.arange(1, nUpperDNA+1) * DNAbondLength
-rUpperDNAtemp[:,1] = par.diameter
-
-rUpperDNA = rUpperDNAtemp[::-1]
-
-
-# Arced DNA piece
-
-angle = np.linspace(math.pi/2, 3*math.pi/2, nArcedDNA)
-
-rArcedDNA      = np.zeros((nArcedDNA,3))
-rArcedDNA[:,0] = (par.diameter/2)*np.cos(angle)
-rArcedDNA[:,1] = (par.diameter/2)*np.sin(angle) + par.diameter/2
-
-
-# Lower DNA piece
-
-nLowerDNA = int((nDNA-nArcedDNA)/2)
-
-rLowerDNA      = np.zeros((nLowerDNA,3))
-rLowerDNA[:,0] = np.arange(1, nLowerDNA+1) * DNAbondLength
-
-
-# Total DNA
-
-rDNA = np.concatenate((rUpperDNA,rArcedDNA,rLowerDNA))
-
-
-# Shift X-coordinate to get DNA end-points at X = 0
-
-rDNA[:,0] -= DNAbondLength*(nDNA-nArcedDNA)/2
-
-
+rDNA, nLowerDNA = get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
 
 #################################################################################
-#                                  Shift SMC                                    #
+#                               Shift DNA to SMC                                #
 #################################################################################
 
 
-# Makes sure that the SMC encircles DNA at the right position and at the start of the initial loop
-shift = np.array([-DNAbondLength * (nDNA - par.loop + nArcedDNA) / 2.0, 0, 0]) - rSiteD[1] - np.array([0,1,0]) * sigmaSiteDvsDNA * 2**(1/6)
-shift = shift.reshape(1,3)
+# make sure SMC touches the DNA at the lower site (siteD)
+desired_y_pos = rSiteD[1][1] - 2.0 * par.cutoff6
+shift_y = desired_y_pos - rDNA[-1][1]
+desired_x_pos = rSiteD[1][0]
+shift_x = desired_x_pos - rDNA[-(nLowerDNA - 3)][0]
+shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+rDNA += shift
 
-rArmDL += shift
-rArmUL += shift
-rArmUR += shift
-rArmDR += shift
-rHK    += shift
-rATP   += shift
-rSiteU += shift
-rSiteM += shift
-rSiteD += shift
+# find closest DNA bead to siteD
+distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
+closest_DNA_index = int(np.argmin(distances))
 
 
 #################################################################################
