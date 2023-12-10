@@ -12,6 +12,8 @@ def get_straight_segment(n: int, direction = (1, 0, 0)):
 
 
 def get_circle_segment_unit_radius(n: int, end_inclusive: bool, theta_start: float = 0, theta_end: float = 2 * np.pi, normal_direction = (0, 0, 1)):
+    normal_direction = np.array(normal_direction, dtype=float)
+
     arange = np.arange(n) / (n - 1 if end_inclusive else n)
     thetas = theta_start + arange * (theta_end - theta_start)
     segment = np.array([np.cos(thetas), np.sin(thetas), np.zeros(len(thetas))]).reshape(3, n)
@@ -56,5 +58,5 @@ def attach(reference_segment, other_segment, delete_overlap: bool, extra_distanc
 def attach_chain(reference_segment, list_of_args):
     """the elements of list_of_args MUST be MUTABLE (specifically args[0])"""
     for args in list_of_args:
-        args[0] = attach(reference_segment, args[0], *args)
+        args[0] = attach(reference_segment, args[0], *args[1:])
         reference_segment = args[0]
