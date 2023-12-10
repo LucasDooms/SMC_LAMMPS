@@ -1,11 +1,10 @@
 import math
 import numpy as np
-from numpy.random import default_rng
-from scipy.spatial.transform import Rotation
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
 from dna_creator import get_dna_coordinates
+from smc_creator import SMC_Creator
 from importlib import import_module
 import default_parameters
 #import matplotlib.pyplot as plt
@@ -184,205 +183,27 @@ epsilonSiteDvsDNA = par.epsilon6 * kB*T
 #                                 SMC complex                                   #
 #################################################################################
 
-
-#################################### Arms #######################################
-
-
-# Number of beads forming each arm segment (err on the high side)
-nArmSegm = math.ceil(par.armLength / 2 / SMCspacing)
-
-# Create list of 3 zeros for later coordinates of each arm bead for each arm segment (U=up, D=down, L=left, R=right)
-rArmDL = np.zeros((nArmSegm,3))
-rArmUL = np.zeros((nArmSegm,3))
-rArmUR = np.zeros((nArmSegm,3))
-rArmDR = np.zeros((nArmSegm,3))
-
-# z and y lengths of each arm (2 aligned segments), for the initial triangular geometry
-zArm = par.bridgeWidth / 2
-yArm = ( par.armLength**2 - zArm**2 )**0.5 
-
-# y positions
-rArmDL[:,1] = np.linspace(      0,  yArm/2, nArmSegm)
-rArmUL[:,1] = np.linspace( yArm/2,    yArm, nArmSegm)
-rArmUR[:,1] = np.linspace(   yArm,  yArm/2, nArmSegm)
-rArmDR[:,1] = np.linspace( yArm/2,       0, nArmSegm)
-
-# z positions
-rArmDL[:,2] = np.linspace(  -zArm, -zArm/2, nArmSegm)
-rArmUL[:,2] = np.linspace(-zArm/2,       0, nArmSegm)
-rArmUR[:,2] = np.linspace(      0,  zArm/2, nArmSegm)
-rArmDR[:,2] = np.linspace( zArm/2,    zArm, nArmSegm)
-
-
-# A bit of randomness, to avoid exact overlap (pressure is messed up in LAMMPS)
-SMALL = 1e-9
-rng_arms = default_rng(seed=8671288977726523465)
-
-rArmDL += rng_arms.standard_normal(size=rArmDL.shape) * SMALL
-rArmUL += rng_arms.standard_normal(size=rArmUL.shape) * SMALL
-rArmUR += rng_arms.standard_normal(size=rArmUR.shape) * SMALL
-rArmDR += rng_arms.standard_normal(size=rArmDR.shape) * SMALL
-
-
-################################# ATP bridge ####################################
-
-
-# Number of beads forming the ATP ring (err on the high side)
-nATP = math.ceil( par.bridgeWidth / SMCspacing )
-
-# We want an odd number (necessary for angle/dihedral interactions)
-if nATP%2 == 0:
-    nATP += 1
-
-
-# Positions
-rATP      = np.zeros((nATP,3))
-rATP[:,2] = np.linspace(-par.bridgeWidth/2, par.bridgeWidth/2, nATP)
-
-
-# A bit of randomness
-rng_atp = default_rng(seed=4685150768879447999)
-rATP += rng_atp.standard_normal(rATP.shape) * SMALL
-
-
-################################ Heads/Kleisin ##################################
-
-
-# Circle-arc radius
-radius = ( par.HKradius**2 + (par.bridgeWidth/2)**2 ) / ( 2 * par.HKradius )
-
-# Opening angle of circular arc
-phi0 = 2 * math.asin( par.bridgeWidth / 2 / radius )
-if par.HKradius > par.bridgeWidth/2:
-    phi0 = 2*math.pi - phi0
-
-
-# Number of beads forming the heads/kleisin complex (err on the high side)
-nHK = math.ceil( phi0 * radius / SMCspacing )
-
-# We want an odd number (necessary for angle/dihedral interactions)
-if nHK%2 == 0:
-    nHK += 1
-
-
-# Polar angle
-phi = np.linspace(-(math.pi-phi0)/2, -(math.pi+phi0)/2, nHK) 
-if par.HKradius > par.bridgeWidth/2:
-    phi = np.linspace((phi0-math.pi)/2, -math.pi-(phi0-math.pi)/2, nHK)
-
-
-# Positions
-rHK      = np.zeros((nHK,3))
-rHK[:,1] = radius * np.sin(phi) - par.HKradius + radius
-rHK[:,2] = radius * np.cos(phi)
-
-# A bit of randomness
-rng_rhk = default_rng(seed=8305832029550348799)
-rHK += rng_rhk.standard_normal(size=rHK.shape) * SMALL
-
-
-############################### Interaction sites ###############################
-
-
-# U = upper  interaction site
-# M = middle interaction site
-# D = lower  interaction site
-
-# Number of beads per site
-nSiteU = 18
-nSiteM =  8
-nSiteD = 17
-
-rSiteU = np.zeros((nSiteU,3))
-rSiteM = np.zeros((nSiteM,3))
-rSiteD = np.zeros((nSiteD,3))
-
-
-# Polar angles of a 4-bead semicircle
-phi = np.arange(4) * np.pi/3
-
-
-# UPPER SITE
-
-
-# Attractive beads
-rSiteU[0] = rArmUL[-1] + SMCspacing * np.array([-siteUhDist, -siteUvDist, 0])
-rSiteU[1] = rArmUL[-1] + SMCspacing * np.array([          0, -siteUvDist, 0])
-rSiteU[2] = rArmUL[-1] + SMCspacing * np.array([+siteUhDist, -siteUvDist, 0])
-
-# Repulsive beads, forming a surrounding shell
-for index in range(len(phi)):
-    rSiteU[3 +index] = rSiteU[0] + SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-    rSiteU[7 +index] = rSiteU[1] + SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-    rSiteU[11+index] = rSiteU[2] + SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-
-# Horizontal shield at two ends
-rSiteU[15] = rSiteU[0] + SMCspacing * np.array([-siteUhDist,0,0])
-rSiteU[16] = rSiteU[2] + SMCspacing * np.array([ siteUhDist,0,0])
-
-# Inert bead connecting site to arms at top
-rSiteU[17] = rArmUL[-1]
-
-
-# MIDDLE SITE
-
-
-# Attractive beads
-rSiteM[0] = rATP[nATP//2] + SMCspacing * np.array([-siteMhDist, siteMvDist, 0])
-rSiteM[1] = rATP[nATP//2] + SMCspacing * np.array([          0, siteMvDist, 0])
-
-# Inert bead, used for breaking folding symmetry
-rSiteM[2] = rATP[nATP//2] + SMCspacing * np.array([ 1, 0, 0])
-
-# Repulsive beads, forming a surrounding shell
-for index in range(len(phi)):
-    rSiteM[3+index] = rSiteM[0] - SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-
-# Horizontal shield at one end
-rSiteM[7] = rSiteM[0] + SMCspacing * np.array([-siteMhDist, 0, 0])
-
-
-# LOWER SITE
-
-
-# Attractive beads
-rSiteD[0] = rHK[nHK//2] + SMCspacing * np.array([-siteDhDist,  siteDvDist, 0])
-rSiteD[1] = rHK[nHK//2] + SMCspacing * np.array([          0,  siteDvDist, 0])
-rSiteD[2] = rHK[nHK//2] + SMCspacing * np.array([+siteDhDist,  siteDvDist, 0])
-
-# Repulsive beads, forming a surrounding shell
-for index in range(len(phi)):
-    rSiteD[3 +index] = rSiteD[0] - SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-    rSiteD[7 +index] = rSiteD[1] - SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-    rSiteD[11+index] = rSiteD[2] - SMCspacing * np.array([ 0, np.sin(phi[index]), np.cos(phi[index]) ])
-
-# Horizontal shield at two ends
-rSiteD[15] = rSiteD[0] + SMCspacing * np.array([-siteDhDist,0,0])
-rSiteD[16] = rSiteD[2] + SMCspacing * np.array([ siteDhDist,0,0])
-
-
-# Add randomness
-rng_sites = default_rng(seed=8343859591397577529)
-rSiteU += rng_sites.standard_normal(size=rSiteU.shape) * SMALL
-rSiteM += rng_sites.standard_normal(size=rSiteM.shape) * SMALL
-rSiteD += rng_sites.standard_normal(size=rSiteD.shape) * SMALL
-
-
-############################# Fold upper compartment ############################
-
-# Rotation matrix (clockwise about z axis)
-rotMat = Rotation.from_rotvec(-math.radians(par.foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
-
-# Rotations
-def transpose_rotate_transpose(rotation, array):
-    return rotation.dot(array.transpose()).transpose()
-
-rArmDL = transpose_rotate_transpose(rotMat, rArmDL)
-rArmUL = transpose_rotate_transpose(rotMat, rArmUL)
-rArmUR = transpose_rotate_transpose(rotMat, rArmUR)
-rArmDR = transpose_rotate_transpose(rotMat, rArmDR)
-rSiteU = transpose_rotate_transpose(rotMat, rSiteU)
-rSiteM = transpose_rotate_transpose(rotMat, rSiteM)
+rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
+    SMC_Creator(
+        SMCspacing=SMCspacing,
+
+        siteUhDist=siteUhDist,
+        siteUvDist=siteUvDist,
+        siteMhDist=siteMhDist,
+        siteMvDist=siteMvDist,
+        siteDhDist=siteDhDist,
+        siteDvDist=siteDvDist,
+
+        armLength=par.armLength,
+        bridgeWidth=par.bridgeWidth,
+
+        HKradius=par.HKradius,
+
+        foldingAngleAPO=par.foldingAngleAPO
+    ).get_smc()
+
+nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
+    len(rArmDL), len(rArmUL), len(rArmUR), len(rArmDR), len(rATP), len(rHK), len(rSiteU), len(rSiteM), len(rSiteD)
 
 
 #################################################################################
@@ -414,7 +235,7 @@ closest_DNA_index = int(np.argmin(distances))
 #################################################################################
 
 # Divide total mass evenly among the segments
-mSMC = mSMCtotal / ( 4*nArmSegm + nHK + nATP + nSiteU + nSiteM + nSiteD )
+mSMC = mSMCtotal / ( nArmDL + nArmUL + nArmUR + nArmDR + nHK + nATP + nSiteU + nSiteM + nSiteD )
 
 # Relative bond fluctuations
 bondFlDNA = 1e-2
