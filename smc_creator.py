@@ -147,8 +147,8 @@ class SMC_Creator:
             shells[-1] += innerBead
 
         # Horizontal shield at two ends
-        end_first = (innerBeads[0] - outerSpacing * axis).reshape(1, 3)
-        end_last = (innerBeads[-1] + outerSpacing * axis).reshape(1, 3)
+        end_first = (innerBeads[0] - innerSpacing * axis).reshape(1, 3)
+        end_last = (innerBeads[-1] + innerSpacing * axis).reshape(1, 3)
 
         return np.concatenate([innerBeads, *shells, end_first, end_last])
 
