@@ -330,9 +330,9 @@ siteU_arm_group = AtomGroup(rSiteU[cut:], armHK_type, molSiteU)
 
 cut = 2
 siteM_group = AtomGroup(rSiteM[:cut], siteM_type, molSiteM)
+siteM_atp_group = AtomGroup(rSiteM[cut:-1], atp_type, molSiteM)
 # ref site
-siteM_ref_group = AtomGroup(rSiteM[cut:cut+1], refSite_type, molSiteM)
-siteM_atp_group = AtomGroup(rSiteM[cut+1:], atp_type, molSiteM)
+siteM_ref_group = AtomGroup(rSiteM[-1:], refSite_type, molSiteM)
 
 # split B in two parts
 
@@ -378,18 +378,24 @@ bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, 
 bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"           %(kBondAlign2, bondMin2))
 
 bonds = [
+    # attach arms together
     BAI(bond_t2, (armDL_group, -1), (armUL_group, 0)),
     BAI(bond_t2, (armUL_group, -1), (armUR_group, 0)),
     BAI(bond_t2, (armUR_group, -1), (armDR_group, 0)),
+    # connect arms to siteU
     BAI(bond_t2, (armUL_group, -1), (siteU_arm_group, -1)),
+    # connect atp bridge to arms
     BAI(bond_t2, (armDR_group, -1), (atp_group, -1)),
     BAI(bond_t2, (atp_group,  0), (armDL_group, 0)),
+    # connect bridge to hk
     BAI(bond_t2, (atp_group, -1), (hk_group, 0)),
     BAI(bond_t2, (hk_group, -1), (atp_group, 0)),
+    # bind upper arms to the siteU edges, to keep motion restrained
     BAI(bond_t3, (armUL_group, indL), (siteU_arm_group, -2)),
     BAI(bond_t3, (armUL_group, indL), (siteU_arm_group, -3)),
     BAI(bond_t3, (armUR_group, indR), (siteU_arm_group, -2)),
     BAI(bond_t3, (armUR_group, indR), (siteU_arm_group, -3)),
+    # bind top of upper arms to siteU edges
     BAI(bond_t4, (armUL_group, -1), (siteU_arm_group, -2)),
     BAI(bond_t4, (armUL_group, -1), (siteU_arm_group, -3)),
 ] 
@@ -410,9 +416,12 @@ for index in range(nDNA-2):
         (dna_group, index + 2)
     ))
 
+# keep left arms rigid (prevent too much bending)
 arm_arm_angle1 = BAI(angle_t2, (armDL_group, 0), (armUL_group, 0), (armUL_group, -1))
+# same, but for right arms
 arm_arm_angle2 = BAI(angle_t2, (armUR_group, 0), (armUR_group, -1), (armDR_group, -1))
 
+# prevent too much bending between lower arms and the bridge
 arm_atp_angle1 = BAI(angle_t3, (armDL_group, -1), (armDL_group, 0), (atp_group, -1))
 arm_atp_angle2 = BAI(angle_t3, (armDR_group, 0), (armDR_group, -1), (atp_group, 0))
 
@@ -432,6 +441,7 @@ folding_angle_improper1 = BAI(imp_t2, (armDL_group, -1), (armDL_group, 0), (atp_
 folding_angle_improper2 = BAI(imp_t2, (armDR_group, 0), (armDR_group, -1), (atp_group, 0), (hk_group, nHK//2))
 
 # WARNING: indices M changed
+# prevent kleisin ring from swaying too far relative to the brigde
 folding_asymmetry_improper = BAI(imp_t3, (siteM_ref_group, 0), (armDL_group, 0), (armDR_group, -1), (hk_group, nHK//2))
 # datafile.write("9 3 %s %s %s %s\n\n" %(IDsiteM[2], IDarmDL[ 0], IDarmDR[-1], IDhK[nHK//2]))
 
