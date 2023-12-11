@@ -19,6 +19,8 @@ args = parser.parse_args()
 path = Path(args.directory)
 
 if args.generate:
-    subprocess.run(f"python generate+parse.py {path}".split(" "))
+    completion = subprocess.run(f"python generate+parse.py {path}".split(" "))
+    if completion.returncode != 0:
+        raise Exception(f"process ended with error code {completion.returncode}\n{completion}")
 
 subprocess.run(f"{args.executable} -in {Path(args.input).absolute()}", cwd=path.absolute())
