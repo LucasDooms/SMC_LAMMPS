@@ -249,10 +249,8 @@ class Generator:
 
     def write_masses(self, file) -> None:
         file.write("Masses\n\n")
-        global_index = 1
         for atom_type in self.get_all_atom_types():
-            file.write(f"{global_index} {atom_type.mass}\n")
-            global_index += 1
+            file.write(f"{atom_type.index} {atom_type.mass}\n")
 
         file.write("\n")
 
@@ -268,12 +266,10 @@ class Generator:
     def write_BAI_coeffs(self, file) -> None:
         for kind in BAI_Kind:
             file.write(self.get_BAI_coeffs_header(kind))
-            global_index = 1
             for bai_type in self.get_all_types(kind):
                 if not bai_type.coefficients:
                     continue
-                file.write(f"{global_index} " + bai_type.coefficients)
-                global_index += 1
+                file.write(f"{bai_type.index} " + bai_type.coefficients)
             file.write("\n")
 
     def write_pair_interactions(self, file) -> None:
