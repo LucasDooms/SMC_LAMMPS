@@ -56,7 +56,9 @@ def attach(reference_segment, other_segment, delete_overlap: bool, extra_distanc
 
 
 def attach_chain(reference_segment, list_of_args):
-    """the elements of list_of_args MUST be MUTABLE (specifically args[0])"""
-    for args in list_of_args:
-        args[0] = attach(reference_segment, args[0], *args[1:])
-        reference_segment = args[0]
+    """returns a list of the updated segments"""
+    first_segment = reference_segment
+    for i in range(len(list_of_args)):
+        list_of_args[i][0] = attach(reference_segment, list_of_args[i][0], *list_of_args[i][1:])
+        reference_segment = list_of_args[i][0]
+    return [first_segment] + [args[0] for args in list_of_args]

@@ -40,7 +40,8 @@ def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: int, nArcStra
 
     # Total DNA
 
-    attach_chain(rUpperDNA, [[rArcQuart, True], [rArcStraight, False, 1.0], [rArcSemi, True], [rLowerDNA, False, 1.0]])
+    rUpperDNA, rArcQuart, rArcStraight, rArcSemi, rLowerDNA = \
+            attach_chain(rUpperDNA, [[rArcQuart, True], [rArcStraight, False, 1.0], [rArcSemi, True], [rLowerDNA, False, 1.0]])
     
     # alternative, without attach_chain method:
     # rArcQuart = attach(rUpperDNA, rArcQuart, delete_overlap=True)

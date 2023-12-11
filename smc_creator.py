@@ -41,12 +41,12 @@ class SMC_Creator:
         direction_UR = [0, -yArm, zArm]
         direction_DR = [0, -yArm, zArm]
 
-        rArmDL = get_straight_segment(nArmSegm, direction_DL) * self.armLength / nArmSegm
-        rArmUL = get_straight_segment(nArmSegm, direction_UL) * self.armLength / nArmSegm
-        rArmUR = get_straight_segment(nArmSegm, direction_UR) * self.armLength / nArmSegm
-        rArmDR = get_straight_segment(nArmSegm, direction_DR) * self.armLength / nArmSegm
+        rArmDL = get_straight_segment(nArmSegm, direction_DL) / 2.0 * self.armLength / nArmSegm
+        rArmUL = get_straight_segment(nArmSegm, direction_UL) / 2.0 * self.armLength / nArmSegm
+        rArmUR = get_straight_segment(nArmSegm, direction_UR) / 2.0 * self.armLength / nArmSegm
+        rArmDR = get_straight_segment(nArmSegm, direction_DR) / 2.0 * self.armLength / nArmSegm
 
-        attach_chain(rArmDL, [[rArmUL, False], [rArmUR, False], [rArmDR, False]])
+        rArmDL, rArmUL, rArmUR, rArmDR = attach_chain(rArmDL, [[rArmUL, False], [rArmUR, False], [rArmDR, False]])
 
         # move lower center to origin (where bridge will be placed)
         center = (rArmDL[0] + rArmDR[-1]) / 2.0
