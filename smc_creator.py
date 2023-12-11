@@ -90,9 +90,10 @@ class SMC_Creator:
 
     def get_heads_kleisin(self, seed: int = 8305832029550348799):
         # Circle-arc radius
-        # radius = (self.HKradius**2 + (self.bridgeWidth / 2.0)**2) / (2.0 * self.HKradius)
+        # TODO
+        radius = (self.HKradius**2 + (self.bridgeWidth / 2.0)**2) / (2.0 * self.HKradius)
         bridgeRadius = self.bridgeWidth / 2.0
-        radius = math.sqrt(self.HKradius**2 + bridgeRadius**2)
+        # radius = math.sqrt(self.HKradius**2 + bridgeRadius**2)
         
         # from the y-axis
         starting_angle = math.asin(bridgeRadius / radius)
@@ -116,7 +117,7 @@ class SMC_Creator:
 
         rHK *= radius
         # move the bridge-gap to the origin
-        rHK[:,1] -= self.HKradius
+        rHK[:,1] -= rHK[0][1]
 
 
         # A bit of randomness
@@ -151,30 +152,34 @@ class SMC_Creator:
 
         return np.concatenate([innerBeads, *shells, end_first, end_last])
 
+    @staticmethod
+    def transpose_rotate_transpose(rotation, array):
+        return rotation.dot(array.transpose()).transpose()
+
     def get_interaction_sites(self, seed: int = 8343859591397577529):
         # U = upper  interaction site
         # M = middle interaction site
         # D = lower  interaction site
 
+        rotate_around_x_axis = Rotation.from_rotvec(math.pi * np.array([1.0, 0.0, 0.0])).as_matrix()
+
         # UPPER SITE
-        rSiteU = self.shielded_site_template(3, 4, self.siteUhDist, self.siteUhDist)
-
+        rSiteU = self.shielded_site_template(3, 4, self.siteUhDist, 1)
         # Inert bead connecting site to arms at top
-        # TODO
-        # rSiteU = np.concatenate([rSiteU, rArmUL[-1]])
-
+        rSiteU = np.concatenate([rSiteU, np.array([0.0, self.siteUvDist, 0.0]).reshape(1, 3)])
 
         # MIDDLE SITE
-        rSiteM = self.shielded_site_template(2, 4, self.siteMhDist, self.siteMhDist)
-        # Inert bead, used for breaking folding symmetry TODO
-        # rSiteM[2] = rATP[nATP//2] + SMCspacing * np.array([ 1, 0, 0])
-        # Horizontal shield at one end TODO: remove horiontal one at other end
-        # rSiteM[7] = rSiteM[0] + SMCspacing * np.array([-siteMhDist, 0, 0])
+        rSiteM = self.shielded_site_template(1, 4, self.siteMhDist, 1)
+        rSiteM = self.transpose_rotate_transpose(rotate_around_x_axis, rSiteM)
 
-
+        # take last bead and use it as an extra inner bead
+        rSiteM = np.concatenate([rSiteM[:1], rSiteM[-1:], rSiteM[1:-1]])
+        # move, so that this bead is at the origin
+        rSiteM -= rSiteM[1]
+      
         # LOWER SITE
-        # Attractive beads
-        rSiteD = self.shielded_site_template(3, 4, self.siteDhDist, self.siteDhDist)
+        rSiteD = self.shielded_site_template(3, 4, self.siteDhDist, 1)
+        rSiteD = self.transpose_rotate_transpose(rotate_around_x_axis, rSiteD)
 
 
         # Add randomness
@@ -190,28 +195,34 @@ class SMC_Creator:
         rATP = self.get_bridge()
         rHK = self.get_heads_kleisin()
         rSiteU, rSiteM, rSiteD = self.get_interaction_sites()
-
-        rSiteU += rArmUL[-1]
-        rSiteU[:,1] += self.siteUvDist
-        rSiteM += rATP[len(rATP)//2]
+        
+        rSiteU[:,1] -= self.siteUvDist
+        # Inert bead, used for breaking folding symmetry
+        rSiteM = np.concatenate([rSiteM, np.array([1.0, -1.0, 0.0]).reshape(1, 3)])
         rSiteM[:,1] += self.siteMvDist
-        rSiteD += rHK[len(rHK)//2]
         rSiteD[:,1] += self.siteDvDist
-
+        
+        # scale properly
+        rSiteU *= self.SMCspacing
+        rSiteM *= self.SMCspacing
+        rSiteD *= self.SMCspacing
+    
+        # move into the correct location
+        rSiteU += rArmUL[-1]
+        rSiteM += rATP[len(rATP)//2]
+        rSiteD += rHK[len(rHK)//2]
+        
         ############################# Fold upper compartment ############################
 
         # Rotation matrix (clockwise about z axis)
         rotMat = Rotation.from_rotvec(-math.radians(self.foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
 
         # Rotations
-        def transpose_rotate_transpose(rotation, array):
-            return rotation.dot(array.transpose()).transpose()
-
-        rArmDL = transpose_rotate_transpose(rotMat, rArmDL)
-        rArmUL = transpose_rotate_transpose(rotMat, rArmUL)
-        rArmUR = transpose_rotate_transpose(rotMat, rArmUR)
-        rArmDR = transpose_rotate_transpose(rotMat, rArmDR)
-        rSiteU = transpose_rotate_transpose(rotMat, rSiteU)
-        rSiteM = transpose_rotate_transpose(rotMat, rSiteM)
+        rArmDL = self.transpose_rotate_transpose(rotMat, rArmDL)
+        rArmUL = self.transpose_rotate_transpose(rotMat, rArmUL)
+        rArmUR = self.transpose_rotate_transpose(rotMat, rArmUR)
+        rArmDR = self.transpose_rotate_transpose(rotMat, rArmDR)
+        rSiteU = self.transpose_rotate_transpose(rotMat, rSiteU)
+        rSiteM = self.transpose_rotate_transpose(rotMat, rSiteM)
 
         return rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD
