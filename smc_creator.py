@@ -90,11 +90,12 @@ class SMC_Creator:
 
     def get_heads_kleisin(self, seed: int = 8305832029550348799):
         # Circle-arc radius
-        # TODO
-        radius = (self.HKradius**2 + (self.bridgeWidth / 2.0)**2) / (2.0 * self.HKradius)
+        # radius = (self.HKradius**2 + (self.bridgeWidth / 2.0)**2) / (2.0 * self.HKradius)
         bridgeRadius = self.bridgeWidth / 2.0
-        # radius = math.sqrt(self.HKradius**2 + bridgeRadius**2)
-        
+        radius = self.HKradius
+        if radius < bridgeRadius:
+            raise ValueError(f"The kleisin radius ({radius}) is too small (<{bridgeRadius}) based on the bridgeWidth {self.bridgeWidth}")
+
         # from the y-axis
         starting_angle = math.asin(bridgeRadius / radius)
         # Opening angle of circular arc (away from the bridge = 2*pi - angle towards the bridge)
