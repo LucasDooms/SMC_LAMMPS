@@ -3,7 +3,7 @@ import numpy as np
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
-from dna_creator import get_dna_coordinates
+from dna_creator import get_dna_coordinates, get_dna_coordinates_twist
 from smc_creator import SMC_Creator
 from importlib import import_module
 import default_parameters
@@ -210,24 +210,37 @@ nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
 #                                     DNA                                       #
 #################################################################################
 
-rDNA, nLowerDNA = get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
+fold_dna = True
+
+if fold_dna:
+    rDNA, nLowerDNA = get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
+else:
+    rDNA, nLowerDNA = get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
 
 #################################################################################
 #                               Shift DNA to SMC                                #
 #################################################################################
 
+if fold_dna:
+    # make sure SMC contains DNA
+    desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
+    shift_y = desired_y_pos - rDNA[-1][1]
+    desired_x_pos = rSiteD[1][0]
+    shift_x = desired_x_pos - rDNA[-(nLowerDNA - 10)][0]
+    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    rDNA += shift
+else:
+    # make sure SMC touches the DNA at the lower site (siteD)
+    desired_y_pos = rSiteD[1][1] - 0.9 * par.cutoff6
+    shift_y = desired_y_pos - rDNA[-1][1]
+    desired_x_pos = rSiteD[1][0]
+    shift_x = desired_x_pos - rDNA[-(nLowerDNA - 3)][0]
+    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    rDNA += shift
 
-# make sure SMC touches the DNA at the lower site (siteD)
-desired_y_pos = rSiteD[1][1] - 2.0 * par.cutoff6
-shift_y = desired_y_pos - rDNA[-1][1]
-desired_x_pos = rSiteD[1][0]
-shift_x = desired_x_pos - rDNA[-(nLowerDNA - 3)][0]
-shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
-rDNA += shift
-
-# find closest DNA bead to siteD
-distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
-closest_DNA_index = int(np.argmin(distances))
+    # find closest DNA bead to siteD
+    distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
+    closest_DNA_index = int(np.argmin(distances))
 
 
 #################################################################################
@@ -441,7 +454,7 @@ folding_angle_improper1 = BAI(imp_t2, (armDL_group, -1), (armDL_group, 0), (atp_
 folding_angle_improper2 = BAI(imp_t2, (armDR_group, 0), (armDR_group, -1), (atp_group, 0), (hk_group, nHK//2))
 
 # WARNING: indices M changed
-# prevent kleisin ring from swaying too far relative to the brigde
+# prevent kleisin ring from swaying too far relative to the bridge
 folding_asymmetry_improper = BAI(imp_t3, (siteM_ref_group, 0), (armDL_group, 0), (armDR_group, -1), (hk_group, nHK//2))
 # datafile.write("9 3 %s %s %s %s\n\n" %(IDsiteM[2], IDarmDL[ 0], IDarmDR[-1], IDhK[nHK//2]))
 

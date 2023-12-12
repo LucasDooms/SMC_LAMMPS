@@ -64,3 +64,50 @@ def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: int, nArcStra
     rDNA[:,0] *= -1
 
     return rDNA, nLowerDNA
+
+def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: int):
+    # form upper + semi circle + horizontal parts
+
+    # Number of beads forming the arced DNA piece (err on the high side)
+    nArcedDNA = math.ceil( 1 / 2 * math.pi * diameter / DNAbondLength ) # 1 / 2 = semi circle
+
+    # We want an odd number (necessary for angle/dihedral interactions)
+    if nArcedDNA % 2 == 0:
+        nArcedDNA += 1
+
+
+    # Upper DNA piece
+
+    nUpperDNA = (nDNA - nArcedDNA) // 2
+
+    rUpperDNA = get_straight_segment(nUpperDNA, [-1, 0, 0])
+
+    # Arced DNA piece
+
+    nArcSemi = nArcedDNA
+
+    # since there will be overlap: use one extra, then delete it later (after pieces are assembled)
+    rArcSemi = get_circle_segment(nArcSemi + 1, end_inclusive=True, theta_start=np.pi/2.0, theta_end=np.pi*3.0/2.0)
+
+    # Lower DNA piece
+
+    nLowerDNA = nDNA - nUpperDNA - nArcedDNA
+
+    rLowerDNA = get_straight_segment(nLowerDNA, [1, 0, 0])
+
+    # Total DNA
+
+    rUpperDNA, rArcSemi, rLowerDNA = \
+            attach_chain(rUpperDNA, [[rArcSemi, True], [rLowerDNA, False, 1.0]])
+
+    rDNA = np.concatenate([rUpperDNA, rArcSemi, rLowerDNA])
+
+    # Shift X-coordinate to get DNA end-point at X = 0
+
+    rDNA[:,0] -= rDNA[0][0]
+
+    # get correct bead spacings
+
+    rDNA *= DNAbondLength
+
+    return rDNA, nLowerDNA
