@@ -206,6 +206,33 @@ rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
 nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
     len(rArmDL), len(rArmUL), len(rArmUR), len(rArmDR), len(rATP), len(rHK), len(rSiteU), len(rSiteM), len(rSiteD)
 
+# SECOND SMC COMPLEX
+
+smc_array_2 = \
+    SMC_Creator(
+        SMCspacing=SMCspacing,
+
+        siteUhDist=siteUhDist,
+        siteUvDist=siteUvDist,
+        siteMhDist=siteMhDist,
+        siteMvDist=siteMvDist,
+        siteDhDist=siteDhDist,
+        siteDvDist=siteDvDist,
+
+        armLength=par.armLength,
+        bridgeWidth=par.bridgeWidth,
+
+        HKradius=par.HKradius,
+
+        foldingAngleAPO=par.foldingAngleAPO
+    ).get_smc()
+
+# SHIFT AWAY
+
+for i in range(len(smc_array_2)):
+    smc_array_2[i][:,0] += 20
+rArmDL_2, rArmUL_2, rArmUR_2, rArmDR_2, rATP_2, rHK_2, rSiteU_2, rSiteM_2, rSiteD_2 = smc_array_2
+
 
 #################################################################################
 #                                     DNA                                       #
@@ -356,11 +383,42 @@ smc_1 = SMC(
     refSite_type=refSite_type,
 )
 
+smc_2 = SMC(
+    rArmDL=rArmDL_2,
+    rArmUL=rArmUL_2,
+    rArmUR=rArmUR_2,
+    rArmDR=rArmDR_2,
+    rATP=rATP_2,
+    rHK=rHK_2,
+    rSiteU=rSiteU_2,
+    rSiteM=rSiteM_2,
+    rSiteD=rSiteD_2,
+
+    molArmDL=molArmDL,
+    molArmUL=molArmUL,
+    molArmUR=molArmUR,
+    molArmDR=molArmDR,
+    molHK=molHK,
+    molATP=molATP,
+    molSiteU=molSiteU,
+    molSiteM=molSiteM,
+    molSiteD=molSiteD,
+
+    armHK_type=armHK_type,
+    atp_type=atp_type,
+    siteU_type=siteU_type,
+    siteM_type=siteM_type,
+    siteD_type=siteD_type,
+    refSite_type=refSite_type,
+)
+
 smc_1_groups = smc_1.get_groups()
+smc_2_groups = smc_2.get_groups()
 
 gen.atom_groups += [
     dna_group,
-    *smc_1_groups
+    *smc_1_groups,
+    *smc_2_groups
 ]
 
 
@@ -384,8 +442,9 @@ bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, 
 bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"           %(kBondAlign2, bondMin2))
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4)
+bonds2 = smc_2.get_bonds(bond_t2, bond_t3, bond_t4)
 
-gen.bais += bonds
+gen.bais += bonds + bonds2
 
 angle_t1 = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n"   % ( kElbows, 180 ) )
@@ -402,7 +461,8 @@ for index in range(nDNA-2):
     ))
 
 angles = smc_1.get_angles(angle_t2, angle_t3)
-gen.bais += dna_angle_list + angles
+angles2 = smc_1.get_angles(angle_t2, angle_t3)
+gen.bais += dna_angle_list + angles + angles2
 
 # We impose zero improper angle
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kAlignSite, 0 ) )
@@ -410,7 +470,7 @@ imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kFolding,   180 - par.foldin
 imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry,  math.fabs(90 - par.foldingAngleAPO) ) )
 
 gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
-
+gen.bais += smc_2.get_impropers(imp_t1, imp_t2, imp_t3)
 
 with open(filepath_data, 'w') as datafile:
     gen.write(datafile)
