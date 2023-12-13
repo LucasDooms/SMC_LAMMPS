@@ -230,6 +230,14 @@ if fold_dna:
     shift_x = desired_x_pos - rDNA[-(nLowerDNA - 10)][0]
     shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
     rDNA += shift
+
+    # get dna beads to freeze
+    # closest to bottom
+    distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
+    closest_DNA_index_b = int(np.argmin(distances))
+    # closest to middle
+    distances = np.linalg.norm(rDNA - rSiteM[1], axis=1)
+    closest_DNA_index_m = int(np.argmin(distances))
 else:
     # make sure SMC touches the DNA at the lower site (siteD)
     desired_y_pos = rSiteD[1][1] - 0.9 * par.cutoff6
@@ -546,3 +554,6 @@ with open(filepath_param, 'w') as parameterfile:
     params = get_variables_from_module(par)
     for key in params:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
+    
+    parameterfile.write(f"variable index1 equal {closest_DNA_index_b}\n")
+    parameterfile.write(f"variable index2 equal {closest_DNA_index_m}\n")

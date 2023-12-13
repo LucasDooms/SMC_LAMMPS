@@ -89,6 +89,18 @@ timestep ${timestep}
 
 #----------------------------------------------Run-------------------------------------------------#
 
+
+# EQUILIBRATE
+
+group frozen id ${index1} ${index2}
+
+fix frz frozen setforce 0 0 0
+
+# Equilibrate in the APO-state
+run $(v_stepsATP/2)
+
+unfix frz
+
 # Reference point in script (enter loop)
 label loop
 
