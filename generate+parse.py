@@ -5,6 +5,7 @@ from sys import argv
 from pathlib import Path
 from dna_creator import get_dna_coordinates, get_dna_coordinates_twist
 from smc_creator import SMC_Creator
+from smc import SMC
 from importlib import import_module
 import default_parameters
 #import matplotlib.pyplot as plt
@@ -325,49 +326,41 @@ siteM_type = AtomType(mSMC)
 siteD_type = AtomType(mSMC)
 refSite_type = AtomType(mSMC)
 
-armDL_group = AtomGroup(rArmDL, armHK_type, molArmDL)
-armUL_group = AtomGroup(rArmUL, armHK_type, molArmUL)
-armUR_group = AtomGroup(rArmUR, armHK_type, molArmUR)
-armDR_group = AtomGroup(rArmDR, armHK_type, molArmDR)
-hk_group = AtomGroup(rHK, armHK_type, molHK)
 
-atp_group = AtomGroup(rATP, atp_type, molATP)
+smc_1 = SMC(
+    rArmDL=rArmDL,
+    rArmUL=rArmUL,
+    rArmUR=rArmUR,
+    rArmDR=rArmDR,
+    rATP=rATP,
+    rHK=rHK,
+    rSiteU=rSiteU,
+    rSiteM=rSiteM,
+    rSiteD=rSiteD,
 
-# split U in two parts
+    molArmDL=molArmDL,
+    molArmUL=molArmUL,
+    molArmUR=molArmUR,
+    molArmDR=molArmDR,
+    molHK=molHK,
+    molATP=molATP,
+    molSiteU=molSiteU,
+    molSiteM=molSiteM,
+    molSiteD=molSiteD,
 
-cut = 3
-siteU_group = AtomGroup(rSiteU[:cut], siteU_type, molSiteU)
-siteU_arm_group = AtomGroup(rSiteU[cut:], armHK_type, molSiteU)
+    armHK_type=armHK_type,
+    atp_type=atp_type,
+    siteU_type=siteU_type,
+    siteM_type=siteM_type,
+    siteD_type=siteD_type,
+    refSite_type=refSite_type,
+)
 
-# split M in three parts
-
-cut = 2
-siteM_group = AtomGroup(rSiteM[:cut], siteM_type, molSiteM)
-siteM_atp_group = AtomGroup(rSiteM[cut:-1], atp_type, molSiteM)
-# ref site
-siteM_ref_group = AtomGroup(rSiteM[-1:], refSite_type, molSiteM)
-
-# split B in two parts
-
-cut = 3
-siteD_group = AtomGroup(rSiteD[:cut], siteD_type, molSiteD)
-siteD_arm_group = AtomGroup(rSiteD[cut:], armHK_type, molSiteD)
+smc_1_groups = smc_1.get_groups()
 
 gen.atom_groups += [
     dna_group,
-    armDL_group,
-    armUL_group,
-    armUR_group,
-    armDR_group,
-    hk_group,
-    atp_group,
-    siteU_group,
-    siteU_arm_group,
-    siteM_group,
-    siteM_ref_group,
-    siteM_atp_group,
-    siteD_group,
-    siteD_arm_group
+    *smc_1_groups
 ]
 
 
@@ -390,28 +383,7 @@ bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, max
 bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, bondMin1))
 bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"           %(kBondAlign2, bondMin2))
 
-bonds = [
-    # attach arms together
-    BAI(bond_t2, (armDL_group, -1), (armUL_group, 0)),
-    BAI(bond_t2, (armUL_group, -1), (armUR_group, 0)),
-    BAI(bond_t2, (armUR_group, -1), (armDR_group, 0)),
-    # connect arms to siteU
-    BAI(bond_t2, (armUL_group, -1), (siteU_arm_group, -1)),
-    # connect atp bridge to arms
-    BAI(bond_t2, (armDR_group, -1), (atp_group, -1)),
-    BAI(bond_t2, (atp_group,  0), (armDL_group, 0)),
-    # connect bridge to hk
-    BAI(bond_t2, (atp_group, -1), (hk_group, 0)),
-    BAI(bond_t2, (hk_group, -1), (atp_group, 0)),
-    # bind upper arms to the siteU edges, to keep motion restrained
-    BAI(bond_t3, (armUL_group, indL), (siteU_arm_group, -2)),
-    BAI(bond_t3, (armUL_group, indL), (siteU_arm_group, -3)),
-    BAI(bond_t3, (armUR_group, indR), (siteU_arm_group, -2)),
-    BAI(bond_t3, (armUR_group, indR), (siteU_arm_group, -3)),
-    # bind top of upper arms to siteU edges
-    BAI(bond_t4, (armUL_group, -1), (siteU_arm_group, -2)),
-    BAI(bond_t4, (armUL_group, -1), (siteU_arm_group, -3)),
-] 
+bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4)
 
 gen.bais += bonds
 
@@ -429,36 +401,15 @@ for index in range(nDNA-2):
         (dna_group, index + 2)
     ))
 
-# keep left arms rigid (prevent too much bending)
-arm_arm_angle1 = BAI(angle_t2, (armDL_group, 0), (armUL_group, 0), (armUL_group, -1))
-# same, but for right arms
-arm_arm_angle2 = BAI(angle_t2, (armUR_group, 0), (armUR_group, -1), (armDR_group, -1))
-
-# prevent too much bending between lower arms and the bridge
-arm_atp_angle1 = BAI(angle_t3, (armDL_group, -1), (armDL_group, 0), (atp_group, -1))
-arm_atp_angle2 = BAI(angle_t3, (armDR_group, 0), (armDR_group, -1), (atp_group, 0))
-
-gen.bais += dna_angle_list + [arm_arm_angle1, arm_arm_angle2, arm_atp_angle1, arm_atp_angle2]
+angles = smc_1.get_angles(angle_t2, angle_t3)
+gen.bais += dna_angle_list + angles
 
 # We impose zero improper angle
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kAlignSite, 0 ) )
 imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kFolding,   180 - par.foldingAngleAPO ) )
 imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry,  math.fabs(90 - par.foldingAngleAPO) ) )
 
-# Fix orientation of ATP/kleisin bridge
-# WARNING: siteM is split into groups, be careful with index
-atp_HK_improper1 = BAI(imp_t1, (armDL_group, -1), (armDL_group, 0), (atp_group, -1), (siteM_group, 1))
-atp_HK_improper2 = BAI(imp_t1, (armDR_group, 0), (armDR_group, -1), (atp_group, 0), (siteM_group, 1))
-
-folding_angle_improper1 = BAI(imp_t2, (armDL_group, -1), (armDL_group, 0), (atp_group, -1), (hk_group, nHK//2))
-folding_angle_improper2 = BAI(imp_t2, (armDR_group, 0), (armDR_group, -1), (atp_group, 0), (hk_group, nHK//2))
-
-# WARNING: indices M changed
-# prevent kleisin ring from swaying too far relative to the bridge
-folding_asymmetry_improper = BAI(imp_t3, (siteM_ref_group, 0), (armDL_group, 0), (armDR_group, -1), (hk_group, nHK//2))
-# datafile.write("9 3 %s %s %s %s\n\n" %(IDsiteM[2], IDarmDL[ 0], IDarmDR[-1], IDhK[nHK//2]))
-
-gen.bais += [atp_HK_improper1, atp_HK_improper2, folding_angle_improper1, folding_angle_improper2, folding_asymmetry_improper]
+gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
 
 
 with open(filepath_data, 'w') as datafile:
