@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 import test.post_processing_parameters as parameters
+from itertools import islice
 from copy import deepcopy
 from typing import Tuple, List, Dict
 from io import StringIO
@@ -27,9 +28,10 @@ from time import time
 def timer(func):
     def timed_func(*args, **kwargs):
         time_start = time()
-        func(*args, **kwargs)
+        ret_value = func(*args, **kwargs)
         time_end = time()
         print(time_end - time_start)
+        return ret_value
     return timed_func
 
 
@@ -40,9 +42,10 @@ def timer_accumulator(func):
         cached[func] = 0.0
     def timed_func(*args, **kwargs):
         time_start = time()
-        func(*args, **kwargs)
+        ret_value = func(*args, **kwargs)
         time_end = time()
         cached[func] += time_end - time_start
+        return ret_value
     return timed_func
 
 
@@ -56,7 +59,12 @@ class Box:
     zhi: float
 
     def is_in_box(self, xyz) -> bool:
-        return (self.xlo <= xyz[0] <= self.xhi) and (self.ylo <= xyz[1] <= self.yhi) and (self.zlo <= xyz[2] <= self.zhi)
+        xyz = np.array(xyz)
+        condition_x = np.logical_and(self.xlo <= xyz[:,0], xyz[:,0] <= self.xhi)
+        condition_y = np.logical_and(self.ylo <= xyz[:,1], xyz[:,1] <= self.yhi)
+        condition_z = np.logical_and(self.zlo <= xyz[:,2], xyz[:,2] <= self.zhi)
+
+        return np.logical_and.reduce([condition_x, condition_y, condition_z], axis=0)
 
 
 @dataclass
@@ -70,14 +78,14 @@ class LammpsData:
     def filter(self, keep) -> None:
         """filters the current lists
         keep takes id (int), type (int), pos (array[float]) as input and returns bool"""
-        keep = np.vectorize(keep)
+        keep_indices = keep(self.ids, self.types, self.positions)
 
         self.ids = self.ids[keep_indices]
         self.types = self.types[keep_indices]
         self.positions = self.positions[keep_indices]
 
     def filter_by_types(self, types: List[int]) -> None:
-        self.filter(lambda _, t, __: t in types)
+        self.filter(lambda _, t, __: np.isin(t, types))
 
     def __deepcopy_(self, memo) -> LammpsData:
         new = LammpsData(
@@ -118,6 +126,29 @@ class Parser:
             raise StopIteration
         raise ValueError("reached end of file unexpectedly")
 
+    @staticmethod
+    @timer_accumulator
+    def strio(lines):
+        lines = "".join(lines)
+        with StringIO(lines) as file:
+            array = np.loadtxt(file)
+        return array
+
+    @staticmethod
+    @timer_accumulator
+    def strio_2(lines):
+        lst = [[float(num) for num in line.split(" ")] for line in lines]
+        return np.array(lst)
+    
+    @staticmethod
+    @timer_accumulator
+    def strio_3(lines, n):
+        array = np.zeros((n, 5), dtype=float)
+        for i, line in enumerate(lines):
+            for j, num in enumerate(line.split(" ")):
+                array[i][j] = float(num)
+        return array
+
     def next_step(self) -> Tuple[int, List[List[float]]]:
         """returns timestep and list of [x, y, z] for each atom"""
 
@@ -125,11 +156,12 @@ class Parser:
         timestep = int(saved["ITEM: TIMESTEP"][0])
         number_of_atoms = int(saved["ITEM: NUMBER OF ATOMS"][0])
 
-        lines = " ".join([next(self.file) for _ in range(number_of_atoms)])
+        lines = list(islice(self.file, number_of_atoms))
+        if len(lines) != number_of_atoms:
+            raise ValueError("reached end of file unexpectedly")
 
-        with StringIO(lines) as file:
-            array = np.loadtxt(file)
-
+        array = self.strio(lines)
+        
         return timestep, array
     
     @staticmethod
@@ -237,12 +269,11 @@ def get_best_match_dna_bead_in_smc():
     print(f"{t_other_first = }")
     print(f"{t_other_second = }")
     print(cached)
-    # print("filter timer", cached[LammpsData.filter])
 
-    # import matplotlib.pyplot as plt
-    #
-    # plt.scatter(steps, indices)
-    # plt.show()
+    import matplotlib.pyplot as plt
+
+    plt.scatter(steps, indices)
+    plt.savefig("test.png")
 
 
 def test():

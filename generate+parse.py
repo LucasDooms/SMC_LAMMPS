@@ -537,6 +537,10 @@ plt.axis('scaled')
 plt.show()
 """
 
+print("top", gen.get_atom_index((smc_1.armUL_group, -1)))
+print("left", gen.get_atom_index((smc_1.armDL_group, 0)))
+print("right", gen.get_atom_index((smc_1.armUR_group, -1)))
+print("dna max", gen.get_atom_index((dna_group, nDNA // 2)))
 
 #################################################################################
 #                           Print to parameterfile                              #
