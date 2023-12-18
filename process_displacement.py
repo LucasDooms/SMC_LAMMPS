@@ -92,6 +92,8 @@ class LammpsData:
 
 class Parser:
 
+    atom_format = "ITEM: ATOMS id type x y z\n"
+
     class EndOfLammpsFile(Exception):
         pass
 
@@ -105,6 +107,8 @@ class Parser:
         for line in self.file:
             empty = False
             if line.startswith("ITEM: ATOMS"):
+                if line != self.atom_format:
+                    raise ValueError(f"Wrong format of atoms, found\n{line}\nshould be\n{self.atom_format}\n")
                 return saved
             # remove newline
             line = line[:-1]
@@ -206,6 +210,29 @@ def write(file, steps, positions):
         file.write(f"1 1 {position[0]} {position[1]} {position[2]}\n")
 
 
+def is_sorted(lst) -> bool:
+    return all(lst[i] <= lst[i + 1] for i in range(len(lst) - 1))
+
+
+def split_into_index_groups(indices):
+    """splits a (sorted) list of integers into groups of adjacent integers"""
+    indices = list(indices)
+    if not indices:
+        return indices
+
+    if not is_sorted(indices):
+        raise ValueError("indices must be sorted")
+    
+    groups = [[indices[0]]]
+    for index in indices[1:]:
+        if groups[-1][-1] == index - 1:
+            groups[-1].append(index)
+        else:
+            groups.append([index])
+
+    return groups
+
+
 def get_best_match_dna_bead_in_smc(folder_name_or_path):
     """
     For each timestep:
@@ -253,7 +280,14 @@ def get_best_match_dna_bead_in_smc(folder_name_or_path):
 
         distances = distance_point_to_plane(filtered, pos_top, normal_vector)
         
-        # sorted_indices = np.argsort(distances)
+        # take close beads
+        close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
+        # find groups
+        grps = split_into_index_groups(close_beads_indices)
+        if len(grps) > 1:
+            print(grps)
+            exit()
+
         closest_val = np.min(distances)
         closest_bead_index = np.where(distances == closest_val)[0][0]
         indices.append(new_data.ids[closest_bead_index])
