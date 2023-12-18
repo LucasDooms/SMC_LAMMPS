@@ -542,7 +542,7 @@ plt.show()
 #################################################################################
 
 
-with open(path / "post_processing_params.py", 'w') as file:
+with open(path / "post_processing_parameters.py", 'w') as file:
     file.write(
         "# use to form plane of SMC arms\n"
         "top_bead_id = {}\n"
@@ -554,6 +554,9 @@ with open(path / "post_processing_params.py", 'w') as file:
             gen.get_atom_index((smc_1.armUR_group, -1)),
             gen.get_atom_index((dna_group, nDNA // 2)),
         )
+    )
+    file.write(
+        "dna_spacing = {}\n".format(DNAbondLength)
     )
 
 
