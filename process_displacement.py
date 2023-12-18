@@ -1,21 +1,9 @@
 # post-processing to find the movement of the SMC relative to the DNA
 
-# -- IDEA --
-# For each timestep in datafile:
-#   1. get 4 reference bead of SMC -> create the SMC plane
-#   2. For each DNA bead:
-#       eliminate if outside of SMC
-#   3. find remaining DNA beads closest to the plane
-
-# -- NEW IDEA --
-# For each timestep in datafile:
-#   1. rotate everything, so that the smc is aligned in the y-z plane (y = bottom-to-top, z=side-to-side)
-#   2. remove DNA that are outside of y-z box/rectangle
-#   3. remove DNA that are outside a certain x bound
-#   4. further specify shape of SMC
-
 from __future__ import annotations
-import test.post_processing_parameters as parameters
+from importlib import import_module
+from sys import argv
+from pathlib import Path
 from itertools import islice
 from copy import deepcopy
 from typing import Tuple, List, Dict
@@ -104,6 +92,9 @@ class LammpsData:
 
 class Parser:
 
+    class EndOfLammpsFile(Exception):
+        pass
+
     def __init__(self, file_name: str) -> None:
         self.file = open(file_name, 'r')
 
@@ -123,7 +114,7 @@ class Parser:
             else:
                 saved[current_line].append(line)
         if empty:
-            raise StopIteration
+            raise self.EndOfLammpsFile()
         raise ValueError("reached end of file unexpectedly")
 
     @staticmethod
@@ -199,25 +190,33 @@ def get_normal_direction(p1, p2, p3):
     return perpendicular / np.linalg.norm(perpendicular)
 
 
-def write(steps, positions):
-    with open("write_test.lammpstrj", 'w') as file:
-        for step, position in zip(steps, positions):
-            file.write("ITEM: TIMESTEP\n")
-            file.write(f"{step}\n")
-            file.write("ITEM: NUMBER OF ATOMS\n")
-            file.write("1\n")
-            file.write(
-                "ITEM: BOX BOUNDS ff ff ff\n"
-                "-8.5170000000000005e+02 8.5170000000000005e+02\n"
-                "-8.5170000000000005e+02 8.5170000000000005e+02\n"
-                "-8.5170000000000005e+02 8.5170000000000005e+02\n"
-            )
-            file.write("ITEM: ATOMS id type xs ys zs\n")
-            file.write(f"1 1 {position[0]} {position[1]} {position[2]}\n")
+def write(file, steps, positions):
+    for step, position in zip(steps, positions):
+        file.write("ITEM: TIMESTEP\n")
+        file.write(f"{step}\n")
+        file.write("ITEM: NUMBER OF ATOMS\n")
+        file.write("1\n")
+        file.write(
+            "ITEM: BOX BOUNDS ff ff ff\n"
+            "-8.5170000000000005e+02 8.5170000000000005e+02\n"
+            "-8.5170000000000005e+02 8.5170000000000005e+02\n"
+            "-8.5170000000000005e+02 8.5170000000000005e+02\n"
+        )
+        file.write("ITEM: ATOMS id type xs ys zs\n")
+        file.write(f"1 1 {position[0]} {position[1]} {position[2]}\n")
 
 
-def get_best_match_dna_bead_in_smc():
-    par = Parser("test/output.lammpstrj")
+def get_best_match_dna_bead_in_smc(folder_name_or_path):
+    """
+    For each timestep:
+        create box around SMC
+        remove DNA not within box
+        remove DNA part of lower segment (we only want the upper segment here)
+        find DNA closest to SMC plane
+    """
+    parameters = import_module((path / "post_processing_parameters").as_posix().replace('/', '.'))
+
+    par = Parser(folder_name_or_path / "output.lammpstrj")
     steps = []
     indices = []
     positions = []
@@ -229,7 +228,7 @@ def get_best_match_dna_bead_in_smc():
             t0 = time()
             step, arr = par.next_step()
             t_read += time() - t0
-        except StopIteration:
+        except Parser.EndOfLammpsFile:
             break
         
         t0 = time()
@@ -263,7 +262,10 @@ def get_best_match_dna_bead_in_smc():
         t_other_second += time() - t0
 
     t0 = time()
-    write(steps, positions)
+
+    with open(folder_name_or_path / "marked_bead.lammpstrj", 'w') as file:
+        write(file, steps, positions)
+
     print("write", time() - t0)
     print("read", t_read)
     print(f"{t_other_first = }")
@@ -273,7 +275,7 @@ def get_best_match_dna_bead_in_smc():
     import matplotlib.pyplot as plt
 
     plt.scatter(steps, indices)
-    plt.savefig("test.png")
+    plt.savefig(folder_name_or_path / "bead_id_in_time.png")
 
 
 def test():
@@ -314,6 +316,8 @@ def test_plane():
 
 
 if __name__ == "__main__":
-    # test()
-    get_best_match_dna_bead_in_smc()
-    # test_plane()
+    argv = argv[1:]
+    if len(argv) != 1:
+        raise Exception("Please provide a folder path")
+    path = Path(argv[0])
+    get_best_match_dna_bead_in_smc(path)

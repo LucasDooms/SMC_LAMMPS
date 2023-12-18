@@ -537,10 +537,25 @@ plt.axis('scaled')
 plt.show()
 """
 
-print("top", gen.get_atom_index((smc_1.armUL_group, -1)))
-print("left", gen.get_atom_index((smc_1.armDL_group, 0)))
-print("right", gen.get_atom_index((smc_1.armUR_group, -1)))
-print("dna max", gen.get_atom_index((dna_group, nDNA // 2)))
+#################################################################################
+#                           Print to post processing                            #
+#################################################################################
+
+
+with open(path / "post_processing_params.py", 'w') as file:
+    file.write(
+        "# use to form plane of SMC arms\n"
+        "top_bead_id = {}\n"
+        "left_bead_id = {}\n"
+        "right_bead_id = {}\n"
+        "upper_dna_max_id = {}\n".format(
+            gen.get_atom_index((smc_1.armUL_group, -1)),
+            gen.get_atom_index((smc_1.armDL_group, 0)),
+            gen.get_atom_index((smc_1.armUR_group, -1)),
+            gen.get_atom_index((dna_group, nDNA // 2)),
+        )
+    )
+
 
 #################################################################################
 #                           Print to parameterfile                              #
