@@ -206,7 +206,7 @@ def write(file, steps, positions):
             "-8.5170000000000005e+02 8.5170000000000005e+02\n"
             "-8.5170000000000005e+02 8.5170000000000005e+02\n"
         )
-        file.write("ITEM: ATOMS id type xs ys zs\n")
+        file.write(Parser.atom_format)
         file.write(f"1 1 {position[0]} {position[1]} {position[2]}\n")
 
 
@@ -284,11 +284,13 @@ def get_best_match_dna_bead_in_smc(folder_name_or_path):
         close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
         # find groups
         grps = split_into_index_groups(close_beads_indices)
-        if len(grps) > 1:
-            print(grps)
-            exit()
+        
+        try:
+            grp = grps[0]
+        except IndexError:
+            grp = [0]
 
-        closest_val = np.min(distances)
+        closest_val = np.min(distances[grp])
         closest_bead_index = np.where(distances == closest_val)[0][0]
         indices.append(new_data.ids[closest_bead_index])
         positions.append(filtered[closest_bead_index])
