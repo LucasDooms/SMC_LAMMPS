@@ -556,7 +556,7 @@ with open(path / "post_processing_parameters.py", 'w') as file:
         )
     )
     file.write(
-        "dna_spacing = {}\n".format(DNAbondLength)
+        "dna_spacing = {}\n".format(maxLengthDNA)
     )
 
 

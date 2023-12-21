@@ -233,7 +233,7 @@ def split_into_index_groups(indices):
     return groups
 
 
-def get_best_match_dna_bead_in_smc(folder_name_or_path):
+def get_best_match_dna_bead_in_smc(folder_path):
     """
     For each timestep:
         create box around SMC
@@ -243,7 +243,7 @@ def get_best_match_dna_bead_in_smc(folder_name_or_path):
     """
     parameters = import_module((path / "post_processing_parameters").as_posix().replace('/', '.'))
 
-    par = Parser(folder_name_or_path / "output.lammpstrj")
+    par = Parser(folder_path / "output.lammpstrj")
     steps = []
     indices = []
     positions = []
@@ -288,6 +288,7 @@ def get_best_match_dna_bead_in_smc(folder_name_or_path):
         try:
             grp = grps[0]
         except IndexError:
+            print(step)
             grp = [0]
 
         closest_val = np.min(distances[grp])
@@ -299,7 +300,7 @@ def get_best_match_dna_bead_in_smc(folder_name_or_path):
 
     t0 = time()
 
-    with open(folder_name_or_path / "marked_bead.lammpstrj", 'w') as file:
+    with open(folder_path / "marked_bead.lammpstrj", 'w') as file:
         write(file, steps, positions)
 
     print("write", time() - t0)
@@ -311,7 +312,7 @@ def get_best_match_dna_bead_in_smc(folder_name_or_path):
     import matplotlib.pyplot as plt
 
     plt.scatter(steps, indices)
-    plt.savefig(folder_name_or_path / "bead_id_in_time.png")
+    plt.savefig(folder_path / "bead_id_in_time.png")
 
 
 def test():
