@@ -552,9 +552,21 @@ with open(path / "post_processing_parameters.py", 'w') as file:
             gen.get_atom_index((smc_1.armUL_group, -1)),
             gen.get_atom_index((smc_1.armDL_group, 0)),
             gen.get_atom_index((smc_1.armUR_group, -1)),
-            gen.get_atom_index((dna_group, nDNA // 2)),
+            gen.get_atom_index((dna_group, nDNA // 2))
         )
     )
+    file.write("\n")
+    file.write(
+        "# use to form plane of SMC kleisin\n"
+        "left_kleisin_id = {}\n"
+        "right_kleisin_id = {}\n"
+        "bottom_kleisin_id = {}\n".format(
+            gen.get_atom_index((smc_1.hk_group, 0)),
+            gen.get_atom_index((smc_1.hk_group, len(smc_1.rHK) // 2)),
+            gen.get_atom_index((smc_1.hk_group, -1)),
+        )
+    )
+    file.write("\n")
     file.write(
         "dna_spacing = {}\n".format(maxLengthDNA)
     )

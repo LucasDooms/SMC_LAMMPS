@@ -233,6 +233,16 @@ def split_into_index_groups(indices):
     return groups
 
 
+def get_bead_distances(data: LammpsData, positions, id1: int, id2: int, id3: int):
+    pos1 = data.positions[id1 - 1]
+    pos2 = data.positions[id2 - 1]
+    pos3 = data.positions[id3 - 1]
+
+    normal_vector = get_normal_direction(pos1, pos2, pos3)
+
+    return distance_point_to_plane(positions, pos1, normal_vector)
+
+
 def get_best_match_dna_bead_in_smc(folder_path):
     """
     For each timestep:
@@ -272,24 +282,30 @@ def get_best_match_dna_bead_in_smc(folder_path):
         t_other_first += time() - t0
         t0 = time()
 
-        pos_top = data.positions[parameters.top_bead_id - 1]
-        pos_left = data.positions[parameters.left_bead_id - 1]
-        pos_right = data.positions[parameters.right_bead_id - 1]
+        distances = get_bead_distances(data, filtered, parameters.top_bead_id, parameters.left_bead_id, parameters.right_bead_id)
 
-        normal_vector = get_normal_direction(pos_top, pos_left, pos_right)
-
-        distances = distance_point_to_plane(filtered, pos_top, normal_vector)
-        
         # take close beads
         close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
+
         # find groups
         grps = split_into_index_groups(close_beads_indices)
         
         try:
             grp = grps[0]
         except IndexError:
-            print(step)
-            grp = [0]
+            distances = get_bead_distances(data, filtered, parameters.left_kleisin_id, parameters.right_kleisin_id, parameters.bottom_kleisin_id)
+
+            # take close beads
+            close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
+
+            # find groups
+            grps = split_into_index_groups(close_beads_indices)
+
+            try:
+                grp = grps[0]
+            except IndexError:
+                print(step)
+                grp = [0]
 
         closest_val = np.min(distances[grp])
         closest_bead_index = np.where(distances == closest_val)[0][0]
