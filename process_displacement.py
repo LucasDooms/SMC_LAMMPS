@@ -123,25 +123,10 @@ class Parser:
 
     @staticmethod
     @timer_accumulator
-    def strio(lines):
+    def get_array(lines):
         lines = "".join(lines)
         with StringIO(lines) as file:
             array = np.loadtxt(file)
-        return array
-
-    @staticmethod
-    @timer_accumulator
-    def strio_2(lines):
-        lst = [[float(num) for num in line.split(" ")] for line in lines]
-        return np.array(lst)
-    
-    @staticmethod
-    @timer_accumulator
-    def strio_3(lines, n):
-        array = np.zeros((n, 5), dtype=float)
-        for i, line in enumerate(lines):
-            for j, num in enumerate(line.split(" ")):
-                array[i][j] = float(num)
         return array
 
     def next_step(self) -> Tuple[int, List[List[float]]]:
@@ -155,7 +140,7 @@ class Parser:
         if len(lines) != number_of_atoms:
             raise ValueError("reached end of file unexpectedly")
 
-        array = self.strio(lines)
+        array = self.get_array(lines)
         
         return timestep, array
     
