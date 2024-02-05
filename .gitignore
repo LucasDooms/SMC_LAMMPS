@@ -5,3 +5,4 @@ parameterfile
 log.lammps
 */states/*
 post_processing_parameters.py
+test/
