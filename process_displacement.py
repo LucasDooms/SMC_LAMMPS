@@ -264,6 +264,11 @@ def get_best_match_dna_bead_in_smc(folder_path):
         new_data.filter(lambda id, _, __: id <= parameters.upper_dna_max_id)
         filtered = new_data.positions
 
+        if len(filtered) == 0:
+            indices.append(parameters.upper_dna_max_id)
+            positions.append(data.positions[indices[-1]])
+            continue
+
         t_other_first += time() - t0
         t0 = time()
 
