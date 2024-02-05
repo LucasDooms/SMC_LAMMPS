@@ -219,9 +219,9 @@ def split_into_index_groups(indices):
 
 
 def get_bead_distances(data: LammpsData, positions, id1: int, id2: int, id3: int):
-    pos1 = data.positions[id1 - 1]
-    pos2 = data.positions[id2 - 1]
-    pos3 = data.positions[id3 - 1]
+    pos1 = data.positions[np.where(id1 == data.ids)[0][0]]
+    pos2 = data.positions[np.where(id2 == data.ids)[0][0]]
+    pos3 = data.positions[np.where(id3 == data.ids)[0][0]]
 
     normal_vector = get_normal_direction(pos1, pos2, pos3)
 
