@@ -3,7 +3,7 @@ import numpy as np
 import math
 
 
-def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: int, nArcStraight: int):
+def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcStraight: int):
     # form vertical + quarter circle + straight + semi circle + horizontal parts
 
     # Number of beads forming the arced DNA piece (err on the high side)
@@ -65,7 +65,7 @@ def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: int, nArcStra
 
     return rDNA, nLowerDNA
 
-def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: int):
+def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     # form upper + semi circle + horizontal parts
 
     # Number of beads forming the arced DNA piece (err on the high side)
