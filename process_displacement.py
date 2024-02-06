@@ -75,7 +75,7 @@ class LammpsData:
     def filter_by_types(self, types: List[int]) -> None:
         self.filter(lambda _, t, __: np.isin(t, types))
 
-    def __deepcopy_(self, memo) -> LammpsData:
+    def __deepcopy__(self, memo) -> LammpsData:
         new = LammpsData(
             np.copy(self.ids),
             np.copy(self.types),
