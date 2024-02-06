@@ -63,7 +63,11 @@ def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcSt
 
     rDNA[:,0] *= -1
 
-    return rDNA, nLowerDNA
+    # the position in the center of the semi arc
+    offset = nUpperDNA + nArcQuart + nArcStraight
+    centerCoordinate = rDNA[offset] + (rDNA[offset + nArcSemi] - rDNA[offset]) / 2.0
+
+    return rDNA, centerCoordinate
 
 def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     # form upper + semi circle + horizontal parts
@@ -110,4 +114,8 @@ def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
 
     rDNA *= DNAbondLength
 
-    return rDNA, nLowerDNA
+    # the position in the center of the arc
+    offset = nUpperDNA
+    centerCoordinate = rDNA[offset] + (rDNA[offset + nArcSemi] - rDNA[offset]) / 2.0
+
+    return rDNA, centerCoordinate

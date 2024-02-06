@@ -214,9 +214,9 @@ nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
 fold_dna = True
 
 if fold_dna:
-    rDNA, nLowerDNA = get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
+    rDNA, dnaCenter = get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
 else:
-    rDNA, nLowerDNA = get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
+    rDNA, dnaCenter = get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
 
 #################################################################################
 #                               Shift DNA to SMC                                #
@@ -226,8 +226,8 @@ if fold_dna:
     # make sure SMC contains DNA
     desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
     shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0]
-    shift_x = desired_x_pos - rDNA[-(nLowerDNA - 10)][0]
+    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
+    shift_x = desired_x_pos - dnaCenter[0]
     shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
     rDNA += shift
 
@@ -242,8 +242,8 @@ else:
     # make sure SMC touches the DNA at the lower site (siteD)
     desired_y_pos = rSiteD[1][1] - 0.9 * par.cutoff6
     shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0]
-    shift_x = desired_x_pos - rDNA[-(nLowerDNA - 3)][0]
+    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
+    shift_x = desired_x_pos - dnaCenter[0]
     shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
     rDNA += shift
 
