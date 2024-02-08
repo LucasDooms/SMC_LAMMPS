@@ -92,7 +92,7 @@ timestep ${timestep}
 
 # EQUILIBRATE
 
-group frozen id ${index1} ${index2}
+group frozen id ${indices}
 
 fix frz frozen setforce 0 0 0
 

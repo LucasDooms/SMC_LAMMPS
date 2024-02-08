@@ -67,7 +67,7 @@ def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcSt
     offset = nUpperDNA + nArcQuart + nArcStraight
     centerCoordinate = rDNA[offset] + (rDNA[offset + nArcSemi] - rDNA[offset]) / 2.0
 
-    return rDNA, centerCoordinate
+    return [rDNA], centerCoordinate
 
 def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     # form upper + semi circle + horizontal parts
@@ -118,4 +118,15 @@ def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     offset = nUpperDNA
     centerCoordinate = rDNA[offset] + (rDNA[offset + nArcSemi] - rDNA[offset]) / 2.0
 
-    return rDNA, centerCoordinate
+    return [rDNA], centerCoordinate
+
+def get_dna_coordinates_doubled(nDNA: int, DNAbondLength: float, diameter: float):
+    nOuterDNA = math.ceil(nDNA / 1.9)
+    nInnerDNA = nDNA - nOuterDNA
+    [rOuterDNA], outerCenter = get_dna_coordinates_twist(nOuterDNA, DNAbondLength, diameter)
+    [rInnerDNA], innerCenter = get_dna_coordinates_twist(nInnerDNA, DNAbondLength, diameter / 1.5)
+    # align pieces
+    rInnerDNA += outerCenter - innerCenter
+    # create seperation (x direction)
+    rInnerDNA[:,0] += 5.0 * DNAbondLength
+    return [rOuterDNA, rInnerDNA], outerCenter
