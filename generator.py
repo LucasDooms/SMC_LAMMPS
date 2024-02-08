@@ -338,7 +338,7 @@ class Generator:
                     if atom_group.polymer_bond_type is None:
                         continue
                     for j in range(len(atom_group.positions) - 1):
-                        file.write(f"%s {atom_group.polymer_bond_type.index} %s %s\n" %(global_index, j + 1, j + 2) )
+                        file.write(f"%s {atom_group.polymer_bond_type.index} %s %s\n" %(global_index, self.get_atom_index((atom_group, j)), self.get_atom_index((atom_group, j + 1))) )
                         global_index += 1
 
             length = length_lookup[kind]
