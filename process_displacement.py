@@ -228,6 +228,45 @@ def get_bead_distances(data: LammpsData, positions, id1: int, id2: int, id3: int
     return distance_point_to_plane(positions, pos1, normal_vector)
 
 
+def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, parameters):
+    filtered = new_data.positions
+
+    if len(filtered) == 0:
+        indices.append(-1)
+        positions.append(data.positions[indices[-1]])
+        return
+
+    distances = get_bead_distances(data, filtered, parameters.top_bead_id, parameters.left_bead_id, parameters.right_bead_id)
+
+    # take close beads
+    close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
+
+    # find groups
+    grps = split_into_index_groups(close_beads_indices)
+    
+    try:
+        grp = grps[0]
+    except IndexError:
+        distances = get_bead_distances(data, filtered, parameters.left_kleisin_id, parameters.right_kleisin_id, parameters.bottom_kleisin_id)
+
+        # take close beads
+        close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
+
+        # find groups
+        grps = split_into_index_groups(close_beads_indices)
+
+        try:
+            grp = grps[0]
+        except IndexError:
+            print("skipped")
+            grp = [0]
+
+    closest_val = np.min(distances[grp])
+    closest_bead_index = np.where(distances == closest_val)[0][0]
+    indices.append(new_data.ids[closest_bead_index])
+    positions.append(filtered[closest_bead_index])
+
+
 def get_best_match_dna_bead_in_smc(folder_path):
     """
     For each timestep:
@@ -240,20 +279,14 @@ def get_best_match_dna_bead_in_smc(folder_path):
 
     par = Parser(folder_path / "output.lammpstrj")
     steps = []
-    indices = []
-    positions = []
-    t_read = 0.0
-    t_other_first = 0.0
-    t_other_second = 0.0
+    indices_array = [[] for _ in range(len(parameters.dna_indices_list))]
+    positions_array = [[] for _ in range(len(parameters.dna_indices_list))]
     while True:
         try:
-            t0 = time()
             step, arr = par.next_step()
-            t_read += time() - t0
         except Parser.EndOfLammpsFile:
             break
         
-        t0 = time()
         steps.append(step)
 
         data = Parser.split_data(arr)
@@ -261,63 +294,26 @@ def get_best_match_dna_bead_in_smc(folder_path):
 
         new_data = data.delete_outside_box(box)
         new_data.filter_by_types([1])
-        new_data.filter(lambda id, _, __: id <= parameters.upper_dna_max_id)
-        filtered = new_data.positions
-
-        if len(filtered) == 0:
-            indices.append(parameters.upper_dna_max_id)
-            positions.append(data.positions[indices[-1]])
-            continue
-
-        t_other_first += time() - t0
-        t0 = time()
-
-        distances = get_bead_distances(data, filtered, parameters.top_bead_id, parameters.left_bead_id, parameters.right_bead_id)
-
-        # take close beads
-        close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
-
-        # find groups
-        grps = split_into_index_groups(close_beads_indices)
-        
-        try:
-            grp = grps[0]
-        except IndexError:
-            distances = get_bead_distances(data, filtered, parameters.left_kleisin_id, parameters.right_kleisin_id, parameters.bottom_kleisin_id)
-
-            # take close beads
-            close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
-
-            # find groups
-            grps = split_into_index_groups(close_beads_indices)
-
-            try:
-                grp = grps[0]
-            except IndexError:
-                print(step)
-                grp = [0]
-
-        closest_val = np.min(distances[grp])
-        closest_bead_index = np.where(distances == closest_val)[0][0]
-        indices.append(new_data.ids[closest_bead_index])
-        positions.append(filtered[closest_bead_index])
-        
-        t_other_second += time() - t0
-
-    t0 = time()
+        # split, and call for each
+        for i, (min_index, max_index) in enumerate(parameters.dna_indices_list):
+            new_data_temp = deepcopy(new_data)
+            new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
+            handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters)
 
     with open(folder_path / "marked_bead.lammpstrj", 'w') as file:
-        write(file, steps, positions)
+        write(file, steps, positions_array[0])
 
-    print("write", time() - t0)
-    print("read", t_read)
-    print(f"{t_other_first = }")
-    print(f"{t_other_second = }")
     print(cached)
 
     import matplotlib.pyplot as plt
-
-    plt.scatter(steps, indices)
+    
+    plt.figure()
+    plt.title("Index of DNA bead inside SMC loop in time")
+    plt.xlabel("time")
+    plt.ylabel("DNA bead index")
+    for i in range(len(indices_array)):
+        plt.scatter(steps, indices_array[i], s=0.5, label=f"DNA {i}")
+    plt.legend()
     plt.savefig(folder_path / "bead_id_in_time.png")
 
 

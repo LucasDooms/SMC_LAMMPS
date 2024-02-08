@@ -589,14 +589,24 @@ with open(path / "post_processing_parameters.py", 'w') as file:
         "# use to form plane of SMC arms\n"
         "top_bead_id = {}\n"
         "left_bead_id = {}\n"
-        "right_bead_id = {}\n"
-        "upper_dna_max_id = {}\n".format(
+        "right_bead_id = {}\n".format(
             gen.get_atom_index((smc_1.armUL_group, -1)),
             gen.get_atom_index((smc_1.armDL_group, 0)),
             gen.get_atom_index((smc_1.armUR_group, -1)),
-            # TODO: handle all groups
-            gen.get_atom_index((dna_groups[0], len(dna_groups[0].positions) // 2))
         )
+    )
+    file.write("\n")
+    dna_indices_list = []
+    for dna_grp in dna_groups:
+        dna_indices_list.append(
+            (
+                gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
+                gen.get_atom_index((dna_grp, len(dna_grp.positions) // 2)) # max = half way point (so that lower DNA is not included)
+            )
+        )
+    file.write(
+        "# list of (min, max) of DNA indices for seperate pieces to analyze\n"
+        "dna_indices_list = {}\n".format(dna_indices_list)
     )
     file.write("\n")
     file.write(
