@@ -636,6 +636,11 @@ with open(filepath_param, 'w') as parameterfile:
     for key in params:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
     
+    end_points = []
+    for grp in dna_groups:
+        # get (1-indexed) indices from generator
+        end_points += [gen.get_atom_index((grp, 0)), gen.get_atom_index((grp, -1))]
+    parameterfile.write(f'variable dna_end_points string "{list_to_space_str(end_points)}"\n')
     
     # turn zero to one indexed for LAMMPS
     freeze_indices = [x + 1 for x in freeze_indices]
