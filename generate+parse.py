@@ -592,7 +592,7 @@ with open(path / "post_processing_parameters.py", 'w') as file:
         "right_bead_id = {}\n".format(
             gen.get_atom_index((smc_1.armUL_group, -1)),
             gen.get_atom_index((smc_1.armDL_group, 0)),
-            gen.get_atom_index((smc_1.armUR_group, -1)),
+            gen.get_atom_index((smc_1.armDR_group, -1)),
         )
     )
     file.write("\n")
@@ -605,7 +605,7 @@ with open(path / "post_processing_parameters.py", 'w') as file:
             )
         )
     file.write(
-        "# list of (min, max) of DNA indices for seperate pieces to analyze\n"
+        "# list of (min, max) of DNA indices for separate pieces to analyze\n"
         "dna_indices_list = {}\n".format(dna_indices_list)
     )
     file.write("\n")
@@ -615,8 +615,8 @@ with open(path / "post_processing_parameters.py", 'w') as file:
         "right_kleisin_id = {}\n"
         "bottom_kleisin_id = {}\n".format(
             gen.get_atom_index((smc_1.hk_group, 0)),
-            gen.get_atom_index((smc_1.hk_group, len(smc_1.rHK) // 2)),
             gen.get_atom_index((smc_1.hk_group, -1)),
+            gen.get_atom_index((smc_1.hk_group, len(smc_1.rHK) // 2)),
         )
     )
     file.write("\n")
@@ -635,7 +635,7 @@ def get_variables_from_module(module):
     return list(filter(lambda name: not name.startswith("_"), all_vars))
 
 def list_to_space_str(lst) -> str:
-    """turn list into space seperated string
+    """turn list into space separated string
     example: [1, 2, 6] -> 1 2 6"""
     return " ".join(map(str, lst))
 
