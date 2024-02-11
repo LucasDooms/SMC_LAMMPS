@@ -272,11 +272,7 @@ def split_into_index_groups(indices):
     return groups
 
 
-def get_bead_distances(data: LammpsData, positions, id1: int, id2: int, id3: int):
-    pos1 = data.positions[np.where(id1 == data.ids)[0][0]]
-    pos2 = data.positions[np.where(id2 == data.ids)[0][0]]
-    pos3 = data.positions[np.where(id3 == data.ids)[0][0]]
-
+def get_bead_distances(positions, pos1: int, pos2: int, pos3: int):
     normal_vector = get_normal_direction(pos1, pos2, pos3)
 
     return distance_point_to_plane(positions, pos1, normal_vector)
@@ -324,7 +320,7 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
     pos_bottom = data.positions[np.where(parameters.bottom_kleisin_id == data.ids)[0][0]]
     
     new_data_copy = deepcopy(new_data)
-    remove_outside_box(new_data, pos_top, pos_left, pos_right, 2 * parameters.dna_spacing)
+    remove_outside_box(new_data, pos_top, pos_left, pos_right, 1.05 * parameters.dna_spacing)
 
     middle = (pos_left + pos_right) / 2.0
     remove_outside_box(new_data_copy, pos_bottom, pos_left + (pos_left - middle) * 2.0, pos_right + (pos_right - middle) * 2.0, 1.05 * parameters.dna_spacing)
@@ -336,30 +332,13 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
         positions.append(data.positions[indices[-1]])
         return
 
-    distances = get_bead_distances(data, new_data.positions, parameters.top_bead_id, parameters.left_bead_id, parameters.right_bead_id)
-
-    # take close beads
-    close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
-
     # find groups
-    grps = split_into_index_groups(close_beads_indices)
+    search_indices = range(len(new_data.ids))
+    grps = split_into_index_groups(search_indices)
     
-    try:
-        grp = grps[0]
-    except IndexError:
-        distances = get_bead_distances(data, new_data.positions, parameters.left_kleisin_id, parameters.right_kleisin_id, parameters.bottom_kleisin_id)
+    grp = grps[0]
 
-        # take close beads
-        close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
-
-        # find groups
-        grps = split_into_index_groups(close_beads_indices)
-
-        try:
-            grp = grps[0]
-        except IndexError:
-            print("skipped")
-            grp = [0]
+    distances = get_bead_distances(new_data.positions, pos_top, pos_left, pos_right)
 
     closest_val = np.min(distances[grp])
     closest_bead_index = np.where(distances == closest_val)[0][0]
