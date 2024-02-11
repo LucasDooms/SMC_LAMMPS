@@ -143,6 +143,9 @@ class LammpsData:
         self.types = all_types[indices]
         self.positions = all_positions[indices]
 
+    def get_position_from_index(self, index):
+        return self.positions[np.where(index == self.ids)[0][0]]
+
 
 class Parser:
 
@@ -278,56 +281,57 @@ def get_bead_distances(positions, pos1: int, pos2: int, pos3: int):
     return distance_point_to_plane(positions, pos1, normal_vector)
 
 
-def remove_outside_box(data: LammpsData, pos1, pos2, pos3, delta: float):
-    # parallel planes
-    normal = np.cross(pos1 - pos2, pos2 - pos3)
-    normal = normal / np.sqrt(normal.dot(normal))
-    left_plane = Plane(pos1 - delta * normal, normal)
-    data.delete_side_of_plane(left_plane, Plane.Side.INSIDE)
-    right_plane = Plane(pos1 + delta * normal, normal)
-    data.delete_side_of_plane(right_plane, Plane.Side.OUTSIDE)
+def remove_outside_planar_n_gon(data: LammpsData, points, delta: float):
+    """removes all points outside a box created from an n-sided polygon in a plane.
+    the points are the vertices of the n-gon and are assumed to be in the same plane.
+    delta is the thickness of the box in each direction going out of the plane."""
+    if len(points) < 3:
+        raise ValueError("there must be at least 3 points in the n-gon")
+    # normal to n-gon plane
+    normal = np.cross(points[1] - points[0], points[2] - points[1])
 
-    # top, bottom
-    connection = pos3 - pos2
-    connection /= np.sqrt(connection.dot(connection))
-    normal_tb = pos2 - pos1
-    normal_tb -= normal_tb.dot(connection) * connection
-    normal_tb = normal_tb / np.sqrt(normal_tb.dot(normal_tb))
-    top_plane = Plane(pos1, normal_tb)
-    data.delete_side_of_plane(top_plane, Plane.Side.INSIDE)
-    bottom_plane = Plane(pos2, normal_tb)
-    data.delete_side_of_plane(bottom_plane, Plane.Side.OUTSIDE)
+    # delete points further than delta perpendicular to the n-gon
+    plane = Plane(points[0] + delta * normal, normal)
+    data.delete_side_of_plane(plane, Plane.Side.OUTSIDE)
+    plane = Plane(points[0] - delta * normal, normal)
+    data.delete_side_of_plane(plane, Plane.Side.INSIDE)
 
-    # front, back
-    normal_fb = np.cross(normal, normal_tb)
-    normal_fb = normal_fb / np.sqrt(normal_fb.dot(normal_fb))
-    front_plane = Plane(pos2, normal_fb)
-    side = Plane.Side.OUTSIDE if front_plane.is_on_side(Plane.Side.INSIDE, pos3) else Plane.Side.INSIDE
-    data.delete_side_of_plane(front_plane, side)
-    back_plane = Plane(pos3, normal_fb)
-    data.delete_side_of_plane(back_plane, Plane.Side.get_opposite(side))
+    # delete points far away in the plane of the n-gon
+    for point1, point2 in zip(points, points[1:] + [points[0]]):
+        side_vector = point2 - point1
+        normal_to_side = np.cross(normal, side_vector) # always points INSIDE
+        side_plane = Plane(point1, normal_to_side)
+        # INSIDE of plane points out of the shape
+        data.delete_side_of_plane(side_plane, Plane.Side.INSIDE)
 
 
-def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, parameters):
+def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, parameters, step):
     if len(new_data.positions) == 0:
         indices.append(-1)
         positions.append(data.positions[indices[-1]])
         return
     
-    pos_top = data.positions[np.where(parameters.top_bead_id == data.ids)[0][0]]
-    pos_left = data.positions[np.where(parameters.left_bead_id == data.ids)[0][0]]
-    pos_right = data.positions[np.where(parameters.right_bead_id == data.ids)[0][0]]
-    pos_bottom = data.positions[np.where(parameters.bottom_kleisin_id == data.ids)[0][0]]
+    pos_top = data.get_position_from_index(parameters.top_bead_id)
+    pos_left = data.get_position_from_index(parameters.left_bead_id)
+    pos_right = data.get_position_from_index(parameters.right_bead_id)
+    pos_middle = data.get_position_from_index(parameters.middle_bead_id)
+    pos_kleisins = [data.get_position_from_index(i) for i in parameters.kleisin_ids]
     
-    new_data_copy = deepcopy(new_data)
-    remove_outside_box(new_data, pos_top, pos_left, pos_right, 1.05 * parameters.dna_spacing)
+    new_data_copy1 = deepcopy(new_data)
+    remove_outside_planar_n_gon(new_data, [pos_top, pos_left, pos_right], 1.05 * parameters.dna_spacing)
+    l1 = len(new_data.positions)
 
-    middle = (pos_left + pos_right) / 2.0
-    remove_outside_box(new_data_copy, pos_bottom, pos_left + (pos_left - middle) * 2.0, pos_right + (pos_right - middle) * 2.0, 1.05 * parameters.dna_spacing)
+    new_data_copy2 = deepcopy(new_data_copy1)
+    remove_outside_planar_n_gon(new_data_copy2, [pos_middle, pos_left, pos_right], 1.05 * parameters.dna_spacing)
+    l2 = len(new_data_copy2.positions)
+    new_data.combine_by_ids(new_data_copy2)
 
-    new_data.combine_by_ids(new_data_copy)
+    remove_outside_planar_n_gon(new_data_copy1, pos_kleisins, 1.25 * parameters.dna_spacing)
+    l3 = len(new_data_copy1.positions)
+    new_data.combine_by_ids(new_data_copy1)
 
     if len(new_data.positions) == 0:
+        print(f"call: {step}, {l1=}, {l2=}, {l3=}")
         indices.append(-1)
         positions.append(data.positions[indices[-1]])
         return
@@ -377,7 +381,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
         for i, (min_index, max_index) in enumerate(parameters.dna_indices_list):
             new_data_temp = deepcopy(new_data)
             new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
-            handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters)
+            handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters, step if i == 0 else "stop")
 
     with open(folder_path / "marked_bead.lammpstrj", 'w') as file:
         write(file, steps, positions_array[0])
@@ -386,7 +390,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
 
     import matplotlib.pyplot as plt
     
-    plt.figure()
+    plt.figure(figsize=(8, 6), dpi=144)
     plt.title("Index of DNA bead inside SMC loop in time")
     plt.xlabel("time")
     plt.ylabel("DNA bead index")

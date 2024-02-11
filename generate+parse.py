@@ -589,10 +589,12 @@ with open(path / "post_processing_parameters.py", 'w') as file:
         "# use to form plane of SMC arms\n"
         "top_bead_id = {}\n"
         "left_bead_id = {}\n"
-        "right_bead_id = {}\n".format(
+        "right_bead_id = {}\n"
+        "middle_bead_id = {}\n".format(
             gen.get_atom_index((smc_1.armUL_group, -1)),
             gen.get_atom_index((smc_1.armDL_group, 0)),
             gen.get_atom_index((smc_1.armDR_group, -1)),
+            gen.get_atom_index((smc_1.atp_group, len(smc_1.atp_group.positions) // 2))
         )
     )
     file.write("\n")
@@ -609,15 +611,13 @@ with open(path / "post_processing_parameters.py", 'w') as file:
         "dna_indices_list = {}\n".format(dna_indices_list)
     )
     file.write("\n")
+    kleisin_ids_list = [
+        gen.get_atom_index((smc_1.hk_group, i))
+         for i in range(len(smc_1.hk_group.positions))
+    ]
     file.write(
         "# use to form plane of SMC kleisin\n"
-        "left_kleisin_id = {}\n"
-        "right_kleisin_id = {}\n"
-        "bottom_kleisin_id = {}\n".format(
-            gen.get_atom_index((smc_1.hk_group, 0)),
-            gen.get_atom_index((smc_1.hk_group, -1)),
-            gen.get_atom_index((smc_1.hk_group, len(smc_1.rHK) // 2)),
-        )
+        "kleisin_ids = {}\n".format(kleisin_ids_list)
     )
     file.write("\n")
     file.write(
