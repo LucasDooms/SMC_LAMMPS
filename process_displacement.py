@@ -9,6 +9,7 @@ from copy import deepcopy
 from typing import Tuple, List, Dict
 from io import StringIO
 from dataclasses import dataclass
+from enum import Enum
 import numpy as np
 from time import time
 
@@ -55,6 +56,41 @@ class Box:
         return np.logical_and.reduce([condition_x, condition_y, condition_z], axis=0)
 
 
+class Plane:
+
+    class Side(Enum):
+        OUTSIDE = -1 # on the side of the plane that the normal vector is pointing to
+        INSIDE = 1 # opposite of OUTSIDE
+        
+        @classmethod
+        def get_opposite(cls, side: Plane.Side) -> Plane.Side:
+            if side == cls.INSIDE:
+                return cls.OUTSIDE
+            elif side == cls.OUTSIDE:
+                return cls.INSIDE
+            raise ValueError("unknown Side value")
+    
+    def __init__(self, point: List[float], normal: List[float]):
+        """point: a point on the plain,
+        normal: normal vector of the plain (always normalized)"""
+        normal_length = np.sqrt(normal.dot(normal))
+        if normal_length == 0:
+            raise ValueError("normal vector may not be zero")
+        self.normal = normal / normal_length
+        # take point vector to be parallel to normal vector for convenience
+        # this is garantueed to still be on the same plane
+        self.point = point.dot(self.normal) * self.normal
+
+    def is_on_side(self, side: Plane.Side, point) -> bool:
+        # includes points on the plane itself
+        compare = self.point.dot(self.normal)
+        # for checking if inside: (point - self.point) . normal <= 0
+        # thus point . normal <= self.point . normal
+        # for outside: the inequality is flipped, which is equivalent
+        # to multiplying both sides by (-1) (without actually flipping the inequality)
+        return point.dot(self.normal) * side.value <= compare * side.value
+
+
 @dataclass
 class LammpsData:
 
@@ -88,6 +124,24 @@ class LammpsData:
         new = deepcopy(self)
         new.filter(lambda _, __, position: box.is_in_box(position))
         return new
+
+    def delete_side_of_plane(self, plane: Plane, side: Plane.Side) -> None:
+        """filters the current LammpsData instance to remove points on one side of a plane
+        side: the side of the Plane that will get deleted"""
+        self.filter(
+            lambda _, __, pos: plane.is_on_side(Plane.Side.get_opposite(side), pos)
+        )
+
+    def combine_by_ids(self, other: LammpsData):
+        """merges two LammpsData instances by keeping all values present in any of the two
+        mutates the self argument"""
+        # WARNING: making no guarantees about the order
+        all_ids = np.concatenate([self.ids, other.ids])
+        all_types = np.concatenate([self.types, other.types])
+        all_positions = np.concatenate([self.positions, other.positions])
+        self.ids, indices = np.unique(all_ids, return_index=True)
+        self.types = all_types[indices]
+        self.positions = all_positions[indices]
 
 
 class Parser:
@@ -228,15 +282,61 @@ def get_bead_distances(data: LammpsData, positions, id1: int, id2: int, id3: int
     return distance_point_to_plane(positions, pos1, normal_vector)
 
 
-def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, parameters):
-    filtered = new_data.positions
+def remove_outside_box(data: LammpsData, pos1, pos2, pos3, delta: float):
+    # parallel planes
+    normal = np.cross(pos1 - pos2, pos2 - pos3)
+    normal = normal / np.sqrt(normal.dot(normal))
+    left_plane = Plane(pos1 - delta * normal, normal)
+    data.delete_side_of_plane(left_plane, Plane.Side.INSIDE)
+    right_plane = Plane(pos1 + delta * normal, normal)
+    data.delete_side_of_plane(right_plane, Plane.Side.OUTSIDE)
 
-    if len(filtered) == 0:
+    # top, bottom
+    connection = pos3 - pos2
+    connection /= np.sqrt(connection.dot(connection))
+    normal_tb = pos2 - pos1
+    normal_tb -= normal_tb.dot(connection) * connection
+    normal_tb = normal_tb / np.sqrt(normal_tb.dot(normal_tb))
+    top_plane = Plane(pos1, normal_tb)
+    data.delete_side_of_plane(top_plane, Plane.Side.INSIDE)
+    bottom_plane = Plane(pos2, normal_tb)
+    data.delete_side_of_plane(bottom_plane, Plane.Side.OUTSIDE)
+
+    # front, back
+    normal_fb = np.cross(normal, normal_tb)
+    normal_fb = normal_fb / np.sqrt(normal_fb.dot(normal_fb))
+    front_plane = Plane(pos2, normal_fb)
+    side = Plane.Side.OUTSIDE if front_plane.is_on_side(Plane.Side.INSIDE, pos3) else Plane.Side.INSIDE
+    data.delete_side_of_plane(front_plane, side)
+    back_plane = Plane(pos3, normal_fb)
+    data.delete_side_of_plane(back_plane, Plane.Side.get_opposite(side))
+
+
+def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, parameters):
+    if len(new_data.positions) == 0:
+        indices.append(-1)
+        positions.append(data.positions[indices[-1]])
+        return
+    
+    pos_top = data.positions[np.where(parameters.top_bead_id == data.ids)[0][0]]
+    pos_left = data.positions[np.where(parameters.left_bead_id == data.ids)[0][0]]
+    pos_right = data.positions[np.where(parameters.right_bead_id == data.ids)[0][0]]
+    pos_bottom = data.positions[np.where(parameters.bottom_kleisin_id == data.ids)[0][0]]
+    
+    new_data_copy = deepcopy(new_data)
+    remove_outside_box(new_data, pos_top, pos_left, pos_right, 2 * parameters.dna_spacing)
+
+    middle = (pos_left + pos_right) / 2.0
+    remove_outside_box(new_data_copy, pos_bottom, pos_left + (pos_left - middle) * 2.0, pos_right + (pos_right - middle) * 2.0, 1.05 * parameters.dna_spacing)
+
+    new_data.combine_by_ids(new_data_copy)
+
+    if len(new_data.positions) == 0:
         indices.append(-1)
         positions.append(data.positions[indices[-1]])
         return
 
-    distances = get_bead_distances(data, filtered, parameters.top_bead_id, parameters.left_bead_id, parameters.right_bead_id)
+    distances = get_bead_distances(data, new_data.positions, parameters.top_bead_id, parameters.left_bead_id, parameters.right_bead_id)
 
     # take close beads
     close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
@@ -247,7 +347,7 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
     try:
         grp = grps[0]
     except IndexError:
-        distances = get_bead_distances(data, filtered, parameters.left_kleisin_id, parameters.right_kleisin_id, parameters.bottom_kleisin_id)
+        distances = get_bead_distances(data, new_data.positions, parameters.left_kleisin_id, parameters.right_kleisin_id, parameters.bottom_kleisin_id)
 
         # take close beads
         close_beads_indices = np.where(distances <= parameters.dna_spacing)[0]
@@ -264,7 +364,7 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
     closest_val = np.min(distances[grp])
     closest_bead_index = np.where(distances == closest_val)[0][0]
     indices.append(new_data.ids[closest_bead_index])
-    positions.append(filtered[closest_bead_index])
+    positions.append(new_data.positions[closest_bead_index])
 
 
 def get_best_match_dna_bead_in_smc(folder_path):
@@ -317,33 +417,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
     plt.savefig(folder_path / "bead_id_in_time.png")
 
 
-def test():
-    par = Parser("test/output.lammpstrj")
-    _, arr = par.next_step()
-    data = Parser.split_data(arr)
-    box = create_box(data, list(range(2, 10)))
-
-    new_data = data.delete_outside_box(box)
-    print(new_data.positions.shape)
-    new_data.filter_by_types([1])
-    filtered = new_data.positions
-    print(filtered.shape)
-
-    pos_top = data.positions[parameters.top_bead_id - 1]
-    pos_left = data.positions[parameters.left_bead_id - 1]
-    pos_right = data.positions[parameters.right_bead_id - 1]
-    print(pos_top, pos_left, pos_right)
-
-    normal_vector = get_normal_direction(pos_top, pos_left, pos_right)
-
-    distances = distance_point_to_plane(filtered, pos_top, normal_vector)
-
-    closest_val = np.min(distances)
-    closest_bead_index = np.where(distances == closest_val)[0][0]
-    print(filtered[closest_bead_index])
-
-
-def test_plane():
+def test_plane_distances():
     p1 = np.array([0, 1, 0], dtype=float)
     p2 = np.array([0, 1, 2], dtype=float)
     p3 = np.array([1, 0, 1], dtype=float)
@@ -352,6 +426,19 @@ def test_plane():
     point = np.array([2, 2, 5], dtype=float)
     another_one = np.array([1, 1 ,1], dtype=float)
     print(distance_point_to_plane(np.array([point, another_one, another_one]), p1, n))
+
+
+def test_plane_comparisons():
+    point_on_plane = np.array([0, 0, 0], dtype=float)
+    n = np.array([1, 0, 0], dtype=float)
+    plane = Plane(point_on_plane, n)
+    points = np.array([[0, 0, 0], [0.5, 0, 0], [-20, 0, 0]])
+    print(plane.is_on_side(Plane.Side.INSIDE, points)) # should be [True, False, True]
+    print(plane.is_on_side(Plane.Side.OUTSIDE, points)) # should be [True, True, False]
+
+    plane2 = Plane(np.array([1, 0, 0], dtype=float), np.array([1, 1, 0], dtype=float))
+    print(plane2.is_on_side(Plane.Side.INSIDE, points)) # should be [True, True, True]
+    print(plane2.is_on_side(Plane.Side.INSIDE, np.array([1, 0.2, 0], dtype=float))) # should be False
 
 
 if __name__ == "__main__":
