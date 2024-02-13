@@ -1,4 +1,0 @@
-mol new marked_bead.lammpstrj
-mol modstyle 0 0 vdw
-mol new output.lammpstrj
-mol modstyle 0 1 cpk
