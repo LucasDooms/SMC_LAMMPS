@@ -73,7 +73,7 @@ class Plane:
     def __init__(self, point: List[float], normal: List[float]):
         """point: a point on the plain,
         normal: normal vector of the plain (always normalized)"""
-        normal_length = np.sqrt(normal.dot(normal))
+        normal_length = np.linalg.norm(normal)
         if normal_length == 0:
             raise ValueError("normal vector may not be zero")
         self.normal = normal / normal_length
@@ -335,7 +335,9 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
 
     new_data_copy2 = deepcopy(new_data_copy1)
     # TODO: this is not in the same plane!
-    remove_outside_planar_n_gon(new_data_copy2, [pos_middle_right, pos_middle_left, pos_left, pos_right], 1.05 * parameters.dna_spacing)
+    # TEMPORARY FIX: use larger delta
+    delta = min(1.05 * parameters.dna_spacing, np.linalg.norm(pos_right - pos_left))
+    remove_outside_planar_n_gon(new_data_copy2, [pos_middle_right, pos_middle_left, pos_left], delta)
     l2 = len(new_data_copy2.positions)
     new_data.combine_by_ids(new_data_copy2)
 
@@ -392,14 +394,17 @@ def get_best_match_dna_bead_in_smc(folder_path):
         new_data.filter_by_types([1])
         # split, and call for each
         for i, (min_index, max_index) in enumerate(parameters.dna_indices_list):
-            if i == 1:
-                continue
+            # if i == 1:
+            #     continue
             new_data_temp = deepcopy(new_data)
             new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
             handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters, step if i == 0 else "stop")
 
     with open(folder_path / "marked_bead.lammpstrj", 'w') as file:
         write(file, steps, positions_array[0])
+
+    with open(folder_path / "marked_bead2.lammpstrj", 'w') as file:
+        write(file, steps, positions_array[1])
 
     print(cached)
 
