@@ -95,7 +95,9 @@ timestep ${timestep}
 
 # EQUILIBRATE
 
-group frozen id ${indices}
+group frozen empty
+if "${indices} != null" then &
+	"group frozen id ${indices}"
 
 fix frz frozen setforce 0 0 0
 

@@ -657,3 +657,11 @@ with open(filepath_param, 'w') as parameterfile:
     # turn zero to one indexed for LAMMPS
     freeze_indices = [x + 1 for x in freeze_indices]
     parameterfile.write(f'variable indices string "{list_to_space_str(freeze_indices)}"\n')
+
+# go through and replace any empty string with "null"
+with open(filepath_param, 'r') as parameterfile:
+    contents = parameterfile.read().split("\n")
+    for i, line in enumerate(contents):
+        contents[i] = line.replace('""', '"null"')
+with open(filepath_param, 'w') as parameterfile:
+    parameterfile.write("\n".join(contents))
