@@ -3,7 +3,7 @@ import numpy as np
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
-from dna_creator import get_dna_coordinates, get_dna_coordinates_twist, get_dna_coordinates_doubled
+import dna_creator
 from smc_creator import SMC_Creator
 from smc import SMC
 from enum import Enum
@@ -216,16 +216,18 @@ class DnaConfiguration(Enum):
     FOLDED = 0
     RIGHT_ANGLE = 1
     DOUBLED = 2
+    OBSTACLE = 3
 
-dnaConfig = DnaConfiguration.DOUBLED
-# dnaConfig = DnaConfiguration.FOLDED
+dnaConfig = DnaConfiguration.OBSTACLE
 
 if dnaConfig == DnaConfiguration.FOLDED:
-    rDNAlist, dnaCenter = get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
+    rDNAlist, dnaCenter = dna_creator.get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
 elif dnaConfig == DnaConfiguration.RIGHT_ANGLE:
-    rDNAlist, dnaCenter = get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
+    rDNAlist, dnaCenter = dna_creator.get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
 elif dnaConfig == DnaConfiguration.DOUBLED:
-    rDNAlist, dnaCenter = get_dna_coordinates_doubled(nDNA, DNAbondLength, 24)
+    rDNAlist, dnaCenter = dna_creator.get_dna_coordinates_doubled(nDNA, DNAbondLength, 24)
+elif dnaConfig == DnaConfiguration.OBSTACLE:
+    rDNAlist = dna_creator.get_dna_coordinates_straight(nDNA, DNAbondLength)
 else:
     raise ValueError(f"Unknown option {dnaConfig}")
 
@@ -287,6 +289,23 @@ elif dnaConfig == DnaConfiguration.DOUBLED:
         closest_DNA_index_m = int(np.argmin(distances))
         
         freeze_indices += [closest_DNA_index_b, closest_DNA_index_m]
+elif dnaConfig == DnaConfiguration.OBSTACLE:
+    rDNA = rDNAlist[0]
+    # make sure SMC contains DNA
+    desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
+    shift_y = desired_y_pos - rDNA[-1][1]
+    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
+    shift_x = desired_x_pos - rDNA[int(len(rDNA) *2/3)][0]
+    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    rDNA += shift
+
+    import structure_creator
+    tether_positions = structure_creator.get_straight_segment(15, [0, 1, 0]) * DNAbondLength
+    # place the tether next to the DNA bead
+    dna_bead_to_tether_id = len(rDNA) // 2
+    tether_positions += rDNAlist[0][dna_bead_to_tether_id] - tether_positions[-1]
+    # move down a little
+    tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
 else:
     raise ValueError(f"Unknown option {dnaConfig}")
 
@@ -345,18 +364,14 @@ gen = Generator()
 gen.set_system_size(boxWidth)
 
 # Molecule for each rigid body
-molDNA   = 1
-molArmDL = 2
-molArmUL = 3
-molArmUR = 4
-molArmDR = 5
-molHK    = 6
-molATP   = 7
-molSiteU = 8
+molDNA = 1
+molTether = 2
+molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molSiteU = range(molTether + 1, molTether + 8)
 molSiteM = molATP
 molSiteD = molHK
 
 dna_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondDNA, maxLengthDNA, 0, 0, DNAbondLength))
+dna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
 dna_type = AtomType(mDNA)
 dna_groups = []
 for rDNA in rDNAlist:
@@ -364,7 +379,8 @@ for rDNA in rDNAlist:
         positions=rDNA,
         atom_type=dna_type,
         molecule_index=molDNA,
-        polymer_bond_type=dna_bond
+        polymer_bond_type=dna_bond,
+        polymer_angle_type=dna_angle
     ))
 
 armHK_type = AtomType(mSMC)
@@ -406,11 +422,19 @@ smc_1 = SMC(
 
 smc_1_groups = smc_1.get_groups()
 
+tether_group = AtomGroup(
+    positions=tether_positions,
+    atom_type=dna_type,
+    molecule_index=molTether,
+    polymer_bond_type=dna_bond,
+    polymer_angle_type=dna_angle
+)
+
 gen.atom_groups += [
     *dna_groups,
-    *smc_1_groups
+    *smc_1_groups,
+    tether_group
 ]
-
 
 # Pair coefficients
 pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
@@ -429,35 +453,22 @@ gen.pair_interactions.append(pair_soft_inter)
 # Every joint is kept in place through bonds
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
 bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, bondMin1))
-bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"           %(kBondAlign2, bondMin2))
+bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, bondMin2))
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4)
+tether_to_dna_bond = BAI(dna_bond, (tether_group, -1), (dna_groups[0], dna_bead_to_tether_id))
+gen.bais += bonds + [tether_to_dna_bond]
 
-gen.bais += bonds
-
-angle_t1 = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
-angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n"   % ( kElbows, 180 ) )
-angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" % ( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
-
-# TODO: move to generator
-# DNA stiffness
-dna_angle_lists = []
-for i, rDNA in enumerate(rDNAlist):
-    for index in range(len(rDNA) - 2):
-        dna_angle_lists.append(BAI(
-            angle_t1,
-            (dna_groups[i], index),
-            (dna_groups[i], index + 1),
-            (dna_groups[i], index + 2)
-        ))
+angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kElbows, 180 ) )
+angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
 
 angles = smc_1.get_angles(angle_t2, angle_t3)
-gen.bais += dna_angle_lists + angles
+gen.bais += angles
 
 # We impose zero improper angle
-imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kAlignSite, 0 ) )
-imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kFolding,   180 - par.foldingAngleAPO ) )
-imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry,  math.fabs(90 - par.foldingAngleAPO) ) )
+imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 0 ) )
+imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 180 - par.foldingAngleAPO ) )
+imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, math.fabs(90 - par.foldingAngleAPO) ) )
 
 gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
 
@@ -503,8 +514,8 @@ lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kB * T} {par.sigma} {
 arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO1}\n", angle_t3]
 arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleATP}\n", angle_t3]
 
-lower_compartment_folds1 = [BAI_Kind.IMPROPER, "{} "+ f"{improper2kappa} {improper2angleATP}\n", imp_t2]
-lower_compartment_unfolds1 = [BAI_Kind.IMPROPER, "{} "+ f"{improper2kappa} {improper2angleAPO}\n", imp_t2]
+lower_compartment_folds1 = [BAI_Kind.IMPROPER, "{} " + f"{improper2kappa} {improper2angleATP}\n", imp_t2]
+lower_compartment_unfolds1 = [BAI_Kind.IMPROPER, "{} " + f"{improper2kappa} {improper2angleAPO}\n", imp_t2]
 
 lower_compartment_folds2 = [BAI_Kind.IMPROPER, "{} " + f"{improper3kappa} {improper3angleATP}\n", imp_t3]
 lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{improper3kappa} {improper3angleAPO}\n", imp_t3]
@@ -602,12 +613,20 @@ with open(path / "post_processing_parameters.py", 'w') as file:
     file.write("\n")
     dna_indices_list = []
     for dna_grp in dna_groups:
-        dna_indices_list.append(
-            (
-                gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
-                gen.get_atom_index((dna_grp, len(dna_grp.positions) // 2)) # max = half way point (so that lower DNA is not included)
+        if dnaConfig != DnaConfiguration.OBSTACLE:
+            dna_indices_list.append(
+                (
+                    gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
+                    gen.get_atom_index((dna_grp, len(dna_grp.positions) // 2)) # max = half way point (so that lower DNA is not included)
+                )
             )
-        )
+        else:
+            dna_indices_list.append(
+                ( # take all DNA
+                    gen.get_atom_index((dna_grp, 0)),
+                    gen.get_atom_index((dna_grp, -1))
+                )
+            )
     file.write(
         "# list of (min, max) of DNA indices for separate pieces to analyze\n"
         "dna_indices_list = {}\n".format(dna_indices_list)
@@ -649,9 +668,12 @@ with open(filepath_param, 'w') as parameterfile:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
     
     end_points = []
-    for grp in dna_groups:
-        # get (1-indexed) indices from generator
-        end_points += [gen.get_atom_index((grp, 0)), gen.get_atom_index((grp, -1))]
+    if dnaConfig != DnaConfiguration.OBSTACLE:
+        for grp in dna_groups:
+            # get (1-indexed) indices from generator
+            end_points += [gen.get_atom_index((grp, 0)), gen.get_atom_index((grp, -1))]
+    else:
+        end_points += [gen.get_atom_index((tether_group, 0))]
     parameterfile.write(f'variable dna_end_points string "{list_to_space_str(end_points)}"\n')
     
     # turn zero to one indexed for LAMMPS

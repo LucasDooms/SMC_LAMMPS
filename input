@@ -45,8 +45,8 @@ read_data datafile
 
 
 # Group all type 1 molecules as 'DNA' and all other types as 'SMC'
-group DNA molecule 1
-group SMC molecule > 1
+group DNA molecule 1 2
+group SMC molecule > 2
 
 # DNA Langevin integration (nve + langevin = Brownian dynamics)
 fix 1a DNA nve
@@ -66,6 +66,11 @@ fix end_points_frz end_points setforce 0 0 0
 
 # Prevents the system from diffusing away (spring with K=10.0 tethers all atoms to origin)
 #fix 4 all spring tether 10.0 0 0 0 0
+
+# ---OBSTACLE---
+# use infinite wall to represent very large particle
+# TODO
+fix obstacle all wall/lj126 ylo -38 3.0 2.5 2.5
 
 # For VMD visualisation
 dump movie all custom ${output_steps} output.lammpstrj id type x y z
