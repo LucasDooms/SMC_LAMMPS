@@ -399,12 +399,14 @@ def get_best_match_dna_bead_in_smc(folder_path):
             new_data_temp = deepcopy(new_data)
             new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
             handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters, step if i == 0 else "stop")
+    
+    # delete old files
+    for p in folder_path.glob("marked_bead*.lammpstrj"):
+        p.unlink()
 
-    with open(folder_path / "marked_bead.lammpstrj", 'w') as file:
-        write(file, steps, positions_array[0])
-
-    with open(folder_path / "marked_bead2.lammpstrj", 'w') as file:
-        write(file, steps, positions_array[1])
+    for i, positions in enumerate(positions_array):
+        with open(folder_path / f"marked_bead{i}.lammpstrj", 'w') as file:
+            write(file, steps, positions)
 
     print(cached)
 

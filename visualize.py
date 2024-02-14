@@ -69,11 +69,8 @@ class Molecules:
 
 mol = Molecules(path)
 
-mol.create_new_marked("marked_bead.lammpstrj")
-try:
-    mol.create_new_marked("marked_bead2.lammpstrj")
-except:
-    pass
+for p in path.glob("marked_bead*.lammpstrj"):
+    mol.create_new_marked(p.name)
 
 mol.create_new_dna("output.lammpstrj", parameters.dna_indices_list)
 
