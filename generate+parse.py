@@ -1,3 +1,4 @@
+from __future__ import annotations
 import math
 import numpy as np
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
@@ -217,8 +218,18 @@ class DnaConfiguration(Enum):
     RIGHT_ANGLE = 1
     DOUBLED = 2
     OBSTACLE = 3
+    
+    @staticmethod
+    def str_to_config(string: str) -> DnaConfiguration:
+        string = string.lower()
+        return {
+            "folded": DnaConfiguration.FOLDED,
+            "right_angle": DnaConfiguration.RIGHT_ANGLE,
+            "doubled": DnaConfiguration.DOUBLED,
+            "obstacle": DnaConfiguration.OBSTACLE
+        }[string]
 
-dnaConfig = DnaConfiguration.OBSTACLE
+dnaConfig = DnaConfiguration.str_to_config(par.dnaConfig)
 
 if dnaConfig == DnaConfiguration.FOLDED:
     rDNAlist, dnaCenter = dna_creator.get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
