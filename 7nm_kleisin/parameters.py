@@ -2,4 +2,7 @@
 HKradius = 7.
 
 # amount of DNA
-N = 1000
+N = 500
+
+# configuration
+dnaConfig = "obstacle"
