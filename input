@@ -56,7 +56,9 @@ fix 1b DNA langevin $T $T ${gamma} ${seed}
 fix 2 SMC rigid molecule langevin $T $T ${gamma} ${seed}
 
 # Hold end points of DNA in place
-group end_points id ${dna_end_points}
+group end_points empty
+if "${dna_end_points} != null" then &
+	"group end_points id ${dna_end_points}"
 fix end_points_frz end_points setforce 0 0 0
 # Stretching force applied to the first and last DNA atom/bead, only in x-direction
 #group DNAleft  id 1
