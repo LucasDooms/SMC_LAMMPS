@@ -3,6 +3,7 @@ import numpy as np
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
+from typing import Any
 import dna_creator
 from smc_creator import SMC_Creator
 from smc import SMC
@@ -10,7 +11,7 @@ from importlib import import_module
 import default_parameters
 
 
-if len(argv) != 2:
+if len(argv) < 2:
     raise Exception("Provide a folder path")
 path = Path(argv[1])
 
@@ -18,8 +19,11 @@ parameters = import_module((path / "parameters").as_posix().replace('/', '.'))
 
 class Parameters:
 
-    def __getattr__(self, var_name):
-        return getattr(parameters, var_name, getattr(default_parameters, var_name))
+    def __getattr__(self, __name: str) -> Any:
+        return getattr(parameters, __name, getattr(default_parameters, __name))
+
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        setattr(parameters, __name, __value)
 
     def __dir__(self):
         return list(set(dir(parameters)) | set(dir(default_parameters)))
@@ -702,7 +706,11 @@ def get_string_def(name: str, value: str) -> str:
 
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
-
+    
+    # change seed if arg 2 provided
+    if len(argv) > 2:
+        seed_overwrite = int(argv[2])
+        par.seed = seed_overwrite
     params = get_variables_from_module(par)
     for key in params:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))

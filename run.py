@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('directory', help='the directory containing parameters for LAMMPS')
 parser.add_argument('-g', '--generate', action='store_true', help='run the python setup scripts before executing LAMMPS')
+parser.add_argument('-s', '--seed', help='set the seed to be used by LAMMPS, this takes precedence over the seed in default_parameters.py and parameters.py')
 parser.add_argument('-p', '--post-process', action='store_true', help='run the post-processing scripts after running LAMMPS')
 parser.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
 parser.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
@@ -36,8 +37,11 @@ def run_and_stop_on_error(process):
 
 
 if args.generate:
+    extra_args = []
+    if args.seed:
+        extra_args.append(args.seed)
     print("running setup file...")
-    run_and_stop_on_error(lambda: subprocess.run(["python", "generate+parse.py", f"{path}"]))
+    run_and_stop_on_error(lambda: subprocess.run(["python", "generate+parse.py", f"{path}"] + extra_args))
     print("succesfully ran setup file")
 
 
