@@ -689,6 +689,17 @@ def list_to_space_str(lst) -> str:
     example: [1, 2, 6] -> 1 2 6"""
     return " ".join(map(str, lst))
 
+def prepend_or_empty(string: str, prepend: str) -> str:
+    """prepend something if the string is non-empty
+       otherwise replace it with the string "empty"."""
+    if string:
+        return prepend + string
+    return "empty"
+
+def get_string_def(name: str, value: str) -> str:
+    """define a LAMMPS string"""
+    return f'variable {name} string "{value}"\n'
+
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 
@@ -703,22 +714,26 @@ with open(filepath_param, 'w') as parameterfile:
             end_points += [gen.get_atom_index((grp, 0)), gen.get_atom_index((grp, -1))]
     else:
         end_points += [gen.get_atom_index((tether_group, 0))]
-    parameterfile.write(f'variable dna_end_points string "{list_to_space_str(end_points)}"\n')
+    parameterfile.write(
+        get_string_def("dna_end_points",
+            prepend_or_empty(list_to_space_str(end_points), "id ")
+        )
+    )
 
     # turn zero to one indexed for LAMMPS
     freeze_indices = [x + 1 for x in freeze_indices]
-    parameterfile.write(f'variable indices string "{list_to_space_str(freeze_indices)}"\n')
+    parameterfile.write(
+        get_string_def("indices",
+            prepend_or_empty(list_to_space_str(freeze_indices), "id ")
+        )
+    )
     
     if isinstance(dnaConfig, Obstacle):
         parameterfile.write(f"variable wall_y equal {dnaConfig.tether_positions[0,1]}\n")
 
         excluded = [gen.get_atom_index((tether_group, 0)), gen.get_atom_index((tether_group, 1))]
-        parameterfile.write(f'variable excluded string "{list_to_space_str(excluded)}"\n')
-
-# go through and replace any empty string with "null"
-with open(filepath_param, 'r') as parameterfile:
-    contents = parameterfile.read().split("\n")
-    for i, line in enumerate(contents):
-        contents[i] = line.replace('""', '"null"')
-with open(filepath_param, 'w') as parameterfile:
-    parameterfile.write("\n".join(contents))
+        parameterfile.write(
+            get_string_def("excluded",
+                prepend_or_empty(list_to_space_str(excluded), "id ")
+            )
+        )

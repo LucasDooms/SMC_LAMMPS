@@ -56,9 +56,7 @@ fix 1b DNA langevin $T $T ${gamma} ${seed}
 fix 2 SMC rigid molecule langevin $T $T ${gamma} ${seed}
 
 # Hold end points of DNA in place
-group end_points empty
-if "${dna_end_points} != null" then &
-	"group end_points id ${dna_end_points}"
+group end_points ${dna_end_points}
 fix end_points_frz end_points setforce 0 0 0
 # Stretching force applied to the first and last DNA atom/bead, only in x-direction
 #group DNAleft  id 1
@@ -71,9 +69,10 @@ fix end_points_frz end_points setforce 0 0 0
 
 # ---OBSTACLE---
 # use infinite wall to represent very large particle
-group exl_grp id ${excluded}
-group repelled_by_wall subtract all exl_grp
-fix obstacle repelled_by_wall wall/lj126 ylo ${wall_y} ${epsilon3} ${sigma} ${sigma}
+if $(is_defined(variable,excluded)) then &
+	"group exl_grp ${excluded}" &
+	"group repelled_by_wall subtract all exl_grp" &
+	"fix obstacle repelled_by_wall wall/lj126 ylo ${wall_y} ${epsilon3} ${sigma} ${sigma}"
 
 # For VMD visualisation
 dump movie all custom ${output_steps} output.lammpstrj id type x y z
@@ -103,9 +102,7 @@ timestep ${timestep}
 
 # EQUILIBRATE
 
-group frozen empty
-if "${indices} != null" then &
-	"group frozen id ${indices}"
+group frozen ${indices}
 
 fix frz frozen setforce 0 0 0
 
