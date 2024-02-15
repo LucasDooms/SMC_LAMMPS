@@ -10,7 +10,6 @@ from smc import SMC
 from enum import Enum
 from importlib import import_module
 import default_parameters
-#import matplotlib.pyplot as plt
 
 
 if len(argv) != 2:
@@ -586,20 +585,6 @@ with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
     ]
     apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
 
-
-"""
-plt.plot(   rHK[:,2],    rHK[:,1], '.')
-plt.plot(  rATP[:,2],   rATP[:,1], '.')
-plt.plot(rArmDL[:,2], rArmDL[:,1], '.')
-plt.plot(rArmUL[:,2], rArmUL[:,1], '.')
-plt.plot(rArmUR[:,2], rArmUR[:,1], '.')
-plt.plot(rArmDR[:,2], rArmDR[:,1], '.')
-#plt.plot(rSiteU[0,2], rSiteU[0,1], '.')
-#plt.plot(rSiteD[0,2], rSiteD[0,1], '.')
-
-plt.axis('scaled')
-plt.show()
-"""
 
 #################################################################################
 #                           Print to post processing                            #
