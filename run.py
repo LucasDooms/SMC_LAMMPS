@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('directory', help='the directory containing parameters for LAMMPS')
 parser.add_argument('-g', '--generate', action='store_true', help='run the python setup scripts before executing LAMMPS')
 parser.add_argument('-p', '--post-process', action='store_true', help='run the post-processing scripts after running LAMMPS')
+parser.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
 parser.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
 parser.add_argument('-e', '--executable', help='name of the LAMMPS executable to use', default="lmp")
 parser.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default="input")
@@ -26,7 +27,12 @@ path = Path(args.directory)
 def run_and_stop_on_error(process):
     completion = process()
     if completion.returncode != 0:
-        raise Exception(f"process ended with error code {completion.returncode}\n{completion}")
+        message = f"process ended with error code {completion.returncode}\n{completion}\n"
+        if args.ignore_errors:
+            print(message)
+            print("-n (--ignore-errors) flag is set, continuing...\n")
+            return
+        raise Exception(message)
 
 
 if args.generate:
@@ -40,10 +46,10 @@ run_with_output = partial(subprocess.run, [f"{args.executable}", "-in", f"{Path(
 if args.output:
     with open(args.output, 'w') as output_file:
         print(f"running LAMMPS file {args.input}, output redirected to {args.output}")
-        run_with_output(stdout=output_file)
+        run_and_stop_on_error(lambda: run_with_output(stdout=output_file))
 else:
     print(f"running LAMMPS file {args.input}, printing output to terminal")
-    run_with_output()
+    run_and_stop_on_error(lambda: run_with_output())
 
 if args.post_process:
     print("running post processing...")
