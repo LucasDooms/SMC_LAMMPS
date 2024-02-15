@@ -69,8 +69,9 @@ fix end_points_frz end_points setforce 0 0 0
 
 # ---OBSTACLE---
 # use infinite wall to represent very large particle
-# TODO
-fix obstacle all wall/lj126 ylo -38 3.0 2.5 2.5
+group exl_grp id ${excluded}
+group repelled_by_wall subtract all exl_grp
+fix obstacle repelled_by_wall wall/lj126 ylo ${wall_y} ${epsilon3} ${sigma} ${sigma}
 
 # For VMD visualisation
 dump movie all custom ${output_steps} output.lammpstrj id type x y z

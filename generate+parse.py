@@ -295,7 +295,7 @@ elif dnaConfig == DnaConfiguration.OBSTACLE:
     desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
     shift_y = desired_y_pos - rDNA[-1][1]
     desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
-    shift_x = desired_x_pos - rDNA[int(len(rDNA) *2/3)][0]
+    shift_x = desired_x_pos - rDNA[int(len(rDNA)*8/15)][0]
     shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
     rDNA += shift
 
@@ -666,7 +666,7 @@ with open(filepath_param, 'w') as parameterfile:
     params = get_variables_from_module(par)
     for key in params:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
-    
+
     end_points = []
     if dnaConfig != DnaConfiguration.OBSTACLE:
         for grp in dna_groups:
@@ -675,10 +675,16 @@ with open(filepath_param, 'w') as parameterfile:
     else:
         end_points += [gen.get_atom_index((tether_group, 0))]
     parameterfile.write(f'variable dna_end_points string "{list_to_space_str(end_points)}"\n')
-    
+
     # turn zero to one indexed for LAMMPS
     freeze_indices = [x + 1 for x in freeze_indices]
     parameterfile.write(f'variable indices string "{list_to_space_str(freeze_indices)}"\n')
+    
+    if dnaConfig == DnaConfiguration.OBSTACLE:
+        parameterfile.write(f"variable wall_y equal {tether_positions[0,1]}\n")
+
+        excluded = [gen.get_atom_index((tether_group, 0)), gen.get_atom_index((tether_group, 1))]
+        parameterfile.write(f'variable excluded string "{list_to_space_str(excluded)}"\n')
 
 # go through and replace any empty string with "null"
 with open(filepath_param, 'r') as parameterfile:
