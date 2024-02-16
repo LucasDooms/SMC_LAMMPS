@@ -157,7 +157,7 @@ class SMC_Creator:
     def transpose_rotate_transpose(rotation, array):
         return rotation.dot(array.transpose()).transpose()
 
-    def get_interaction_sites(self, seed: int = 8343859591397577529):
+    def get_interaction_sites(self, siteD_points_down: bool, seed: int = 8343859591397577529):
         # U = upper  interaction site
         # M = middle interaction site
         # D = lower  interaction site
@@ -177,10 +177,11 @@ class SMC_Creator:
         rSiteM = np.concatenate([rSiteM[:1], rSiteM[-1:], rSiteM[1:-1]])
         # move, so that this bead is at the origin
         rSiteM -= rSiteM[1]
-      
+
         # LOWER SITE
         rSiteD = self.shielded_site_template(3, 4, self.siteDhDist, 1)
-        rSiteD = self.transpose_rotate_transpose(rotate_around_x_axis, rSiteD)
+        if not siteD_points_down:
+            rSiteD = self.transpose_rotate_transpose(rotate_around_x_axis, rSiteD)
 
 
         # Add randomness
@@ -191,17 +192,20 @@ class SMC_Creator:
 
         return rSiteU, rSiteM, rSiteD
 
-    def get_smc(self):
+    def get_smc(self, siteD_points_down: bool):
         rArmDL, rArmUL, rArmUR, rArmDR = self.get_arms()
         rATP = self.get_bridge()
         rHK = self.get_heads_kleisin()
-        rSiteU, rSiteM, rSiteD = self.get_interaction_sites()
+        rSiteU, rSiteM, rSiteD = self.get_interaction_sites(siteD_points_down)
         
         rSiteU[:,1] -= self.siteUvDist
         # Inert bead, used for breaking folding symmetry
         rSiteM = np.concatenate([rSiteM, np.array([1.0, -1.0, 0.0]).reshape(1, 3)])
         rSiteM[:,1] += self.siteMvDist
-        rSiteD[:,1] += self.siteDvDist
+        if siteD_points_down:
+            rSiteD[:,1] -= self.siteDvDist
+        else:
+            rSiteD[:,1] += self.siteDvDist
         
         # scale properly
         rSiteU *= self.SMCspacing
