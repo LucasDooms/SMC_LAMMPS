@@ -1,6 +1,33 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
+from scipy import interpolate
 
+
+def get_interpolated(spacing: float, values):
+    """spacing: distance between points along curve
+    values: list of 3d points to use in the interpolation
+    returns n equidistant points on an interpolated curve"""
+    tck, u = interpolate.splprep(values.transpose())
+    mi, ma = min(u), max(u)
+
+    # calculate the length integral at many points
+    sampling = np.linspace(mi, ma, 10000)
+    derivatives_along_curve = np.array(interpolate.splev(sampling, tck, der=1)).transpose()
+    integrands = np.sqrt(np.sum(derivatives_along_curve**2, axis=1))
+    lengths = np.array([np.trapz(integrands[:i+1], x=sampling[:i+1]) for i in range(len(integrands))])
+
+    equidistant_points = [values[0]]
+    while True:
+        try:
+            lengths -= spacing
+            index = np.where(lengths >= 0)[0][0]
+        except IndexError:
+            break
+        equidistant_points.append(interpolate.splev(sampling[index], tck))
+
+    return np.array(equidistant_points)
+
+# print(get_interpolated(100, np.array([[0, 0, 0], [1, 0, 0], [0.5, 0.5, 0], [0, 1, 0], [-4, 1, 0]])))
 
 def get_straight_segment(n: int, direction = (1, 0, 0)):
     """returns a straight segment of n beads with unit spacing starting at
