@@ -5,4 +5,4 @@ HKradius = 7.
 N = 500
 
 # configuration
-dnaConfig = "obstacle"
+dnaConfig = "obstacle_safety"

@@ -226,7 +226,8 @@ class DnaConfiguration:
             "folded": Folded,
             "right_angle": RightAngle,
             "doubled": Doubled,
-            "obstacle": Obstacle
+            "obstacle": Obstacle,
+            "obstacle_safety": ObstacleSafety
         }[string]
 
 class Folded(DnaConfiguration):
@@ -248,6 +249,12 @@ class Doubled(DnaConfiguration):
         self.dnaCenter = dnaCenter
 
 class Obstacle(DnaConfiguration):
+
+    def __init__(self, rDNAList, tether_positions):
+        super().__init__(rDNAList)
+        self.tether_positions = tether_positions
+
+class ObstacleSafety(DnaConfiguration):
 
     def __init__(self, rDNAList, tether_positions):
         super().__init__(rDNAList)
@@ -348,8 +355,27 @@ elif dnaConfigClass is Obstacle:
     tether_positions += rDNA[dna_bead_to_tether_id] - tether_positions[-1]
     # move down a little
     tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
-    
+
     dnaConfig = Obstacle([rDNA], tether_positions)
+elif dnaConfigClass is ObstacleSafety:
+    # 1.
+    [rDNA], belt_location, ttt = dna_creator.get_dna_coordinates_safety_belt(nDNA, DNAbondLength)
+    
+    # 2.
+    # make sure SMC contains DNA
+    shift = rSiteD[1] - belt_location
+    shift[1] -= 0.65 * par.cutoff6 
+    rDNA += shift
+
+    import structure_creator
+    tether_positions = structure_creator.get_straight_segment(15, [0, 1, 0]) * DNAbondLength
+    # place the tether next to the DNA bead
+    dna_bead_to_tether_id = len(rDNA) // 2
+    tether_positions += rDNA[dna_bead_to_tether_id] - tether_positions[-1]
+    # move down a little
+    tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
+
+    dnaConfig = ObstacleSafety([rDNA], tether_positions)
 else:
     raise TypeError
 
@@ -519,6 +545,8 @@ imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, math.fabs(90 - par
 
 gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
 
+if isinstance(dnaConfig, ObstacleSafety):
+    gen.molecule_override[(dna_groups[0], ttt)] = molSiteD
 
 with open(filepath_data, 'w') as datafile:
     gen.write(datafile)
@@ -555,7 +583,10 @@ middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kB * T} {par.sigma} 
 middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
 middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kB * T} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
 
-lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
+if isinstance(dnaConfig, ObstacleSafety):
+    lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kB * T} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
+else:
+    lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
 lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kB * T} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 
 arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO1}\n", angle_t3]
