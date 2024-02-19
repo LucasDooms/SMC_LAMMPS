@@ -111,12 +111,12 @@ run 10000
 
 unfix frz
 
+
 # Reference point in script (enter loop)
 label loop
 
 # Cycle index (looped over)
 variable cycle loop ${cycles}
-
 
 # Equilibrate in the APO-state
 run $(v_stepsATP/2)
@@ -143,17 +143,13 @@ run $(v_stepsATP/2)
 
 #run 0
 
-# Exit if done
-if "${cycle} >= ${cycles}" then "jump SELF break"
-
 # Increment cycle index
 next cycle
 
 # Re-enter loop
+# LAMMPS will auto skip this when the cycle variable is exhausted
 jump SELF loop
 
-# Reference point in script (exit loop)
-label break
-
+# The End
 
 ############################################################################################################
