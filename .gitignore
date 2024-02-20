@@ -9,3 +9,4 @@ log.lammps
 post_processing_parameters.py
 test/
 */vmd.init
+runs/*
