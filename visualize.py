@@ -75,5 +75,6 @@ for p in path.glob("marked_bead*.lammpstrj"):
 
 mol.create_new_dna("output.lammpstrj", parameters.dna_indices_list)
 
-cmd = ["vmd", "-e", f"{mol.path.absolute()}"]
+# ISSUE: -startup will ignore .vimdrc
+cmd = ["vmd", "-startup", str((Path(".") / "vmd.init").absolute()), "-e", f"{mol.path.absolute()}"]
 subprocess.run(cmd, cwd=path)
