@@ -368,9 +368,9 @@ elif dnaConfigClass is ObstacleSafety:
     rDNA += shift
 
     import structure_creator
-    tether_positions = structure_creator.get_straight_segment(15, [0, 1, 0]) * DNAbondLength
+    tether_positions = structure_creator.get_straight_segment(35, [0, 1, 0]) * DNAbondLength
     # place the tether next to the DNA bead
-    dna_bead_to_tether_id = len(rDNA) // 2
+    dna_bead_to_tether_id = int(len(rDNA) / 3.5)
     tether_positions += rDNA[dna_bead_to_tether_id] - tether_positions[-1]
     # move down a little
     tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
@@ -497,7 +497,7 @@ gen.atom_groups += [
     *smc_1_groups
 ]
 
-if isinstance(dnaConfig, Obstacle):
+if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
     tether_group = AtomGroup(
         positions=dnaConfig.tether_positions,
         atom_type=dna_type,
@@ -528,7 +528,7 @@ bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, 
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4)
 gen.bais += bonds
-if isinstance(dnaConfig, Obstacle):
+if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
     tether_to_dna_bond = BAI(dna_bond, (tether_group, -1), (dna_groups[0], dna_bead_to_tether_id))
     gen.bais += [tether_to_dna_bond]
 
@@ -677,7 +677,7 @@ with open(path / "post_processing_parameters.py", 'w') as file:
     file.write("\n")
     dna_indices_list = []
     for dna_grp in dna_groups:
-        if not isinstance(dnaConfig, Obstacle):
+        if not isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
             dna_indices_list.append(
                 (
                     gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
@@ -747,7 +747,7 @@ with open(filepath_param, 'w') as parameterfile:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
 
     end_points = []
-    if not isinstance(dnaConfig, Obstacle):
+    if not isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
         for grp in dna_groups:
             # get (1-indexed) indices from generator
             end_points += [gen.get_atom_index((grp, 0)), gen.get_atom_index((grp, -1))]
@@ -767,7 +767,7 @@ with open(filepath_param, 'w') as parameterfile:
         )
     )
     
-    if isinstance(dnaConfig, Obstacle):
+    if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
         parameterfile.write(f"variable wall_y equal {dnaConfig.tether_positions[0,1]}\n")
 
         excluded = [gen.get_atom_index((tether_group, 0)), gen.get_atom_index((tether_group, 1))]
