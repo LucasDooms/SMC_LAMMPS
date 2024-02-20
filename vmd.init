@@ -1,0 +1,22 @@
+proc vmd_draw_wall {mol point normal} {
+	set normal [vecnorm $normal]
+	set vec {1 0 0}
+	set comp_of_vec [vecscale [vecdot $vec $normal] $normal]
+
+	set test [vecsub $vec $comp_of_vec]
+	if {$test == {0.0 0.0 0.0}} {
+		set vec {0 1 0}
+		set comp_of_vec [vecscale [vecdot $vec $normal] $normal]
+		set test [vecsub $vec $comp_of_vec]
+	}
+	set in_plane [vecnorm $test]
+	set perp [vecnorm [veccross $normal $in_plane]]
+
+	set far_in_plane [vecscale 1000 $in_plane]
+	set far_perp [vecscale 1000 $perp]
+
+	draw triangle [vecadd $far_in_plane $point] [vecadd [vecinvert $far_in_plane] $point] [vecadd $far_perp $point]
+
+	set other_perp [vecinvert $far_perp]
+	draw triangle [vecadd $far_in_plane $point] [vecadd [vecinvert $far_in_plane] $point] [vecadd $other_perp $point]
+}

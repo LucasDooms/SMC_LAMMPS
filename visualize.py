@@ -4,6 +4,7 @@ from typing import List, Tuple
 from importlib import import_module
 import subprocess
 
+# TODO: VMD uses zero-indexed arrays!
 
 parser = argparse.ArgumentParser(
     prog='Visualize with VMD',
