@@ -257,7 +257,7 @@ rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
         HKradius=par.HKradius,
 
         foldingAngleAPO=par.foldingAngleAPO
-    ).get_smc(siteD_points_down=dnaConfigClass in {Obstacle, ObstacleSafety})
+    ).get_smc(siteD_points_down=dnaConfigClass in {ObstacleSafety})
 
 nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
     len(rArmDL), len(rArmUL), len(rArmUR), len(rArmDR), len(rATP), len(rHK), len(rSiteU), len(rSiteM), len(rSiteD)
