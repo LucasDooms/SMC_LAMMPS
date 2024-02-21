@@ -184,34 +184,7 @@ epsilonSiteDvsDNA = par.epsilon6 * kB*T
 
 
 #################################################################################
-#                                 SMC complex                                   #
-#################################################################################
-
-rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
-    SMC_Creator(
-        SMCspacing=SMCspacing,
-
-        siteUhDist=siteUhDist,
-        siteUvDist=siteUvDist,
-        siteMhDist=siteMhDist,
-        siteMvDist=siteMvDist,
-        siteDhDist=siteDhDist,
-        siteDvDist=siteDvDist,
-
-        armLength=par.armLength,
-        bridgeWidth=par.bridgeWidth,
-
-        HKradius=par.HKradius,
-
-        foldingAngleAPO=par.foldingAngleAPO
-    ).get_smc(siteD_points_down=True)
-
-nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
-    len(rArmDL), len(rArmUL), len(rArmUR), len(rArmDR), len(rATP), len(rHK), len(rSiteU), len(rSiteM), len(rSiteD)
-
-
-#################################################################################
-#                                     DNA                                       #
+#                                 Start Setup                                   #
 #################################################################################
 
 class DnaConfiguration:
@@ -262,6 +235,47 @@ class ObstacleSafety(DnaConfiguration):
 
 dnaConfigClass = DnaConfiguration.str_to_config(par.dnaConfig)
 
+
+#################################################################################
+#                                 SMC complex                                   #
+#################################################################################
+
+rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
+    SMC_Creator(
+        SMCspacing=SMCspacing,
+
+        siteUhDist=siteUhDist,
+        siteUvDist=siteUvDist,
+        siteMhDist=siteMhDist,
+        siteMvDist=siteMvDist,
+        siteDhDist=siteDhDist,
+        siteDvDist=siteDvDist,
+
+        armLength=par.armLength,
+        bridgeWidth=par.bridgeWidth,
+
+        HKradius=par.HKradius,
+
+        foldingAngleAPO=par.foldingAngleAPO
+    ).get_smc(siteD_points_down=dnaConfigClass in {Obstacle, ObstacleSafety})
+
+nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
+    len(rArmDL), len(rArmUL), len(rArmUR), len(rArmDR), len(rATP), len(rHK), len(rSiteU), len(rSiteM), len(rSiteD)
+
+
+#################################################################################
+#                                     DNA                                       #
+#################################################################################
+
+def get_closest(array, position) -> int:
+    """returns the index of the array that is closest to the given position"""
+    distances = np.linalg.norm(array - position, axis=1)
+    return int(np.argmin(distances))
+
+# place your DNA here, inside the SMC
+default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
+
+# indices to temporarily freeze, in order to equilibrate the system
 freeze_indices = []
 # two steps:
 # 1. get initial configuration from dna_creator.py
@@ -272,22 +286,15 @@ if dnaConfigClass is Folded:
 
     # 2.
     # make sure SMC contains DNA
-    desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
-    shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
-    shift_x = desired_x_pos - dnaCenter[0]
-    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    goal = default_dna_pos
+    start = np.array([dnaCenter[0] + 10.0 * DNAbondLength, rDNA[-1][1], 0])
+    shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
-    # get dna beads to freeze
-    # closest to bottom
-    distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
-    closest_DNA_index_b = int(np.argmin(distances))
-    # closest to middle
-    distances = np.linalg.norm(rDNA - rSiteM[1], axis=1)
-    closest_DNA_index_m = int(np.argmin(distances))
-
-    freeze_indices = [closest_DNA_index_b, closest_DNA_index_m]
+    freeze_indices += [
+        get_closest(rDNA, rSiteD[1]), # closest to bottom -> rSiteD[1]
+        get_closest(rDNA, rSiteM[1]), # closest to middle -> rSiteM[1]
+    ]
 
     dnaConfig = Folded([rDNA], dnaCenter)
 elif dnaConfigClass is RightAngle:
@@ -296,11 +303,9 @@ elif dnaConfigClass is RightAngle:
 
     # 2.
     # make sure SMC touches the DNA at the lower site (siteD)
-    desired_y_pos = rSiteD[1][1] - 0.9 * par.cutoff6
-    shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
-    shift_x = desired_x_pos - dnaCenter[0]
-    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    goal = default_dna_pos
+    start = np.array([dnaCenter[0] - 10.0 * DNAbondLength, dnaCenter[1], 0])
+    shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
     # find closest DNA bead to siteD
@@ -314,25 +319,19 @@ elif dnaConfigClass is Doubled:
 
     # 2.
     # make sure SMC contains DNA
-    desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
-    shift_y = desired_y_pos - rDNAlist[0][-1][1]
-    desired_x_pos = rSiteD[1][0] - 30.0 * DNAbondLength
-    shift_x = desired_x_pos - dnaCenter[0]
-    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    goal = default_dna_pos
+    start = np.array([dnaCenter[0] + 30.0 * DNAbondLength, rDNAlist[0][-1][1], 0])
+    shift = (goal - start).reshape(1, 3)
     rDNAlist[0] += shift
     rDNAlist[1] += shift
 
     # get dna beads to freeze
     for i in range(2):
-        # closest to bottom
-        distances = np.linalg.norm(rDNAlist[i] - rSiteD[1], axis=1)
-        closest_DNA_index_b = int(np.argmin(distances))
         # TODO: fix for DOUBLED DNA, gives same bead twice
-        # closest to middle
-        distances = np.linalg.norm(rDNAlist[i] - rSiteM[1], axis=1)
-        closest_DNA_index_m = int(np.argmin(distances))
-        
-        freeze_indices += [closest_DNA_index_b, closest_DNA_index_m]
+        freeze_indices += [
+            get_closest(rDNAlist[i], rSiteD[1]), # closest to bottom
+            get_closest(rDNAlist[i], rSiteM[1]), # closest to middle
+        ]
 
     dnaConfig = Doubled(rDNAlist, dnaCenter)
 elif dnaConfigClass is Obstacle:
@@ -341,11 +340,10 @@ elif dnaConfigClass is Obstacle:
     
     # 2.
     # make sure SMC contains DNA
-    desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
-    shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
-    shift_x = desired_x_pos - rDNA[int(len(rDNA)*8/15)][0]
-    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    goal = default_dna_pos
+    an_index = int(len(rDNA)*8/15)
+    start = np.array([rDNA[an_index][0] - 10.0 * DNAbondLength, rDNA[an_index][1], 0])
+    shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
     import structure_creator
