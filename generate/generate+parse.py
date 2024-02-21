@@ -5,8 +5,8 @@ from sys import argv
 from pathlib import Path
 from typing import Any, List
 from structures.dna import dna
-from structures.smc.smc_creator import SMC_Creator
-from structures.smc.smc import SMC
+from structures.smc.alternative_smc_creator import SMC_Creator
+from structures.smc.alternative_smc import SMC
 from runpy import run_path
 import default_parameters
 
@@ -473,6 +473,18 @@ def apply(function, file, list_of_args):
     for args in list_of_args:
         function(file, *args)
 
+###################### PHASES ######################
+
+# 1. relaxed:
+#      - arms folded, HEAT-A active + bridge closed
+# 2. ATP 1:
+#      - arms folded, HEAT-A active + bridge active (where ATP binds)
+# 3. ATP 2:
+#      - arms unfold, HEAT-A active + bridge active
+# 4. released:
+#      - arms folding, HEAT-A inactive + bridge opened
+# 5. back to 1.
+
 with open(states_path / "adp_bound", 'w') as adp_bound_file:
     options = [
        bridge_off,
@@ -483,7 +495,7 @@ with open(states_path / "adp_bound", 'w') as adp_bound_file:
        lower_compartment_unfolds1,
        lower_compartment_unfolds2
     ]
-    apply(gen.write_script_bai_coeffs, adp_bound_file, options)
+    # apply(gen.write_script_bai_coeffs, adp_bound_file, options)
 
 with open(states_path / "apo", 'w') as apo_file:
     options = [
@@ -495,16 +507,14 @@ with open(states_path / "apo", 'w') as apo_file:
         lower_compartment_unfolds1,
         lower_compartment_unfolds2
     ]
-    apply(gen.write_script_bai_coeffs, apo_file, options)
-    
-    # gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
+    # apply(gen.write_script_bai_coeffs, apo_file, options)
 
 with open(states_path / "atp_bound_1", 'w') as atp_bound_1_file:
     options = [
         bridge_soft_on,
         middle_site_soft_on
     ]
-    apply(gen.write_script_bai_coeffs, atp_bound_1_file, options)
+    # apply(gen.write_script_bai_coeffs, atp_bound_1_file, options)
 
 with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
     options = [
@@ -518,7 +528,7 @@ with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
         lower_compartment_folds1,
         lower_compartment_folds2
     ]
-    apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
+    # apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
 
 
 #################################################################################
