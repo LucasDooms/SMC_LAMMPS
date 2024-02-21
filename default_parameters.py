@@ -31,7 +31,9 @@ N = 501
 # Number of base pairs per DNA bead
 n = 5
 
-# Stretching forces (pN)
+# Stretching forces (pN) (set to any falsy value for no forces)
+# WARNING: currently: if no forces -> ends are frozen
+
 #forces = 0.100 0.800 1.500 2.200 2.900 3.600 4.300 5.000
 force = 0.800
 

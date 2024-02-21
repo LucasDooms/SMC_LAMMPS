@@ -495,31 +495,44 @@ freeze_indices: List[AtomIdentifier] = []
 # the keys are the forces (3d vectors), and the value is a list of indices to which the force will be applied
 stretching_forces_array: Dict[Tuple[float, float, float], List[AtomIdentifier]] = dict()
 if isinstance(dnaConfig, Folded):
-    # end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
-
-    stretching_forces_array[(1, 0, 0)] = [(dna_groups[0], 0)]
-    stretching_forces_array[(-1, 0, 0)] = [(dna_groups[0], -1)]
+    if par.force:
+        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0), (dna_groups[0], -1)]
+    else:
+        end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
 
     freeze_indices += [
         (dna_groups[0], get_closest(dna_groups[0].positions, rSiteD[1])), # closest to bottom -> rSiteD[1]
         (dna_groups[0], get_closest(dna_groups[0].positions, rSiteM[1])), # closest to middle -> rSiteM[1]
     ]
 elif isinstance(dnaConfig, RightAngle):
-    end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
+    if par.force:
+        stretching_forces_array[(0, par.force, 0)] = [(dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
+    else:
+        end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
     # find closest DNA bead to siteD
     closest_DNA_index = get_closest(dna_groups[0].positions, rSiteD[1])
 elif isinstance(dnaConfig, Doubled):
     # get dna beads to freeze
     for dna_grp in dna_groups:
-        end_points += [(dna_grp, 0), (dna_grp, -1)]
+        if par.force:
+            stretching_forces_array[(par.force, 0, 0)] = [(dna_grp, 0), (dna_grp, -1)]
+        else:
+            end_points += [(dna_grp, 0), (dna_grp, -1)]
         # TODO: fix for DOUBLED DNA, gives same bead twice
         freeze_indices += [
             (dna_grp, get_closest(dna_grp.positions, rSiteD[1])), # closest to bottom
             (dna_grp, get_closest(dna_grp.positions, rSiteM[1])), # closest to middle
         ]
 elif isinstance(dnaConfig, Obstacle):
+    if par.force:
+        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
     end_points += [(tether_group, 0)]
 elif isinstance(dnaConfig, ObstacleSafety):
+    if par.force:
+        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
     end_points += [(tether_group, 0)]
 else:
     raise TypeError
