@@ -585,6 +585,7 @@ middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
 middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kB * T} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
 
 if isinstance(dnaConfig, ObstacleSafety):
+    # always keep site on
     lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kB * T} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 else:
     lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
