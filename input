@@ -58,11 +58,27 @@ fix 2 SMC rigid molecule langevin $T $T ${gamma} ${seed}
 # Hold end points of DNA in place
 group end_points ${dna_end_points}
 fix end_points_frz end_points setforce 0 0 0
-# Stretching force applied to the first and last DNA atom/bead, only in x-direction
-#group DNAleft  id 1
-#group DNAright id $N
-#fix 3a DNAleft  addforce -${force} 0 0
-#fix 3b DNAright addforce  ${force} 0 0
+
+# Stretching forces
+
+# test values:
+# variable stretching_forces_len equal 2
+# variable stretching_forces_groups universe "id 1 2" "id 3 4"
+# variable stretching_forces universe "1 0 0" "0 0 1"
+
+if $(!is_defined(variable,stretching_forces_len)) then &
+	"jump SELF sf_exit"
+
+label sf_enter
+variable sfi loop ${stretching_forces_len}
+
+group sf_grp_${sfi} ${stretching_forces_groups}
+fix sf_fix_${sfi} sf_grp_${sfi} addforce ${stretching_forces}
+
+next sfi
+next stretching_forces_groups stretching_forces
+jump SELF sf_enter
+label sf_exit
 
 # Prevents the system from diffusing away (spring with K=10.0 tethers all atoms to origin)
 #fix 4 all spring tether 10.0 0 0 0 0
@@ -113,7 +129,7 @@ unfix frz
 
 
 # Reference point in script (enter loop)
-label loop
+label main_loop
 
 # Cycle index (looped over)
 variable cycle loop ${cycles}
@@ -148,7 +164,7 @@ next cycle
 
 # Re-enter loop
 # LAMMPS will auto skip this when the cycle variable is exhausted
-jump SELF loop
+jump SELF main_loop
 
 # The End
 

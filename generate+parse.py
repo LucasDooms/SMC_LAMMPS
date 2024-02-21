@@ -3,7 +3,7 @@ import numpy as np
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Dict, Tuple
 import dna_creator
 from smc_creator import SMC_Creator
 from smc import SMC
@@ -277,6 +277,9 @@ default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
 
 # indices to temporarily freeze, in order to equilibrate the system
 freeze_indices = []
+# forces to apply:
+# the keys are the forces (3d vectors), and the value is a list of indices to which the force will be applied
+stretching_forces_array: Dict[Tuple[float, float, float], List[int]] = dict()
 # two steps:
 # 1. get initial configuration from dna_creator.py
 # 2. shift DNA/SMC so that they are place correctly relative to each other
@@ -290,6 +293,9 @@ if dnaConfigClass is Folded:
     start = np.array([dnaCenter[0] + 10.0 * DNAbondLength, rDNA[-1][1], 0])
     shift = (goal - start).reshape(1, 3)
     rDNA += shift
+
+    stretching_forces_array[(1, 0, 0)] = [0]
+    stretching_forces_array[(-1, 0, 0)] = [-1]
 
     freeze_indices += [
         get_closest(rDNA, rSiteD[1]), # closest to bottom -> rSiteD[1]
@@ -737,6 +743,11 @@ def get_string_def(name: str, value: str) -> str:
     """define a LAMMPS string"""
     return f'variable {name} string "{value}"\n'
 
+def get_universe_def(name: str, values: List[str]) -> str:
+    """define a LAMMPS universe"""
+    values = ['"' + value + '"' for value in values]
+    return f'variable {name} universe {list_to_space_str(values)}\n'
+
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
     
@@ -776,5 +787,23 @@ with open(filepath_param, 'w') as parameterfile:
         parameterfile.write(
             get_string_def("excluded",
                 prepend_or_empty(list_to_space_str(excluded), "id ")
+            )
+        )
+
+    # forces
+    if stretching_forces_array:
+        parameterfile.write(f"variable stretching_forces_len equal {len(stretching_forces_array)}\n")
+        sf_ids = [prepend_or_empty(list_to_space_str(lst), "id ") for lst in stretching_forces_array.values()]
+        parameterfile.write(
+            get_universe_def(
+                "stretching_forces_groups",
+                sf_ids
+            )
+        )
+        sf_forces = [list_to_space_str(tup) for tup in stretching_forces_array.keys()]
+        parameterfile.write(
+            get_universe_def(
+                "stretching_forces",
+                sf_forces
             )
         )
