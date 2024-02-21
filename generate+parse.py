@@ -547,6 +547,9 @@ gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
 
 if isinstance(dnaConfig, ObstacleSafety):
     gen.molecule_override[(dna_groups[0], ttt)] = molSiteD
+    # add neighbors to prevent rotation
+    gen.molecule_override[(dna_groups[0], ttt - 1)] = molSiteD
+    gen.molecule_override[(dna_groups[0], ttt + 1)] = molSiteD
 
 with open(filepath_data, 'w') as datafile:
     gen.write(datafile)
