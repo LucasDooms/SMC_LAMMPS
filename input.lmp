@@ -138,18 +138,24 @@ variable cycle loop ${cycles}
 run $(round(-(v_stepsATP/2)*ln(random(0,1,v_seed))))
 
 # ATP-bound state
-include states/atp_bound_1
+include states/ATP-1
 run $(round(-10000*ln(random(0,1,v_seed))))
 
-include states/atp_bound_2
+include states/ATP-2
 run $(round(-(v_stepsADP-10000)*ln(random(0,1,v_seed))))
 
 # ADP-bound state
-include states/adp_bound
+include states/released-1
 run $(round(-v_stepsAPO*ln(random(0,1,v_seed))))
 
+include states/released-2
+run $(v_stepsAPO)
+
+include states/soft_before_relaxed
+run 10000
+
 # APO state
-include states/apo
+include states/relaxed
 run $(round(-(v_stepsATP/2)*ln(random(0,1,v_seed))))
 
 #print "${stepCurrent}" append ${timesfile} screen no

@@ -465,6 +465,9 @@ with open(filepath_data, 'w') as datafile:
 #                                Phases of SMC                                  #
 #################################################################################
 
+arms_folded = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 180\n", angle_t3]
+arms_unfolded = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 30\n", angle_t3]
+
 # make sure the directory exists
 states_path = path / "states"
 states_path.mkdir(exist_ok=True)
@@ -480,7 +483,7 @@ def apply(function, file, list_of_args):
 # 2. ATP 1:
 #      - arms folded, HEAT-A active + bridge active (where ATP binds)
 # 3. ATP 2:
-#      - arms unfold, HEAT-A active + bridge active
+#      - arms unfold + open, HEAT-A active + bridge active
 # 4. released:
 #      - arms folding + top site active, HEAT-A inactive + bridge opened
 # 5. back to 1.
@@ -494,8 +497,7 @@ with open(states_path / "relaxed", 'w') as relaxed_file:
         middle_site_off,
         lower_site_on,
         arms_closed,
-        lower_compartment_unfolds1,
-        lower_compartment_unfolds2
+        arms_folded,
     ]
     apply(gen.write_script_bai_coeffs, relaxed_file, options)
 
@@ -506,8 +508,7 @@ with open(states_path / "ATP-1", 'w') as atp_1_file:
         middle_site_on,
         lower_site_on,
         arms_closed,
-        lower_compartment_unfolds1,
-        lower_compartment_unfolds2
+        arms_folded,
     ]
     apply(gen.write_script_bai_coeffs, atp_1_file, options)
 
@@ -518,8 +519,7 @@ with open(states_path / "ATP-2", 'w') as atp_2_file:
         middle_site_on,
         lower_site_on,
         arms_open,
-        lower_compartment_unfolds1,
-        lower_compartment_unfolds2
+        arms_unfolded,
     ]
     apply(gen.write_script_bai_coeffs, atp_2_file, options)
 
@@ -531,8 +531,7 @@ with open(states_path / "released-1", 'w') as released_1_file:
         middle_site_on,
         lower_site_on,
         arms_open,
-        lower_compartment_unfolds1,
-        lower_compartment_unfolds2
+        arms_unfolded
     ]
     apply(gen.write_script_bai_coeffs, released_1_file, options)
 
@@ -544,8 +543,7 @@ with open(states_path / "released-2", 'w') as released_2_file:
         middle_site_off,
         lower_site_on,
         arms_closed,
-        lower_compartment_unfolds1,
-        lower_compartment_unfolds2
+        arms_folded,
     ]
     apply(gen.write_script_bai_coeffs, released_2_file, options)
 
@@ -556,8 +554,7 @@ with open(states_path / "soft_before_relaxed", 'w') as soft_before_relaxed_file:
         middle_site_soft_on,
         lower_site_on,
         arms_closed,
-        lower_compartment_unfolds1,
-        lower_compartment_unfolds2
+        arms_folded
     ]
     apply(gen.write_script_bai_coeffs, soft_before_relaxed_file, options)
 
@@ -569,8 +566,6 @@ with open(states_path / "adp_bound", 'w') as adp_bound_file:
        middle_site_off,
        lower_site_off,
        arms_open,
-       lower_compartment_unfolds1,
-       lower_compartment_unfolds2
     ]
     # apply(gen.write_script_bai_coeffs, adp_bound_file, options)
 
@@ -581,8 +576,6 @@ with open(states_path / "apo", 'w') as apo_file:
         middle_site_off,
         lower_site_on,
         arms_closed,
-        lower_compartment_unfolds1,
-        lower_compartment_unfolds2
     ]
     # apply(gen.write_script_bai_coeffs, apo_file, options)
 
@@ -602,8 +595,6 @@ with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
         middle_site_on,
         lower_site_on,
         arms_open,
-        lower_compartment_folds1,
-        lower_compartment_folds2
     ]
     # apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
 
