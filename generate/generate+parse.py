@@ -429,7 +429,7 @@ gen.bais += angles
 # Angle interactions that change for different phases of SMC
 # angle3angleAPO1 = np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))
 # angle3angleAPO1 = np.rad2deg(np.arccos(2 * par.bridgeWidth / par.armLength))
-arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))}\n", angle_t3]
+arms_closed = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))}\n", angle_t3]
 arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", angle_t3]
 
 # We impose zero improper angle
@@ -482,9 +482,86 @@ def apply(function, file, list_of_args):
 # 3. ATP 2:
 #      - arms unfold, HEAT-A active + bridge active
 # 4. released:
-#      - arms folding, HEAT-A inactive + bridge opened
+#      - arms folding + top site active, HEAT-A inactive + bridge opened
 # 5. back to 1.
 
+with open(states_path / "relaxed", 'w') as relaxed_file:
+    options = [
+        bridge_soft_off,
+        bridge_on,
+        top_site_off,
+        middle_site_soft_off,
+        middle_site_off,
+        lower_site_on,
+        arms_closed,
+        lower_compartment_unfolds1,
+        lower_compartment_unfolds2
+    ]
+    apply(gen.write_script_bai_coeffs, relaxed_file, options)
+
+with open(states_path / "ATP-1", 'w') as atp_1_file:
+    options = [
+        bridge_on,
+        top_site_off,
+        middle_site_on,
+        lower_site_on,
+        arms_closed,
+        lower_compartment_unfolds1,
+        lower_compartment_unfolds2
+    ]
+    apply(gen.write_script_bai_coeffs, atp_1_file, options)
+
+with open(states_path / "ATP-2", 'w') as atp_2_file:
+    options = [
+        bridge_on,
+        top_site_off,
+        middle_site_on,
+        lower_site_on,
+        arms_open,
+        lower_compartment_unfolds1,
+        lower_compartment_unfolds2
+    ]
+    apply(gen.write_script_bai_coeffs, atp_2_file, options)
+
+# first, wait for top site to catch something
+with open(states_path / "released-1", 'w') as released_1_file:
+    options = [
+        bridge_on,
+        top_site_on,
+        middle_site_on,
+        lower_site_on,
+        arms_open,
+        lower_compartment_unfolds1,
+        lower_compartment_unfolds2
+    ]
+    apply(gen.write_script_bai_coeffs, released_1_file, options)
+
+# then, close arms
+with open(states_path / "released-2", 'w') as released_2_file:
+    options = [
+        bridge_off,
+        top_site_on,
+        middle_site_off,
+        lower_site_on,
+        arms_closed,
+        lower_compartment_unfolds1,
+        lower_compartment_unfolds2
+    ]
+    apply(gen.write_script_bai_coeffs, released_2_file, options)
+
+with open(states_path / "soft_before_relaxed", 'w') as soft_before_relaxed_file:
+    options = [
+        bridge_soft_on,
+        top_site_off,
+        middle_site_soft_on,
+        lower_site_on,
+        arms_closed,
+        lower_compartment_unfolds1,
+        lower_compartment_unfolds2
+    ]
+    apply(gen.write_script_bai_coeffs, soft_before_relaxed_file, options)
+
+# OLD
 with open(states_path / "adp_bound", 'w') as adp_bound_file:
     options = [
        bridge_off,
@@ -503,7 +580,7 @@ with open(states_path / "apo", 'w') as apo_file:
         top_site_off,
         middle_site_off,
         lower_site_on,
-        arms_close,
+        arms_closed,
         lower_compartment_unfolds1,
         lower_compartment_unfolds2
     ]
