@@ -196,12 +196,17 @@ class DnaConfiguration:
     def str_to_config(string: str):
         string = string.lower()
         return {
+            "line": Line,
             "folded": Folded,
             "right_angle": RightAngle,
             "doubled": Doubled,
             "obstacle": Obstacle,
             "obstacle_safety": ObstacleSafety
         }[string]
+
+class Line(DnaConfiguration):
+    def __init__(self, rDNAList):
+        super().__init__(rDNAList)
 
 class Folded(DnaConfiguration):
 
@@ -278,7 +283,19 @@ default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
 # two steps:
 # 1. get initial configuration from dna_creator.py
 # 2. shift DNA/SMC so that they are place correctly relative to each other
-if dnaConfigClass is Folded:
+if dnaConfigClass is Line:
+    # 1.
+    [rDNA] = dna_creator.get_dna_coordinates_straight(nDNA, DNAbondLength)
+
+    # 2.
+    # make sure SMC contains DNA
+    goal = default_dna_pos
+    start = np.array([rDNA[int(len(rDNA) / 1.3)][0] + 10.0 * DNAbondLength, rDNA[-1][1], 0])
+    shift = (goal - start).reshape(1, 3)
+    rDNA += shift
+
+    dnaConfig = Line([rDNA])
+elif dnaConfigClass is Folded:
     # 1.
     [rDNA], dnaCenter = dna_creator.get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
 
@@ -496,7 +513,18 @@ freeze_indices: List[AtomIdentifier] = []
 # forces to apply:
 # the keys are the forces (3d vectors), and the value is a list of indices to which the force will be applied
 stretching_forces_array: Dict[Tuple[float, float, float], List[AtomIdentifier]] = dict()
-if isinstance(dnaConfig, Folded):
+if isinstance(dnaConfig, Line):
+    if par.force:
+        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
+    else:
+        end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
+
+    freeze_indices += [
+        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteD[1])), # closest to bottom -> rSiteD[1]
+        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteM[1])), # closest to middle -> rSiteM[1]
+    ]
+elif isinstance(dnaConfig, Folded):
     if par.force:
         stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0), (dna_groups[0], -1)]
     else:
