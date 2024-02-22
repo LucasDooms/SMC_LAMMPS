@@ -45,8 +45,8 @@ read_data datafile
 
 
 # Group all type 1 molecules as 'DNA' and all other types as 'SMC'
-group DNA molecule 1 2
-group SMC molecule > 2
+group DNA molecule ${DNA_mols}
+group SMC molecule ${SMC_mols}
 
 # DNA Langevin integration (nve + langevin = Brownian dynamics)
 fix 1a DNA nve

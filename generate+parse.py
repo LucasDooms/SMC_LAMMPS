@@ -788,6 +788,23 @@ with open(filepath_param, 'w') as parameterfile:
     for key in params:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
 
+    # write molecule ids
+    # NOTE: indices are allowed to be the same, LAMMPS will ignore duplicates
+    parameterfile.write(
+        get_string_def("DNA_mols",
+            list_to_space_str([molDNA, molTether])
+        )
+    )
+    parameterfile.write(
+        get_string_def("SMC_mols",
+            list_to_space_str(
+                [molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molSiteU, molSiteM, molSiteD]
+            )
+        )
+    )
+
+    print("\n")
+
     # turn into LAMMPS indices
     end_points_LAMMPS = atomIds_to_LAMMPS_ids(end_points)
     parameterfile.write(
