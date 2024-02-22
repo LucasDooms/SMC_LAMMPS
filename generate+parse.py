@@ -477,9 +477,11 @@ gen.atom_groups += [
 ]
 
 if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
+    tether_type = AtomType(mDNA)
+
     tether_group = AtomGroup(
         positions=dnaConfig.tether_positions,
-        atom_type=dna_type,
+        atom_type=tether_type,
         molecule_index=molTether,
         polymer_bond_type=dna_bond,
         polymer_angle_type=dna_angle
@@ -544,6 +546,12 @@ pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0
 pair_inter.add_interaction(dna_type, dna_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
 pair_inter.add_interaction(dna_type, armHK_type, epsilonSMCvsDNA, sigmaSMCvsDNA, rcutSMCvsDNA)
 pair_inter.add_interaction(dna_type, siteD_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
+if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
+    # tether
+    pair_inter.add_interaction(tether_type, tether_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
+    pair_inter.add_interaction(tether_type, dna_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
+    # pair_inter.add_interaction(tether_type, armHK_type, epsilonSMCvsDNA, sigmaSMCvsDNA, rcutSMCvsDNA)
+    # pair_inter.add_interaction(tether_type, siteD_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
