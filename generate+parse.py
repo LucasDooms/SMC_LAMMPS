@@ -339,7 +339,7 @@ elif dnaConfigClass is Obstacle:
     # 2.
     # make sure SMC contains DNA
     goal = default_dna_pos
-    an_index = int(len(rDNA)*8/15)
+    an_index = int(len(rDNA)*9/15)
     start = np.array([rDNA[an_index][0] - 10.0 * DNAbondLength, rDNA[an_index][1], 0])
     shift = (goal - start).reshape(1, 3)
     rDNA += shift

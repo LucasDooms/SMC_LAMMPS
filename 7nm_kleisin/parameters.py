@@ -4,8 +4,10 @@ HKradius = 7.
 # amount of DNA
 N = 500
 
-cycles = 4
+cycles = 6
+
+# very weak force
+force = 0.025
 
 # configuration
-# dnaConfig = "obstacle_safety"
-dnaConfig = "doubled"
+dnaConfig = "obstacle"
