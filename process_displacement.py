@@ -410,6 +410,9 @@ def get_best_match_dna_bead_in_smc(folder_path):
 
     print(cached)
 
+    for i, indices in enumerate(indices_array):
+        np.savez(folder_path / f"bead_indices{i}.npz", steps=steps, ids=indices)
+
     import matplotlib.pyplot as plt
     
     plt.figure(figsize=(8, 6), dpi=144)
