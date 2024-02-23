@@ -436,8 +436,10 @@ arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", a
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 0 ) )
 imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 180 - par.foldingAngleAPO ) )
 imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, abs(90 - par.foldingAngleAPO) ) )
+imp_t4 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 0 ) )
+imp_t5 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 40 ) )
 
-gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
+gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3, imp_t4, imp_t5)
 
 
 # Improper interactions that change for different phases of SMC
@@ -465,8 +467,15 @@ with open(filepath_data, 'w') as datafile:
 #                                Phases of SMC                                  #
 #################################################################################
 
-arms_folded = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 180\n", angle_t3]
-arms_unfolded = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 30\n", angle_t3]
+arms_folded1 = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 180\n", angle_t3]
+arms_unfolded1 = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 30\n", angle_t3]
+
+arms_folded2 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 120", imp_t4]
+arms_unfolded2 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 0", imp_t4]
+
+arms_folded_ = [arms_folded1, arms_folded2]
+arms_unfolded_ = [arms_unfolded1, arms_unfolded2]
+
 
 # make sure the directory exists
 states_path = path / "states"
@@ -497,7 +506,7 @@ with open(states_path / "relaxed", 'w') as relaxed_file:
         middle_site_off,
         lower_site_on,
         arms_closed,
-        arms_folded,
+        *arms_folded_,
     ]
     apply(gen.write_script_bai_coeffs, relaxed_file, options)
 
@@ -508,7 +517,7 @@ with open(states_path / "ATP-1", 'w') as atp_1_file:
         middle_site_on,
         lower_site_on,
         arms_closed,
-        arms_folded,
+        *arms_folded_,
     ]
     apply(gen.write_script_bai_coeffs, atp_1_file, options)
 
@@ -519,7 +528,7 @@ with open(states_path / "ATP-2", 'w') as atp_2_file:
         middle_site_on,
         lower_site_on,
         arms_open,
-        arms_unfolded,
+        *arms_unfolded_,
     ]
     apply(gen.write_script_bai_coeffs, atp_2_file, options)
 
@@ -531,7 +540,7 @@ with open(states_path / "released-1", 'w') as released_1_file:
         middle_site_on,
         lower_site_on,
         arms_open,
-        arms_unfolded
+        *arms_unfolded_
     ]
     apply(gen.write_script_bai_coeffs, released_1_file, options)
 
@@ -543,7 +552,7 @@ with open(states_path / "released-2", 'w') as released_2_file:
         middle_site_off,
         lower_site_on,
         arms_closed,
-        arms_folded,
+        *arms_folded_,
     ]
     apply(gen.write_script_bai_coeffs, released_2_file, options)
 
@@ -554,7 +563,7 @@ with open(states_path / "soft_before_relaxed", 'w') as soft_before_relaxed_file:
         middle_site_soft_on,
         lower_site_on,
         arms_closed,
-        arms_folded
+        *arms_folded_
     ]
     apply(gen.write_script_bai_coeffs, soft_before_relaxed_file, options)
 

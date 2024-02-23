@@ -117,17 +117,26 @@ class SMC:
             BAI(angle_t3, (self.armDR_group, 0), (self.armDR_group, -1), (self.atp_group, 0))
         ]
 
-    def get_impropers(self, imp_t1: BAI_Type, imp_t2: BAI_Type, imp_t3: BAI_Type) -> List[BAI]:
+    def get_impropers(self, imp_t1: BAI_Type, imp_t2: BAI_Type, imp_t3: BAI_Type, imp_t4: BAI_Type, imp_t5: BAI_Type) -> List[BAI]:
         nHK = len(self.rHK)
+        # WARNING: siteM is split into groups, be careful with index
         return [
             # Fix orientation of ATP/kleisin bridge
-            # WARNING: siteM is split into groups, be careful with index
             BAI(imp_t1, (self.armDL_group, -1), (self.armDL_group, 0), (self.atp_group, -1), (self.siteM_group, 1)),
             BAI(imp_t1, (self.armDR_group, 0), (self.armDR_group, -1), (self.atp_group, 0), (self.siteM_group, 1)),
 
+            # Fix orientation of arms with respect to kleisin ring
             BAI(imp_t2, (self.armDL_group, -1), (self.armDL_group, 0), (self.atp_group, -1), (self.hk_group, nHK//2)),
             BAI(imp_t2, (self.armDR_group, 0), (self.armDR_group, -1), (self.atp_group, 0), (self.hk_group, nHK//2)),
 
             # prevent kleisin ring from swaying too far relative to the bridge
-            BAI(imp_t3, (self.siteM_ref_group, 0), (self.armDL_group, 0), (self.armDR_group, -1), (self.hk_group, nHK//2))
+            BAI(imp_t3, (self.siteM_ref_group, 0), (self.armDL_group, 0), (self.armDR_group, -1), (self.hk_group, nHK//2)),
+
+            # prevent lower arms (attached to bridge) from forming a cross
+            BAI(imp_t1, (self.armDL_group, -1), (self.armDL_group, 0), (self.armDR_group, -1), (self.armDR_group, 0)),
+
+            # fold upper arms relative to lower arms
+            BAI(imp_t4, (self.armUL_group, -1), (self.armDL_group, -1), (self.armDR_group, 0), (self.siteM_group, 1)),
+            # assymetry
+            BAI(imp_t5, (self.armUL_group, -1), (self.atp_group, 0), (self.atp_group, -1), (self.hk_group, nHK//2))
         ]
