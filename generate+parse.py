@@ -633,7 +633,7 @@ improper3kappa = par.asymmetryStiffness * kB * T
 improper3angleAPO = abs(90 - par.foldingAngleAPO)
 
 angle3angleAPO1 = 180 / math.pi * np.arccos(par.bridgeWidth / par.armLength)
-angle3angleAPO1 = 180 / math.pi * np.arccos(2 * par.bridgeWidth / par.armLength)
+# angle3angleAPO1 = 180 / math.pi * np.arccos(2 * par.bridgeWidth / par.armLength)
 
 improper2angleATP = 180 - par.foldingAngleATP
 improper3angleATP = abs(90 - par.foldingAngleATP)
