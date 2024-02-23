@@ -578,8 +578,8 @@ if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
     # tether
     pair_inter.add_interaction(tether_type, tether_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
     pair_inter.add_interaction(tether_type, dna_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
-    # pair_inter.add_interaction(tether_type, armHK_type, epsilonSMCvsDNA, sigmaSMCvsDNA, rcutSMCvsDNA)
-    # pair_inter.add_interaction(tether_type, siteD_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
+    pair_inter.add_interaction(tether_type, armHK_type, epsilonSMCvsDNA, sigmaSMCvsDNA, rcutSMCvsDNA)
+    pair_inter.add_interaction(tether_type, siteD_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
