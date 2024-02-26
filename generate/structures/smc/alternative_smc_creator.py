@@ -154,8 +154,11 @@ class SMC_Creator:
         return np.concatenate([innerBeads, *shells, end_first, end_last])
 
     @staticmethod
-    def transpose_rotate_transpose(rotation, array):
-        return rotation.dot(array.transpose()).transpose()
+    def transpose_rotate_transpose(rotation, array, *arrays):
+        ret = tuple(rotation.dot(arr.transpose()).transpose() for arr in [array, *arrays])
+        if not arrays:
+            return ret[0]
+        return ret
 
     def get_interaction_sites(self, siteD_points_down: bool, seed: int = 8343859591397577529):
         # U = upper  interaction site
@@ -192,7 +195,7 @@ class SMC_Creator:
 
         return rSiteU, rSiteM, rSiteD
 
-    def get_smc(self, siteD_points_down: bool):
+    def get_smc(self, siteD_points_down: bool, extra_rotation = None):
         rArmDL, rArmUL, rArmUR, rArmDR = self.get_arms()
         rATP = self.get_bridge()
         rHK = self.get_heads_kleisin()
@@ -223,16 +226,21 @@ class SMC_Creator:
         rotMat = Rotation.from_rotvec(-math.radians(self.foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
 
         # Rotations
-        rArmDL = self.transpose_rotate_transpose(rotMat, rArmDL)
-        rArmUL = self.transpose_rotate_transpose(rotMat, rArmUL)
-        rArmUR = self.transpose_rotate_transpose(rotMat, rArmUR)
-        rArmDR = self.transpose_rotate_transpose(rotMat, rArmDR)
-        rSiteU = self.transpose_rotate_transpose(rotMat, rSiteU)
-        rSiteM = self.transpose_rotate_transpose(rotMat, rSiteM)
+        rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM = \
+            self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM)
 
-        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD]
+        # Add HEAT-A bead
+        rHeatA = np.array([rHK[int(len(rHK) * 13/15)]])
 
-        return rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD
+        # apply extra rotation to entire SMC
+        if extra_rotation is not None:
+            rotMat = Rotation.from_rotvec(extra_rotation).as_matrix()
+            rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rHeatA, rSiteU, rSiteM, rSiteD = \
+                self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rHeatA, rSiteU, rSiteM, rSiteD)
+
+        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rHeatA, rSiteU, rSiteM, rSiteD]
+
+        return rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rHeatA, rSiteU, rSiteM, rSiteD
     
     def get_mass_per_atom(self, total_mass: float) -> float:
         return total_mass / sum(len(x) for x in self.generated_positions)

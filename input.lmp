@@ -134,29 +134,26 @@ label main_loop
 # Cycle index (looped over)
 variable cycle loop ${cycles}
 
-# Equilibrate in the APO-state
-run $(round(-(v_stepsATP/2)*ln(random(0,1,v_seed))))
+# APO state
+include states/relaxed
+run $(round(-v_stepsrelaxed*ln(random(0,1,v_seed))))
 
 # ATP-bound state
 include states/ATP-1
-run $(round(-10000*ln(random(0,1,v_seed))))
+run $(round(-v_stepsATP_1*ln(random(0,1,v_seed))))
 
 include states/ATP-2
-run $(round(-(v_stepsADP-10000)*ln(random(0,1,v_seed))))
+run $(round(-v_stepsATP_2*ln(random(0,1,v_seed))))
 
 # ADP-bound state
 include states/released-1
-run $(round(-v_stepsAPO*ln(random(0,1,v_seed))))
+run $(round(-v_stepsreleased_1*ln(random(0,1,v_seed))))
 
 include states/released-2
-run $(v_stepsAPO)
+run $(round(-v_stepsreleased_2*ln(random(0,1,v_seed))))
 
 include states/soft_before_relaxed
-run 10000
-
-# APO state
-include states/relaxed
-run $(round(-(v_stepsATP/2)*ln(random(0,1,v_seed))))
+run $(round(-20000*ln(random(0,1,v_seed))))
 
 #print "${stepCurrent}" append ${timesfile} screen no
 

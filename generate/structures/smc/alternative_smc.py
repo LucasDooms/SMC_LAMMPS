@@ -13,6 +13,7 @@ class SMC:
     rArmDR : ...
     rATP : ...
     rHK  : ...
+    rHeatA: ...
     rSiteU : ...
     rSiteM : ...
     rSiteD : ...
@@ -21,13 +22,14 @@ class SMC:
     molArmUL: int
     molArmUR: int
     molArmDR: int
-    molHK   : int
+    molHK   : int   # NOTE: HK and HEAT_A are the same molecule
     molATP  : int
     molSiteU: int
     molSiteM: int
     molSiteD: int
 
     armHK_type : AtomType
+    heatA_type: AtomType
     atp_type : AtomType
     siteU_type : AtomType
     siteM_type : AtomType
@@ -41,6 +43,7 @@ class SMC:
         self.armUR_group = AtomGroup(self.rArmUR, self.armHK_type, self.molArmUR)
         self.armDR_group = AtomGroup(self.rArmDR, self.armHK_type, self.molArmDR)
         self.hk_group = AtomGroup(self.rHK, self.armHK_type, self.molHK)
+        self.heatA_group = AtomGroup(self.rHeatA, self.heatA_type, self.molHK)
 
         self.atp_group = AtomGroup(self.rATP, self.atp_type, self.molATP)
 
@@ -71,6 +74,7 @@ class SMC:
             self.armUR_group,
             self.armDR_group,
             self.hk_group,
+            self.heatA_group,
             self.atp_group,
             self.siteU_group,
             self.siteU_arm_group,
@@ -137,6 +141,8 @@ class SMC:
 
             # fold upper arms relative to lower arms
             BAI(imp_t4, (self.armUL_group, -1), (self.armDL_group, -1), (self.armDR_group, 0), (self.siteM_group, 1)),
+            # BAI(imp_t4, (self.armUL_group, -1), (self.armDL_group, -1), (self.armDR_group, 0), (self.armDL_group, 0)),
+            # BAI(imp_t4, (self.armUL_group, -1), (self.armDL_group, -1), (self.armDR_group, 0), (self.armDR_group, -1)),
             # assymetry
             BAI(imp_t5, (self.armUL_group, -1), (self.atp_group, 0), (self.atp_group, -1), (self.hk_group, nHK//2))
         ]

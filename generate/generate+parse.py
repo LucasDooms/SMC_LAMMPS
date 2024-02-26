@@ -258,7 +258,7 @@ smc_creator = SMC_Creator(
 )
 
 rot_vec = np.array([0.0, 0.0, -np.deg2rad(42)]) if dnaConfigClass is dna.AdvancedObstacleSafety else None
-rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
+rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rHeatA, rSiteU, rSiteM, rSiteD = \
         smc_creator.get_smc(
             siteD_points_down=dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
             extra_rotation=rot_vec
@@ -318,6 +318,7 @@ molSiteM = molATP
 molSiteD = molHK
 
 armHK_type = AtomType(mSMC)
+heatA_type = AtomType(mSMC)
 atp_type = AtomType(mSMC)
 siteU_type = AtomType(mSMC)
 siteM_type = AtomType(mSMC)
@@ -332,6 +333,7 @@ smc_1 = SMC(
     rArmDR=rArmDR,
     rATP=rATP,
     rHK=rHK,
+    rHeatA=rHeatA,
     rSiteU=rSiteU,
     rSiteM=rSiteM,
     rSiteD=rSiteD,
@@ -347,6 +349,7 @@ smc_1 = SMC(
     molSiteD=molSiteD,
 
     armHK_type=armHK_type,
+    heatA_type=heatA_type,
     atp_type=atp_type,
     siteU_type=siteU_type,
     siteM_type=siteM_type,
@@ -378,6 +381,8 @@ if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacle
     pair_inter.add_interaction(tether_type, dna_type, epsilonDNAvsDNA * kBT, sigmaDNAvsDNA, rcutDNAvsDNA)
     pair_inter.add_interaction(tether_type, armHK_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
     pair_inter.add_interaction(tether_type, siteD_type, epsilonSiteDvsDNA * kBT, sigmaSiteDvsDNA, rcutSiteDvsDNA)
+
+pair_inter.add_interaction(dna_type, heatA_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
@@ -434,10 +439,11 @@ arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", a
 
 # We impose zero improper angle
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 0 ) )
-imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 180 - par.foldingAngleAPO ) )
+# imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 180 - par.foldingAngleAPO ) )
+imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 170 ) )
 imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, abs(90 - par.foldingAngleAPO) ) )
 imp_t4 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 0 ) )
-imp_t5 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 40 ) )
+imp_t5 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 100 ) )
 
 gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3, imp_t4, imp_t5)
 
@@ -467,14 +473,24 @@ with open(filepath_data, 'w') as datafile:
 #                                Phases of SMC                                  #
 #################################################################################
 
-arms_folded1 = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 180\n", angle_t3]
-arms_unfolded1 = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 30\n", angle_t3]
+# keep off FIX
+lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
+lower_site_on = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
 
-arms_folded2 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 120", imp_t4]
-arms_unfolded2 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 0", imp_t4]
+heatA_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, heatA_type]
+heatA_on = [None, "{} {} " + f"lj/cut {epsilonSiteDvsDNA} {par.sigma} {par.cutoff6}\n", dna_type, heatA_type]
 
-arms_folded_ = [arms_folded1, arms_folded2]
-arms_unfolded_ = [arms_unfolded1, arms_unfolded2]
+arms_folded1 = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 40\n", angle_t2]
+arms_unfolded1 = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 180\n", angle_t2]
+
+arms_folded2 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 45\n", imp_t4]
+arms_unfolded2 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 170\n", imp_t4]
+
+arms_folded3 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 90\n", imp_t5]
+arms_unfolded3 = [BAI_Kind.IMPROPER, "{} " + f"0 180\n", imp_t5] # turned off
+
+arms_folded_ = [arms_folded1, arms_folded2, arms_folded3]
+arms_unfolded_ = [arms_unfolded1, arms_unfolded2, arms_unfolded3]
 
 
 # make sure the directory exists
@@ -499,6 +515,7 @@ def apply(function, file, list_of_args):
 
 with open(states_path / "relaxed", 'w') as relaxed_file:
     options = [
+        heatA_on,
         bridge_soft_off,
         bridge_on,
         top_site_off,
@@ -512,6 +529,7 @@ with open(states_path / "relaxed", 'w') as relaxed_file:
 
 with open(states_path / "ATP-1", 'w') as atp_1_file:
     options = [
+        heatA_on,
         bridge_on,
         top_site_off,
         middle_site_on,
@@ -523,6 +541,7 @@ with open(states_path / "ATP-1", 'w') as atp_1_file:
 
 with open(states_path / "ATP-2", 'w') as atp_2_file:
     options = [
+        heatA_on,
         bridge_on,
         top_site_off,
         middle_site_on,
@@ -535,6 +554,7 @@ with open(states_path / "ATP-2", 'w') as atp_2_file:
 # first, wait for top site to catch something
 with open(states_path / "released-1", 'w') as released_1_file:
     options = [
+        heatA_on,
         bridge_on,
         top_site_on,
         middle_site_on,
@@ -544,20 +564,22 @@ with open(states_path / "released-1", 'w') as released_1_file:
     ]
     apply(gen.write_script_bai_coeffs, released_1_file, options)
 
-# then, close arms
+# then, fold arms
 with open(states_path / "released-2", 'w') as released_2_file:
     options = [
+        heatA_off,
         bridge_off,
         top_site_on,
         middle_site_off,
         lower_site_on,
-        arms_closed,
+        arms_open,
         *arms_folded_,
     ]
     apply(gen.write_script_bai_coeffs, released_2_file, options)
 
 with open(states_path / "soft_before_relaxed", 'w') as soft_before_relaxed_file:
     options = [
+        heatA_off,
         bridge_soft_on,
         top_site_off,
         middle_site_soft_on,

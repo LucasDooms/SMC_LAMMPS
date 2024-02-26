@@ -52,6 +52,15 @@ stepsADP = 8000000
 # Average number of steps for returning to APO
 stepsAPO = 2000000
 
+# ---- NEW SMC ----
+
+# Average number of steps in each state
+stepsrelaxed = 2000000
+stepsATP_1 = 8000000
+stepsATP_2 = 2000000
+stepsreleased_1 = 2000000
+stepsreleased_2 = 2000000
+
 
 ##################### Geometry #####################
 
