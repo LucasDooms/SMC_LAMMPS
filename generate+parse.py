@@ -230,6 +230,14 @@ if fold_dna:
     shift_x = desired_x_pos - rDNA[-(nLowerDNA - 10)][0]
     shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
     rDNA += shift
+
+    # get dna beads to freeze
+    # closest to bottom
+    distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
+    closest_DNA_index_b = int(np.argmin(distances))
+    # closest to middle
+    distances = np.linalg.norm(rDNA - rSiteM[1], axis=1)
+    closest_DNA_index_m = int(np.argmin(distances))
 else:
     # make sure SMC touches the DNA at the lower site (siteD)
     desired_y_pos = rSiteD[1][1] - 0.9 * par.cutoff6
@@ -529,6 +537,40 @@ plt.axis('scaled')
 plt.show()
 """
 
+#################################################################################
+#                           Print to post processing                            #
+#################################################################################
+
+
+with open(path / "post_processing_parameters.py", 'w') as file:
+    file.write(
+        "# use to form plane of SMC arms\n"
+        "top_bead_id = {}\n"
+        "left_bead_id = {}\n"
+        "right_bead_id = {}\n"
+        "upper_dna_max_id = {}\n".format(
+            gen.get_atom_index((smc_1.armUL_group, -1)),
+            gen.get_atom_index((smc_1.armDL_group, 0)),
+            gen.get_atom_index((smc_1.armUR_group, -1)),
+            gen.get_atom_index((dna_group, nDNA // 2))
+        )
+    )
+    file.write("\n")
+    file.write(
+        "# use to form plane of SMC kleisin\n"
+        "left_kleisin_id = {}\n"
+        "right_kleisin_id = {}\n"
+        "bottom_kleisin_id = {}\n".format(
+            gen.get_atom_index((smc_1.hk_group, 0)),
+            gen.get_atom_index((smc_1.hk_group, len(smc_1.rHK) // 2)),
+            gen.get_atom_index((smc_1.hk_group, -1)),
+        )
+    )
+    file.write("\n")
+    file.write(
+        "dna_spacing = {}\n".format(maxLengthDNA)
+    )
+
 
 #################################################################################
 #                           Print to parameterfile                              #
@@ -546,3 +588,6 @@ with open(filepath_param, 'w') as parameterfile:
     params = get_variables_from_module(par)
     for key in params:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
+    
+    parameterfile.write(f"variable index1 equal {closest_DNA_index_b}\n")
+    parameterfile.write(f"variable index2 equal {closest_DNA_index_m}\n")

@@ -65,7 +65,7 @@ fix 2 SMC rigid molecule langevin $T $T ${gamma} ${seed}
 #fix 4 all spring tether 10.0 0 0 0 0
 
 # For VMD visualisation
-dump movie all atom ${output_steps} output.lammpstrj
+dump movie all custom ${output_steps} output.lammpstrj id type x y z
 dump_modify movie sort id pbc yes
 
 # Computes SMC potential energy due to angles and impropers
@@ -88,6 +88,18 @@ timestep ${timestep}
 
 
 #----------------------------------------------Run-------------------------------------------------#
+
+
+# EQUILIBRATE
+
+group frozen id ${index1} ${index2}
+
+fix frz frozen setforce 0 0 0
+
+# Equilibrate in the APO-state
+run 10000
+
+unfix frz
 
 # Reference point in script (enter loop)
 label loop
