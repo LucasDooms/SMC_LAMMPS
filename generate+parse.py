@@ -1,9 +1,9 @@
 import math
 import numpy as np
-from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
+from generator import AtomIdentifier, Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Dict, Tuple
 import dna_creator
 from smc_creator import SMC_Creator
 from smc import SMC
@@ -184,34 +184,7 @@ epsilonSiteDvsDNA = par.epsilon6 * kB*T
 
 
 #################################################################################
-#                                 SMC complex                                   #
-#################################################################################
-
-rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
-    SMC_Creator(
-        SMCspacing=SMCspacing,
-
-        siteUhDist=siteUhDist,
-        siteUvDist=siteUvDist,
-        siteMhDist=siteMhDist,
-        siteMvDist=siteMvDist,
-        siteDhDist=siteDhDist,
-        siteDvDist=siteDvDist,
-
-        armLength=par.armLength,
-        bridgeWidth=par.bridgeWidth,
-
-        HKradius=par.HKradius,
-
-        foldingAngleAPO=par.foldingAngleAPO
-    ).get_smc(siteD_points_down=True)
-
-nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
-    len(rArmDL), len(rArmUL), len(rArmUR), len(rArmDR), len(rATP), len(rHK), len(rSiteU), len(rSiteM), len(rSiteD)
-
-
-#################################################################################
-#                                     DNA                                       #
+#                                 Start Setup                                   #
 #################################################################################
 
 class DnaConfiguration:
@@ -223,11 +196,17 @@ class DnaConfiguration:
     def str_to_config(string: str):
         string = string.lower()
         return {
+            "line": Line,
             "folded": Folded,
             "right_angle": RightAngle,
             "doubled": Doubled,
-            "obstacle": Obstacle
+            "obstacle": Obstacle,
+            "obstacle_safety": ObstacleSafety
         }[string]
+
+class Line(DnaConfiguration):
+    def __init__(self, rDNAList):
+        super().__init__(rDNAList)
 
 class Folded(DnaConfiguration):
 
@@ -253,34 +232,79 @@ class Obstacle(DnaConfiguration):
         super().__init__(rDNAList)
         self.tether_positions = tether_positions
 
+class ObstacleSafety(DnaConfiguration):
+
+    def __init__(self, rDNAList, tether_positions):
+        super().__init__(rDNAList)
+        self.tether_positions = tether_positions
+
 dnaConfigClass = DnaConfiguration.str_to_config(par.dnaConfig)
 
-freeze_indices = []
+
+#################################################################################
+#                                 SMC complex                                   #
+#################################################################################
+
+rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
+    SMC_Creator(
+        SMCspacing=SMCspacing,
+
+        siteUhDist=siteUhDist,
+        siteUvDist=siteUvDist,
+        siteMhDist=siteMhDist,
+        siteMvDist=siteMvDist,
+        siteDhDist=siteDhDist,
+        siteDvDist=siteDvDist,
+
+        armLength=par.armLength,
+        bridgeWidth=par.bridgeWidth,
+
+        HKradius=par.HKradius,
+
+        foldingAngleAPO=par.foldingAngleAPO
+    ).get_smc(siteD_points_down=dnaConfigClass in {ObstacleSafety})
+
+nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
+    len(rArmDL), len(rArmUL), len(rArmUR), len(rArmDR), len(rATP), len(rHK), len(rSiteU), len(rSiteM), len(rSiteD)
+
+
+#################################################################################
+#                                     DNA                                       #
+#################################################################################
+
+def get_closest(array, position) -> int:
+    """returns the index of the array that is closest to the given position"""
+    distances = np.linalg.norm(array - position, axis=1)
+    return int(np.argmin(distances))
+
+# place your DNA here, inside the SMC
+default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
+
 # two steps:
 # 1. get initial configuration from dna_creator.py
 # 2. shift DNA/SMC so that they are place correctly relative to each other
-if dnaConfigClass is Folded:
+if dnaConfigClass is Line:
+    # 1.
+    [rDNA] = dna_creator.get_dna_coordinates_straight(nDNA, DNAbondLength)
+
+    # 2.
+    # make sure SMC contains DNA
+    goal = default_dna_pos
+    start = np.array([rDNA[int(len(rDNA) / 1.3)][0] + 10.0 * DNAbondLength, rDNA[-1][1], 0])
+    shift = (goal - start).reshape(1, 3)
+    rDNA += shift
+
+    dnaConfig = Line([rDNA])
+elif dnaConfigClass is Folded:
     # 1.
     [rDNA], dnaCenter = dna_creator.get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
 
     # 2.
     # make sure SMC contains DNA
-    desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
-    shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
-    shift_x = desired_x_pos - dnaCenter[0]
-    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    goal = default_dna_pos
+    start = np.array([dnaCenter[0] + 10.0 * DNAbondLength, rDNA[-1][1], 0])
+    shift = (goal - start).reshape(1, 3)
     rDNA += shift
-
-    # get dna beads to freeze
-    # closest to bottom
-    distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
-    closest_DNA_index_b = int(np.argmin(distances))
-    # closest to middle
-    distances = np.linalg.norm(rDNA - rSiteM[1], axis=1)
-    closest_DNA_index_m = int(np.argmin(distances))
-
-    freeze_indices = [closest_DNA_index_b, closest_DNA_index_m]
 
     dnaConfig = Folded([rDNA], dnaCenter)
 elif dnaConfigClass is RightAngle:
@@ -289,16 +313,10 @@ elif dnaConfigClass is RightAngle:
 
     # 2.
     # make sure SMC touches the DNA at the lower site (siteD)
-    desired_y_pos = rSiteD[1][1] - 0.9 * par.cutoff6
-    shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
-    shift_x = desired_x_pos - dnaCenter[0]
-    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    goal = default_dna_pos
+    start = np.array([dnaCenter[0] - 10.0 * DNAbondLength, dnaCenter[1], 0])
+    shift = (goal - start).reshape(1, 3)
     rDNA += shift
-
-    # find closest DNA bead to siteD
-    distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
-    closest_DNA_index = int(np.argmin(distances))
 
     dnaConfig = RightAngle([rDNA], dnaCenter)
 elif dnaConfigClass is Doubled:
@@ -307,25 +325,11 @@ elif dnaConfigClass is Doubled:
 
     # 2.
     # make sure SMC contains DNA
-    desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
-    shift_y = desired_y_pos - rDNAlist[0][-1][1]
-    desired_x_pos = rSiteD[1][0] - 30.0 * DNAbondLength
-    shift_x = desired_x_pos - dnaCenter[0]
-    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    goal = default_dna_pos
+    start = np.array([dnaCenter[0] + 30.0 * DNAbondLength, rDNAlist[0][-1][1], 0])
+    shift = (goal - start).reshape(1, 3)
     rDNAlist[0] += shift
     rDNAlist[1] += shift
-
-    # get dna beads to freeze
-    for i in range(2):
-        # closest to bottom
-        distances = np.linalg.norm(rDNAlist[i] - rSiteD[1], axis=1)
-        closest_DNA_index_b = int(np.argmin(distances))
-        # TODO: fix for DOUBLED DNA, gives same bead twice
-        # closest to middle
-        distances = np.linalg.norm(rDNAlist[i] - rSiteM[1], axis=1)
-        closest_DNA_index_m = int(np.argmin(distances))
-        
-        freeze_indices += [closest_DNA_index_b, closest_DNA_index_m]
 
     dnaConfig = Doubled(rDNAlist, dnaCenter)
 elif dnaConfigClass is Obstacle:
@@ -334,11 +338,10 @@ elif dnaConfigClass is Obstacle:
     
     # 2.
     # make sure SMC contains DNA
-    desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
-    shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
-    shift_x = desired_x_pos - rDNA[int(len(rDNA)*8/15)][0]
-    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    goal = default_dna_pos
+    an_index = int(len(rDNA)*9/15)
+    start = np.array([rDNA[an_index][0] - 10.0 * DNAbondLength, rDNA[an_index][1], 0])
+    shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
     import structure_creator
@@ -348,8 +351,27 @@ elif dnaConfigClass is Obstacle:
     tether_positions += rDNA[dna_bead_to_tether_id] - tether_positions[-1]
     # move down a little
     tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
-    
+
     dnaConfig = Obstacle([rDNA], tether_positions)
+elif dnaConfigClass is ObstacleSafety:
+    # 1.
+    [rDNA], belt_location, ttt = dna_creator.get_dna_coordinates_safety_belt(nDNA, DNAbondLength)
+    
+    # 2.
+    # make sure SMC contains DNA
+    shift = rSiteD[1] - belt_location
+    shift[1] -= 0.65 * par.cutoff6 
+    rDNA += shift
+
+    import structure_creator
+    tether_positions = structure_creator.get_straight_segment(35, [0, 1, 0]) * DNAbondLength
+    # place the tether next to the DNA bead
+    dna_bead_to_tether_id = int(len(rDNA) / 3.5)
+    tether_positions += rDNA[dna_bead_to_tether_id] - tether_positions[-1]
+    # move down a little
+    tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
+
+    dnaConfig = ObstacleSafety([rDNA], tether_positions)
 else:
     raise TypeError
 
@@ -471,15 +493,80 @@ gen.atom_groups += [
     *smc_1_groups
 ]
 
-if isinstance(dnaConfig, Obstacle):
+if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
+    tether_type = AtomType(mDNA)
+
     tether_group = AtomGroup(
         positions=dnaConfig.tether_positions,
-        atom_type=dna_type,
+        atom_type=tether_type,
         molecule_index=molTether,
         polymer_bond_type=dna_bond,
         polymer_angle_type=dna_angle
     )
     gen.atom_groups += [tether_group]
+
+
+# indices to freeze permanently
+end_points: List[AtomIdentifier] = []
+# indices to temporarily freeze, in order to equilibrate the system
+freeze_indices: List[AtomIdentifier] = []
+# forces to apply:
+# the keys are the forces (3d vectors), and the value is a list of indices to which the force will be applied
+stretching_forces_array: Dict[Tuple[float, float, float], List[AtomIdentifier]] = dict()
+if isinstance(dnaConfig, Line):
+    if par.force:
+        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
+    else:
+        end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
+
+    freeze_indices += [
+        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteD[1])), # closest to bottom -> rSiteD[1]
+        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteM[1])), # closest to middle -> rSiteM[1]
+    ]
+elif isinstance(dnaConfig, Folded):
+    if par.force:
+        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0), (dna_groups[0], -1)]
+    else:
+        end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
+
+    freeze_indices += [
+        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteD[1])), # closest to bottom -> rSiteD[1]
+        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteM[1])), # closest to middle -> rSiteM[1]
+    ]
+elif isinstance(dnaConfig, RightAngle):
+    if par.force:
+        stretching_forces_array[(0, par.force, 0)] = [(dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
+    else:
+        end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
+    # find closest DNA bead to siteD
+    closest_DNA_index = get_closest(dna_groups[0].positions, rSiteD[1])
+elif isinstance(dnaConfig, Doubled):
+    # get dna beads to freeze
+    for dna_grp in dna_groups:
+        if par.force:
+            stretching_forces_array[(par.force, 0, 0)] = [(dna_grp, 0), (dna_grp, -1)]
+        else:
+            end_points += [(dna_grp, 0), (dna_grp, -1)]
+        # TODO: fix for DOUBLED DNA, gives same bead twice
+        freeze_indices += [
+            (dna_grp, get_closest(dna_grp.positions, rSiteD[1])), # closest to bottom
+            (dna_grp, get_closest(dna_grp.positions, rSiteM[1])), # closest to middle
+        ]
+elif isinstance(dnaConfig, Obstacle):
+    if par.force:
+        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
+    end_points += [(tether_group, 0)]
+elif isinstance(dnaConfig, ObstacleSafety):
+    if par.force:
+        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
+    end_points += [(tether_group, 0)]
+else:
+    raise TypeError
+
 
 # Pair coefficients
 pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
@@ -487,6 +574,12 @@ pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0
 pair_inter.add_interaction(dna_type, dna_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
 pair_inter.add_interaction(dna_type, armHK_type, epsilonSMCvsDNA, sigmaSMCvsDNA, rcutSMCvsDNA)
 pair_inter.add_interaction(dna_type, siteD_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
+if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
+    # tether
+    pair_inter.add_interaction(tether_type, tether_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
+    pair_inter.add_interaction(tether_type, dna_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
+    pair_inter.add_interaction(tether_type, armHK_type, epsilonSMCvsDNA, sigmaSMCvsDNA, rcutSMCvsDNA)
+    pair_inter.add_interaction(tether_type, siteD_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
@@ -502,7 +595,7 @@ bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, 
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4)
 gen.bais += bonds
-if isinstance(dnaConfig, Obstacle):
+if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
     tether_to_dna_bond = BAI(dna_bond, (tether_group, -1), (dna_groups[0], dna_bead_to_tether_id))
     gen.bais += [tether_to_dna_bond]
 
@@ -519,6 +612,11 @@ imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, math.fabs(90 - par
 
 gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
 
+if isinstance(dnaConfig, ObstacleSafety):
+    gen.molecule_override[(dna_groups[0], ttt)] = molSiteD
+    # add neighbors to prevent rotation
+    gen.molecule_override[(dna_groups[0], ttt - 1)] = molSiteD
+    gen.molecule_override[(dna_groups[0], ttt + 1)] = molSiteD
 
 with open(filepath_data, 'w') as datafile:
     gen.write(datafile)
@@ -535,7 +633,7 @@ improper3kappa = par.asymmetryStiffness * kB * T
 improper3angleAPO = abs(90 - par.foldingAngleAPO)
 
 angle3angleAPO1 = 180 / math.pi * np.arccos(par.bridgeWidth / par.armLength)
-angle3angleAPO1 = 180 / math.pi * np.arccos(2 * par.bridgeWidth / par.armLength)
+# angle3angleAPO1 = 180 / math.pi * np.arccos(2 * par.bridgeWidth / par.armLength)
 
 improper2angleATP = 180 - par.foldingAngleATP
 improper3angleATP = abs(90 - par.foldingAngleATP)
@@ -555,7 +653,11 @@ middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kB * T} {par.sigma} 
 middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
 middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kB * T} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
 
-lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
+if isinstance(dnaConfig, ObstacleSafety):
+    # always keep site on
+    lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kB * T} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
+else:
+    lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
 lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kB * T} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 
 arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO1}\n", angle_t3]
@@ -646,7 +748,7 @@ with open(path / "post_processing_parameters.py", 'w') as file:
     file.write("\n")
     dna_indices_list = []
     for dna_grp in dna_groups:
-        if not isinstance(dnaConfig, Obstacle):
+        if not isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
             dna_indices_list.append(
                 (
                     gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
@@ -683,6 +785,8 @@ with open(path / "post_processing_parameters.py", 'w') as file:
 #                           Print to parameterfile                              #
 #################################################################################
 
+def atomIds_to_LAMMPS_ids(lst: List[AtomIdentifier]) -> List[int]:
+    return [gen.get_atom_index(atomId) for atomId in lst]
 
 def get_variables_from_module(module):
     all_vars = dir(module)
@@ -704,6 +808,11 @@ def get_string_def(name: str, value: str) -> str:
     """define a LAMMPS string"""
     return f'variable {name} string "{value}"\n'
 
+def get_universe_def(name: str, values: List[str]) -> str:
+    """define a LAMMPS universe"""
+    values = ['"' + value + '"' for value in values]
+    return f'variable {name} universe {list_to_space_str(values)}\n'
+
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
     
@@ -715,33 +824,64 @@ with open(filepath_param, 'w') as parameterfile:
     for key in params:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
 
-    end_points = []
-    if not isinstance(dnaConfig, Obstacle):
-        for grp in dna_groups:
-            # get (1-indexed) indices from generator
-            end_points += [gen.get_atom_index((grp, 0)), gen.get_atom_index((grp, -1))]
-    else:
-        end_points += [gen.get_atom_index((tether_group, 0))]
+    # write molecule ids
+    # NOTE: indices are allowed to be the same, LAMMPS will ignore duplicates
     parameterfile.write(
-        get_string_def("dna_end_points",
-            prepend_or_empty(list_to_space_str(end_points), "id ")
+        get_string_def("DNA_mols",
+            list_to_space_str([molDNA, molTether])
+        )
+    )
+    parameterfile.write(
+        get_string_def("SMC_mols",
+            list_to_space_str(
+                [molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molSiteU, molSiteM, molSiteD]
+            )
         )
     )
 
-    # turn zero to one indexed for LAMMPS
-    freeze_indices = [x + 1 for x in freeze_indices]
+    print("\n")
+
+    # turn into LAMMPS indices
+    end_points_LAMMPS = atomIds_to_LAMMPS_ids(end_points)
+    parameterfile.write(
+        get_string_def("dna_end_points",
+            prepend_or_empty(list_to_space_str(end_points_LAMMPS), "id ")
+        )
+    )
+
+    # turn into LAMMPS indices
+    freeze_indices_LAMMPS = atomIds_to_LAMMPS_ids(freeze_indices)
     parameterfile.write(
         get_string_def("indices",
-            prepend_or_empty(list_to_space_str(freeze_indices), "id ")
+            prepend_or_empty(list_to_space_str(freeze_indices_LAMMPS), "id ")
         )
     )
     
-    if isinstance(dnaConfig, Obstacle):
+    if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
         parameterfile.write(f"variable wall_y equal {dnaConfig.tether_positions[0,1]}\n")
 
         excluded = [gen.get_atom_index((tether_group, 0)), gen.get_atom_index((tether_group, 1))]
         parameterfile.write(
             get_string_def("excluded",
                 prepend_or_empty(list_to_space_str(excluded), "id ")
+            )
+        )
+
+    # forces
+    stretching_forces_array_LAMMPS = {key: atomIds_to_LAMMPS_ids(val) for key, val in stretching_forces_array.items()}
+    if stretching_forces_array_LAMMPS:
+        parameterfile.write(f"variable stretching_forces_len equal {len(stretching_forces_array_LAMMPS)}\n")
+        sf_ids = [prepend_or_empty(list_to_space_str(lst), "id ") for lst in stretching_forces_array_LAMMPS.values()]
+        parameterfile.write(
+            get_universe_def(
+                "stretching_forces_groups",
+                sf_ids
+            )
+        )
+        sf_forces = [list_to_space_str(tup) for tup in stretching_forces_array_LAMMPS.keys()]
+        parameterfile.write(
+            get_universe_def(
+                "stretching_forces",
+                sf_forces
             )
         )

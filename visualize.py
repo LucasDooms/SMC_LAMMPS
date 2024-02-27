@@ -4,6 +4,7 @@ from typing import List, Tuple
 from importlib import import_module
 import subprocess
 
+# TODO: VMD uses zero-indexed arrays!
 
 parser = argparse.ArgumentParser(
     prog='Visualize with VMD',
@@ -74,5 +75,6 @@ for p in path.glob("marked_bead*.lammpstrj"):
 
 mol.create_new_dna("output.lammpstrj", parameters.dna_indices_list)
 
-cmd = ["vmd", "-e", f"{mol.path.absolute()}"]
+# ISSUE: -startup will ignore .vimdrc
+cmd = ["vmd", "-startup", str((Path(".") / "vmd.init").absolute()), "-e", f"{mol.path.absolute()}"]
 subprocess.run(cmd, cwd=path)

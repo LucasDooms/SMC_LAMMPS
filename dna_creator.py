@@ -1,4 +1,4 @@
-from structure_creator import get_straight_segment, get_circle_segment, attach, attach_chain
+from structure_creator import get_straight_segment, get_circle_segment, attach, attach_chain, get_interpolated
 import numpy as np
 import math
 
@@ -19,6 +19,37 @@ def get_dna_coordinates_straight(nDNA: int, DNAbondLength: float):
     rDNA[:,0] *= -1
 
     return [rDNA]
+
+
+def get_dna_coordinates_safety_belt(nDNA: int, DNAbondLength: float):
+    rDNA = get_interpolated(
+        DNAbondLength,
+        10 * DNAbondLength * np.array(
+            [
+                [4, 0, 0], [2, 0, 0], # right, straight piece
+                [0, 1.0, 0], [-0.5, 1.0, 0], [-3, 1.25, 0], # up, to the left
+                [-3.25, 0.75, 0], # down, to the left
+                [-0.5, -1, 0], [0, -1, 0], [0.7, -1, 0], [1.5, -1.5, 0], # down, to the right
+                [1.0, -2, 0], [-2, -2, 0], # down, to the left
+                [-4, 0, 0], [-5, 0, 0], # left, straight
+            ],
+            dtype=float
+        )
+    )
+    distances = np.linalg.norm(rDNA - 10*DNAbondLength*np.array([0, -1.0, 0.0]), axis=1)
+    belt_index = np.where(distances == np.min(distances))[0][0]
+
+    remaining = nDNA - len(rDNA)
+    nLeft = remaining // 2
+    nRight = remaining - nLeft
+    left = get_straight_segment(nLeft + 1, [-1, 0, 0]) * DNAbondLength
+    right = get_straight_segment(nRight + 1, [-1, 0, 0]) * DNAbondLength
+    right, rDNA, left = attach_chain(
+        right, [[rDNA, True], [left, True]]
+    )
+    
+    belt_location = rDNA[belt_index]
+    return [np.concatenate([right, rDNA, left])], belt_location, belt_index + len(right)
 
 
 def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcStraight: int):

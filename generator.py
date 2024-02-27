@@ -113,8 +113,10 @@ class PairWise:
         self.pairs: List[Tuple[AtomType, AtomType, List[Any]]] = []
 
     def add_interaction(self, atom_type1: AtomType, atom_type2: AtomType, *args: Any) -> PairWise:
+        """Add an iteraction. Will sort the indices automatically."""
+        ordered = sorted([atom_type1, atom_type2], key=lambda at: at.index)
         self.pairs.append(
-            (atom_type1, atom_type2, list(args))
+            (ordered[0], ordered[1], list(args))
         )
 
         return self
@@ -126,6 +128,7 @@ class PairWise:
         file.write("\n")
 
     def get_all_interaction_pairs(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType]]:
+        """Returns all possible interactions, whether they are set by the user or not."""
         present_atom_types = set()
         for pair in self.pairs:
             present_atom_types.add(pair[0])
@@ -140,6 +143,8 @@ class PairWise:
         return all_inters
 
     def get_all_interactions(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType, str]]:
+        """Returns actual interactions to define,
+           applying the default where no interaction was specified by the user."""
         all_inters = self.get_all_interaction_pairs(all_atom_types)
         
         def pair_in_inter(interaction: Tuple[AtomType, AtomType]) -> Tuple[AtomType, AtomType, List[Any]] | None:
