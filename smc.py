@@ -81,12 +81,7 @@ class SMC:
             self.siteD_arm_group
         ]
 
-    def get_bonds(self, bond_t2: BAI_Type, bond_t3: BAI_Type, bond_t4: BAI_Type) -> List[BAI]:
-        indL = np.argmin(np.linalg.norm(self.rSiteU[-2] - self.rArmUL, axis=1))
-        indL = int(indL) # result should be an int if array is one dimensional
-        indR = np.argmin(np.linalg.norm(self.rSiteU[-2] - self.rArmUR, axis=1))
-        indR = int(indR)
-
+    def get_bonds(self, bond_t2: BAI_Type, bond_t3: BAI_Type, bond_t4: BAI_Type, indL: int, indR: int) -> List[BAI]:
         return [
             # attach arms together
             BAI(bond_t2, (self.armDL_group, -1), (self.armUL_group, 0)),

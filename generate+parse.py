@@ -394,12 +394,12 @@ kBondAlign1 =  10*kB*T / SMCspacing**2
 kBondAlign2 = 200*kB*T / SMCspacing**2
 
 
-indL = np.argmin(np.linalg.norm(rSiteU[-2]-rArmUL, axis=1))
-indL = int(indL) # result should be an int if array is one dimensional
-indR = np.argmin(np.linalg.norm(rSiteU[-2]-rArmUR, axis=1))
-indR = int(indR)
-bondMin1 = np.linalg.norm(rSiteU[-2]-rArmUL[indL])
-bondMin2 = np.linalg.norm(rSiteU[-2]-rArmUL[-1])
+indL = get_closest(rArmUL, rSiteU[-2])
+indR = get_closest(rArmUR, rSiteU[-2])
+# binds from the side of the arms to the shields of SiteU
+bondMinArmUSide = np.linalg.norm(rSiteU[-2] - rArmUL[indL])
+# binds from the top of the arms to the shields of SiteU
+bondMinArmUTop = np.linalg.norm(rSiteU[-2] - rArmUL[-1])
 
 # Maximum bond length
 maxLengthDNA = DNAbondLength*bondMax
@@ -588,10 +588,10 @@ gen.pair_interactions.append(pair_soft_inter)
 
 # Every joint is kept in place through bonds
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
-bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, bondMin1))
-bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, bondMin2))
+bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, bondMinArmUSide))
+bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, bondMinArmUTop))
 
-bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4)
+bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4, indL, indR)
 gen.bais += bonds
 if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
     tether_to_dna_bond = BAI(dna_bond, (tether_group, -1), (dna_groups[0], dna_bead_to_tether_id))
