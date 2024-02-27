@@ -53,6 +53,8 @@ T = par.T
 # Boltzmann's constant (pN nm / K)
 kB = par.kB
 
+kBT = kB * T
+
 
 #################################### Masses #####################################
 
@@ -180,7 +182,7 @@ sigmaSiteDvsDNA = sigmaSMCvsDNA
 rcutSiteDvsDNA = par.cutoff6
 
 # Epsilon parameter of LJ attraction
-epsilonSiteDvsDNA = par.epsilon6 * kB*T
+epsilonSiteDvsDNA = par.epsilon6 * kBT
 
 
 #################################################################################
@@ -388,10 +390,10 @@ bondFlSMC = 1e-2
 bondMax = 1.
 
 # Spring constant obeying equilibrium relative bond fluctuations
-kBondDNA    = 3*kB*T/(DNAbondLength*bondFlDNA)**2
-kBondSMC    = 3*kB*T/(   SMCspacing*bondFlSMC)**2
-kBondAlign1 =  10*kB*T / SMCspacing**2
-kBondAlign2 = 200*kB*T / SMCspacing**2
+kBondDNA = 3 * kBT/ (DNAbondLength * bondFlDNA)**2
+kBondSMC = 3 * kBT/ (SMCspacing * bondFlSMC)**2
+kBondAlign1 = 10 * kBT / SMCspacing**2
+kBondAlign2 = 200 * kBT / SMCspacing**2
 
 
 indL = get_closest(rArmUL, rSiteU[-2])
@@ -402,26 +404,26 @@ bondMinArmUSide = np.linalg.norm(rSiteU[-2] - rArmUL[indL])
 bondMinArmUTop = np.linalg.norm(rSiteU[-2] - rArmUL[-1])
 
 # Maximum bond length
-maxLengthDNA = DNAbondLength*bondMax
-maxLengthSMC =    SMCspacing*bondMax
+maxLengthDNA = DNAbondLength * bondMax
+maxLengthSMC = SMCspacing * bondMax
 
 # DNA bending rigidity
-kDNA = DNAstiff * kB*T / DNAbondLength
+kDNA = DNAstiff * kBT / DNAbondLength
 
 # Angular trap constants
 # kElbows: Bending of elbows (kinkable arms, hence soft)
 # kArms:   Arms opening angle wrt ATP bridge (should be stiff)
-kElbows = par.elbowsStiffness*kB*T
-kArms   =   par.armsStiffness*kB*T
+kElbows = par.elbowsStiffness * kBT
+kArms = par.armsStiffness * kBT
 
 # Fixes site orientation (prevents free rotation, should be stiff)
-kAlignSite = par.siteStiffness*kB*T
+kAlignSite = par.siteStiffness * kBT
 
 # Folding stiffness of lower compartment (should be stiff)
-kFolding = par.foldingStiffness*kB*T
+kFolding = par.foldingStiffness * kBT
 
 # Makes folding asymmetric (should be stiff)
-kAsymmetry = par.asymmetryStiffness*kB*T
+kAsymmetry = par.asymmetryStiffness * kBT
 
 # SET UP DATAFILE GENERATOR
 gen = Generator()
@@ -621,13 +623,13 @@ with open(filepath_data, 'w') as datafile:
 
 
 # TODO
-angle3kappa = par.armsStiffness * kB * T
+angle3kappa = par.armsStiffness * kBT
 angle3angleATP = par.armsAngleATP
 
-improper2kappa = par.foldingStiffness * kB * T
+improper2kappa = par.foldingStiffness * kBT
 improper2angleAPO = 180 - par.foldingAngleAPO
 
-improper3kappa = par.asymmetryStiffness * kB * T
+improper3kappa = par.asymmetryStiffness * kBT
 improper3angleAPO = abs(90 - par.foldingAngleAPO)
 
 angle3angleAPO1 = 180 / math.pi * np.arccos(par.bridgeWidth / par.armLength)
@@ -637,26 +639,26 @@ improper2angleATP = 180 - par.foldingAngleATP
 improper3angleATP = abs(90 - par.foldingAngleATP)
 
 bridge_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, atp_type]
-bridge_on = [None, "{} {} " + f"lj/cut {par.epsilon3 * kB * T} {par.sigma} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
+bridge_on = [None, "{} {} " + f"lj/cut {par.epsilon3 * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
 
 bridge_soft_off = [None, "{} {} soft 0 0\n", dna_type, atp_type]
-bridge_soft_on = [None, "{} {} soft " + f"{par.epsilon3 * kB * T} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
+bridge_soft_on = [None, "{} {} soft " + f"{par.epsilon3 * kBT} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
 
 top_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
-top_site_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kB * T} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
+top_site_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
 
 middle_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteM_type]
-middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kB * T} {par.sigma} {par.cutoff5}\n", dna_type, siteM_type]
+middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n", dna_type, siteM_type]
 
 middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
-middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kB * T} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
+middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
 
 if isinstance(dnaConfig, ObstacleSafety):
     # always keep site on
-    lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kB * T} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
+    lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 else:
     lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
-lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kB * T} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
+lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 
 arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO1}\n", angle_t3]
 arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleATP}\n", angle_t3]
