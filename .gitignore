@@ -1,4 +1,6 @@
 output.lammpstrj
+marked_bead*.lammpstrj
+bead_id_in_time.png
 *.out
 datafile
 parameterfile
@@ -6,3 +8,4 @@ log.lammps
 */states/*
 post_processing_parameters.py
 test/
+*/vmd.init

@@ -5,3 +5,6 @@ HKradius = 10.
 
 # Middle site as strong as lower site
 epsilon5 = epsilon6
+
+# amount of DNA
+N = 1000

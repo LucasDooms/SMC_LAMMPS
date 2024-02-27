@@ -3,9 +3,10 @@ import numpy as np
 from generator import Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
 from sys import argv
 from pathlib import Path
-from dna_creator import get_dna_coordinates, get_dna_coordinates_twist
+from dna_creator import get_dna_coordinates, get_dna_coordinates_twist, get_dna_coordinates_doubled
 from smc_creator import SMC_Creator
 from smc import SMC
+from enum import Enum
 from importlib import import_module
 import default_parameters
 #import matplotlib.pyplot as plt
@@ -211,23 +212,35 @@ nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
 #                                     DNA                                       #
 #################################################################################
 
-fold_dna = True
+class DnaConfiguration(Enum):
+    FOLDED = 0
+    RIGHT_ANGLE = 1
+    DOUBLED = 2
 
-if fold_dna:
-    rDNA, nLowerDNA = get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
+dnaConfig = DnaConfiguration.DOUBLED
+# dnaConfig = DnaConfiguration.FOLDED
+
+if dnaConfig == DnaConfiguration.FOLDED:
+    rDNAlist, dnaCenter = get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
+elif dnaConfig == DnaConfiguration.RIGHT_ANGLE:
+    rDNAlist, dnaCenter = get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
+elif dnaConfig == DnaConfiguration.DOUBLED:
+    rDNAlist, dnaCenter = get_dna_coordinates_doubled(nDNA, DNAbondLength, 24)
 else:
-    rDNA, nLowerDNA = get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
+    raise ValueError(f"Unknown option {dnaConfig}")
 
 #################################################################################
 #                               Shift DNA to SMC                                #
 #################################################################################
 
-if fold_dna:
+freeze_indices = []
+if dnaConfig == DnaConfiguration.FOLDED:
+    rDNA = rDNAlist[0]
     # make sure SMC contains DNA
     desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
     shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0]
-    shift_x = desired_x_pos - rDNA[-(nLowerDNA - 10)][0]
+    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
+    shift_x = desired_x_pos - dnaCenter[0]
     shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
     rDNA += shift
 
@@ -238,19 +251,44 @@ if fold_dna:
     # closest to middle
     distances = np.linalg.norm(rDNA - rSiteM[1], axis=1)
     closest_DNA_index_m = int(np.argmin(distances))
-else:
+
+    freeze_indices = [closest_DNA_index_b, closest_DNA_index_m]
+elif dnaConfig == DnaConfiguration.RIGHT_ANGLE:
+    rDNA = rDNAlist[0]
     # make sure SMC touches the DNA at the lower site (siteD)
     desired_y_pos = rSiteD[1][1] - 0.9 * par.cutoff6
     shift_y = desired_y_pos - rDNA[-1][1]
-    desired_x_pos = rSiteD[1][0]
-    shift_x = desired_x_pos - rDNA[-(nLowerDNA - 3)][0]
+    desired_x_pos = rSiteD[1][0] - 10.0 * DNAbondLength
+    shift_x = desired_x_pos - dnaCenter[0]
     shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
     rDNA += shift
 
     # find closest DNA bead to siteD
     distances = np.linalg.norm(rDNA - rSiteD[1], axis=1)
     closest_DNA_index = int(np.argmin(distances))
+elif dnaConfig == DnaConfiguration.DOUBLED:
+    # make sure SMC contains DNA
+    desired_y_pos = rSiteD[1][1] + 0.9 * par.cutoff6
+    shift_y = desired_y_pos - rDNAlist[0][-1][1]
+    desired_x_pos = rSiteD[1][0] - 30.0 * DNAbondLength
+    shift_x = desired_x_pos - dnaCenter[0]
+    shift = np.array([shift_x, shift_y, 0]).reshape(1, 3)
+    rDNAlist[0] += shift
+    rDNAlist[1] += shift
 
+    # get dna beads to freeze
+    for i in range(2):
+        # closest to bottom
+        distances = np.linalg.norm(rDNAlist[i] - rSiteD[1], axis=1)
+        closest_DNA_index_b = int(np.argmin(distances))
+        # TODO: fix for DOUBLED DNA, gives same bead twice
+        # closest to middle
+        distances = np.linalg.norm(rDNAlist[i] - rSiteM[1], axis=1)
+        closest_DNA_index_m = int(np.argmin(distances))
+        
+        freeze_indices += [closest_DNA_index_b, closest_DNA_index_m]
+else:
+    raise ValueError(f"Unknown option {dnaConfig}")
 
 #################################################################################
 #                                Print to file                                  #
@@ -320,12 +358,14 @@ molSiteD = molHK
 
 dna_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondDNA, maxLengthDNA, 0, 0, DNAbondLength))
 dna_type = AtomType(mDNA)
-dna_group = AtomGroup(
-    positions=rDNA,
-    atom_type=dna_type,
-    molecule_index=molDNA,
-    polymer_bond_type=dna_bond
-)
+dna_groups = []
+for rDNA in rDNAlist:
+    dna_groups.append(AtomGroup(
+        positions=rDNA,
+        atom_type=dna_type,
+        molecule_index=molDNA,
+        polymer_bond_type=dna_bond
+    ))
 
 armHK_type = AtomType(mSMC)
 atp_type = AtomType(mSMC)
@@ -367,7 +407,7 @@ smc_1 = SMC(
 smc_1_groups = smc_1.get_groups()
 
 gen.atom_groups += [
-    dna_group,
+    *dna_groups,
     *smc_1_groups
 ]
 
@@ -399,18 +439,20 @@ angle_t1 = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n"   % ( kElbows, 180 ) )
 angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" % ( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
 
+# TODO: move to generator
 # DNA stiffness
-dna_angle_list = []
-for index in range(nDNA-2):
-    dna_angle_list.append(BAI(
-        angle_t1,
-        (dna_group, index),
-        (dna_group, index + 1),
-        (dna_group, index + 2)
-    ))
+dna_angle_lists = []
+for i, rDNA in enumerate(rDNAlist):
+    for index in range(len(rDNA) - 2):
+        dna_angle_lists.append(BAI(
+            angle_t1,
+            (dna_groups[i], index),
+            (dna_groups[i], index + 1),
+            (dna_groups[i], index + 2)
+        ))
 
 angles = smc_1.get_angles(angle_t2, angle_t3)
-gen.bais += dna_angle_list + angles
+gen.bais += dna_angle_lists + angles
 
 # We impose zero improper angle
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n"   %( kAlignSite, 0 ) )
@@ -548,23 +590,36 @@ with open(path / "post_processing_parameters.py", 'w') as file:
         "top_bead_id = {}\n"
         "left_bead_id = {}\n"
         "right_bead_id = {}\n"
-        "upper_dna_max_id = {}\n".format(
+        "middle_left_bead_id = {}\n"
+        "middle_right_bead_id = {}\n".format(
             gen.get_atom_index((smc_1.armUL_group, -1)),
-            gen.get_atom_index((smc_1.armDL_group, 0)),
+            gen.get_atom_index((smc_1.armUL_group, 0)),
             gen.get_atom_index((smc_1.armUR_group, -1)),
-            gen.get_atom_index((dna_group, nDNA // 2))
+            gen.get_atom_index((smc_1.atp_group, 0)),
+            gen.get_atom_index((smc_1.atp_group, -1))
         )
     )
     file.write("\n")
+    dna_indices_list = []
+    for dna_grp in dna_groups:
+        dna_indices_list.append(
+            (
+                gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
+                gen.get_atom_index((dna_grp, len(dna_grp.positions) // 2)) # max = half way point (so that lower DNA is not included)
+            )
+        )
+    file.write(
+        "# list of (min, max) of DNA indices for separate pieces to analyze\n"
+        "dna_indices_list = {}\n".format(dna_indices_list)
+    )
+    file.write("\n")
+    kleisin_ids_list = [
+        gen.get_atom_index((smc_1.hk_group, i))
+         for i in range(len(smc_1.hk_group.positions))
+    ]
     file.write(
         "# use to form plane of SMC kleisin\n"
-        "left_kleisin_id = {}\n"
-        "right_kleisin_id = {}\n"
-        "bottom_kleisin_id = {}\n".format(
-            gen.get_atom_index((smc_1.hk_group, 0)),
-            gen.get_atom_index((smc_1.hk_group, len(smc_1.rHK) // 2)),
-            gen.get_atom_index((smc_1.hk_group, -1)),
-        )
+        "kleisin_ids = {}\n".format(kleisin_ids_list)
     )
     file.write("\n")
     file.write(
@@ -581,6 +636,10 @@ def get_variables_from_module(module):
     all_vars = dir(module)
     return list(filter(lambda name: not name.startswith("_"), all_vars))
 
+def list_to_space_str(lst) -> str:
+    """turn list into space separated string
+    example: [1, 2, 6] -> 1 2 6"""
+    return " ".join(map(str, lst))
 
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
@@ -589,5 +648,12 @@ with open(filepath_param, 'w') as parameterfile:
     for key in params:
         parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
     
-    parameterfile.write(f"variable index1 equal {closest_DNA_index_b}\n")
-    parameterfile.write(f"variable index2 equal {closest_DNA_index_m}\n")
+    end_points = []
+    for grp in dna_groups:
+        # get (1-indexed) indices from generator
+        end_points += [gen.get_atom_index((grp, 0)), gen.get_atom_index((grp, -1))]
+    parameterfile.write(f'variable dna_end_points string "{list_to_space_str(end_points)}"\n')
+    
+    # turn zero to one indexed for LAMMPS
+    freeze_indices = [x + 1 for x in freeze_indices]
+    parameterfile.write(f'variable indices string "{list_to_space_str(freeze_indices)}"\n')

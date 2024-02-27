@@ -3,7 +3,7 @@ import numpy as np
 import math
 
 
-def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: int, nArcStraight: int):
+def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcStraight: int):
     # form vertical + quarter circle + straight + semi circle + horizontal parts
 
     # Number of beads forming the arced DNA piece (err on the high side)
@@ -63,9 +63,13 @@ def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: int, nArcStra
 
     rDNA[:,0] *= -1
 
-    return rDNA, nLowerDNA
+    # the position in the center of the semi arc
+    offset = nUpperDNA + nArcQuart + nArcStraight
+    centerCoordinate = rDNA[offset] + (rDNA[offset + nArcSemi] - rDNA[offset]) / 2.0
 
-def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: int):
+    return [rDNA], centerCoordinate
+
+def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     # form upper + semi circle + horizontal parts
 
     # Number of beads forming the arced DNA piece (err on the high side)
@@ -110,4 +114,19 @@ def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: int):
 
     rDNA *= DNAbondLength
 
-    return rDNA, nLowerDNA
+    # the position in the center of the arc
+    offset = nUpperDNA
+    centerCoordinate = rDNA[offset] + (rDNA[offset + nArcSemi] - rDNA[offset]) / 2.0
+
+    return [rDNA], centerCoordinate
+
+def get_dna_coordinates_doubled(nDNA: int, DNAbondLength: float, diameter: float):
+    nOuterDNA = math.ceil(nDNA / 1.9)
+    nInnerDNA = nDNA - nOuterDNA
+    [rOuterDNA], outerCenter = get_dna_coordinates_twist(nOuterDNA, DNAbondLength, diameter)
+    [rInnerDNA], innerCenter = get_dna_coordinates_twist(nInnerDNA, DNAbondLength, diameter / 1.5)
+    # align pieces
+    rInnerDNA += outerCenter - innerCenter
+    # create seperation (x direction)
+    rInnerDNA[:,0] += 5.0 * DNAbondLength
+    return [rOuterDNA, rInnerDNA], outerCenter
