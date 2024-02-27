@@ -66,15 +66,17 @@ class AtomGroup:
     """
 
     def __init__(self, positions: List[List[float]],
-                 atom_type: AtomType, molecule_index: int, polymer_bond_type: BAI_Type | None = None) -> None:
+                 atom_type: AtomType, molecule_index: int, polymer_bond_type: BAI_Type | None = None, polymer_angle_type: BAI_Type | None = None) -> None:
         self.n = len(positions)
         self.positions = positions
         self.type = atom_type
         self.molecule_index = molecule_index
         if polymer_bond_type is not None:
-            if polymer_bond_type.kind != BAI_Kind.BOND:
-                raise ValueError("polymer_bond_type must be of kind BOND")
+            assert(polymer_bond_type.kind == BAI_Kind.BOND)
         self.polymer_bond_type = polymer_bond_type
+        if polymer_angle_type is not None:
+            assert(polymer_angle_type.kind == BAI_Kind.ANGLE)
+        self.polymer_angle_type = polymer_angle_type
 
 
 AtomIdentifier = Tuple[AtomGroup, int]
@@ -195,15 +197,15 @@ class Generator:
         bai_types: Set[BAI_Type] = set()
         for bai in filter(lambda bai: bai.type.kind == kind, self.bais):
             bai_types.add(bai.type)
-        if kind == BAI_Kind.BOND:
-            for atom_group in self.atom_groups:
-                if atom_group.polymer_bond_type is None:
-                    continue
+        for atom_group in self.atom_groups:
+            if kind == BAI_Kind.BOND and atom_group.polymer_bond_type is not None:
                 bai_types.add(atom_group.polymer_bond_type)
+            if kind == BAI_Kind.ANGLE and atom_group.polymer_angle_type is not None:
+                bai_types.add(atom_group.polymer_angle_type)
         return sorted(bai_types, key=lambda bai_type: bai_type.index)
 
-    def get_bai_dict_by_type(self) -> Dict[(BAI_Kind, List[BAI])]:
-        bai_by_kind: Dict[(BAI_Kind, List[BAI])] = {kind: list() for kind in BAI_Kind}
+    def get_bai_dict_by_type(self) -> Dict[BAI_Kind, List[BAI]]:
+        bai_by_kind: Dict[BAI_Kind, List[BAI]] = {kind: list() for kind in BAI_Kind}
         for bai in self.bais:
             bai_by_kind[bai.type.kind].append(bai)
         return bai_by_kind
@@ -214,12 +216,14 @@ class Generator:
         length_lookup = {key: len(value) for (key, value) in self.get_bai_dict_by_type().items()}
 
         totalBonds = length_lookup[BAI_Kind.BOND]
+        totalAngles = length_lookup[BAI_Kind.ANGLE]
+        totalImpropers = length_lookup[BAI_Kind.IMPROPER]
+
         for atom_group in self.atom_groups:
             if atom_group.polymer_bond_type is not None:
                 totalBonds += len(atom_group.positions) - 1
-
-        totalAngles = length_lookup[BAI_Kind.ANGLE]
-        totalImpropers = length_lookup[BAI_Kind.IMPROPER]
+            if atom_group.polymer_angle_type is not None:
+                totalAngles += len(atom_group.positions) - 2
 
         file.write("%s bonds\n"       %totalBonds)
         file.write("%s angles\n"      %totalAngles)
@@ -333,12 +337,14 @@ class Generator:
 
             global_index = 1
 
-            if kind == BAI_Kind.BOND:
-                for atom_group in self.atom_groups:
-                    if atom_group.polymer_bond_type is None:
-                        continue
+            for atom_group in self.atom_groups:
+                if kind == BAI_Kind.BOND and atom_group.polymer_bond_type is not None:
                     for j in range(len(atom_group.positions) - 1):
                         file.write(f"%s {atom_group.polymer_bond_type.index} %s %s\n" %(global_index, self.get_atom_index((atom_group, j)), self.get_atom_index((atom_group, j + 1))) )
+                        global_index += 1
+                if kind == BAI_Kind.ANGLE and atom_group.polymer_angle_type is not None:
+                    for j in range(len(atom_group.positions) - 2):
+                        file.write(f"%s {atom_group.polymer_angle_type.index} %s %s %s\n" %(global_index, self.get_atom_index((atom_group, j)), self.get_atom_index((atom_group, j + 1)), self.get_atom_index((atom_group, j + 2))) )
                         global_index += 1
 
             length = length_lookup[kind]

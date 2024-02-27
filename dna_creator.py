@@ -3,6 +3,24 @@ import numpy as np
 import math
 
 
+def get_dna_coordinates_straight(nDNA: int, DNAbondLength: float):
+    rDNA = get_straight_segment(nDNA, [1, 0, 0])
+
+    # Shift X-coordinate to get DNA end-point at X = 0
+
+    rDNA[:,0] -= rDNA[0][0]
+
+    # get correct bead spacings
+
+    rDNA *= DNAbondLength
+
+    # Rotate (flip the x-component)
+
+    rDNA[:,0] *= -1
+
+    return [rDNA]
+
+
 def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcStraight: int):
     # form vertical + quarter circle + straight + semi circle + horizontal parts
 
@@ -69,6 +87,7 @@ def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcSt
 
     return [rDNA], centerCoordinate
 
+
 def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     # form upper + semi circle + horizontal parts
 
@@ -119,6 +138,7 @@ def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     centerCoordinate = rDNA[offset] + (rDNA[offset + nArcSemi] - rDNA[offset]) / 2.0
 
     return [rDNA], centerCoordinate
+
 
 def get_dna_coordinates_doubled(nDNA: int, DNAbondLength: float, diameter: float):
     nOuterDNA = math.ceil(nDNA / 1.9)

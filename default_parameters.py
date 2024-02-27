@@ -74,6 +74,8 @@ foldingAngleATP = 160.
 # Opening angle of arms in ATP-bound state (degrees)
 armsAngleATP = 130.
 
+# configuration to generate
+dnaConfig = "folded"
 
 #################### LJ energies ###################
 
