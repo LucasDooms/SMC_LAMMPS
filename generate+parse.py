@@ -245,28 +245,26 @@ dnaConfigClass = DnaConfiguration.str_to_config(par.dnaConfig)
 #                                 SMC complex                                   #
 #################################################################################
 
+smc_creator = SMC_Creator(
+    SMCspacing=SMCspacing,
+
+    siteUhDist=siteUhDist,
+    siteUvDist=siteUvDist,
+    siteMhDist=siteMhDist,
+    siteMvDist=siteMvDist,
+    siteDhDist=siteDhDist,
+    siteDvDist=siteDvDist,
+
+    armLength=par.armLength,
+    bridgeWidth=par.bridgeWidth,
+
+    HKradius=par.HKradius,
+
+    foldingAngleAPO=par.foldingAngleAPO
+)
+
 rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
-    SMC_Creator(
-        SMCspacing=SMCspacing,
-
-        siteUhDist=siteUhDist,
-        siteUvDist=siteUvDist,
-        siteMhDist=siteMhDist,
-        siteMvDist=siteMvDist,
-        siteDhDist=siteDhDist,
-        siteDvDist=siteDvDist,
-
-        armLength=par.armLength,
-        bridgeWidth=par.bridgeWidth,
-
-        HKradius=par.HKradius,
-
-        foldingAngleAPO=par.foldingAngleAPO
-    ).get_smc(siteD_points_down=dnaConfigClass in {ObstacleSafety})
-
-nArmDL, nArmUL, nArmUR, nArmDR, nATP, nHK, nSiteU, nSiteM, nSiteD = \
-    len(rArmDL), len(rArmUL), len(rArmUR), len(rArmDR), len(rATP), len(rHK), len(rSiteU), len(rSiteM), len(rSiteD)
-
+        smc_creator.get_smc(siteD_points_down=dnaConfigClass in {ObstacleSafety})
 
 #################################################################################
 #                                     DNA                                       #
@@ -380,7 +378,7 @@ else:
 #################################################################################
 
 # Divide total mass evenly among the segments
-mSMC = mSMCtotal / ( nArmDL + nArmUL + nArmUR + nArmDR + nHK + nATP + nSiteU + nSiteM + nSiteD )
+mSMC = smc_creator.get_mass_per_atom(mSMCtotal)
 
 # Relative bond fluctuations
 bondFlDNA = 1e-2

@@ -230,4 +230,9 @@ class SMC_Creator:
         rSiteU = self.transpose_rotate_transpose(rotMat, rSiteU)
         rSiteM = self.transpose_rotate_transpose(rotMat, rSiteM)
 
+        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD]
+
         return rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD
+    
+    def get_mass_per_atom(self, total_mass: float) -> float:
+        return total_mass / sum(len(x) for x in self.generated_positions)
