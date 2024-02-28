@@ -599,47 +599,6 @@ with open(states_path / "soft_before_relaxed", 'w') as soft_before_relaxed_file:
     ]
     apply(gen.write_script_bai_coeffs, soft_before_relaxed_file, options)
 
-# OLD
-with open(states_path / "adp_bound", 'w') as adp_bound_file:
-    options = [
-       bridge_off,
-       top_site_on,
-       middle_site_off,
-       lower_site_off,
-       arms_open,
-    ]
-    # apply(gen.write_script_bai_coeffs, adp_bound_file, options)
-
-with open(states_path / "apo", 'w') as apo_file:
-    options = [
-        bridge_off,
-        top_site_off,
-        middle_site_off,
-        lower_site_on,
-        arms_closed,
-    ]
-    # apply(gen.write_script_bai_coeffs, apo_file, options)
-
-with open(states_path / "atp_bound_1", 'w') as atp_bound_1_file:
-    options = [
-        bridge_soft_on,
-        middle_site_soft_on
-    ]
-    # apply(gen.write_script_bai_coeffs, atp_bound_1_file, options)
-
-with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
-    options = [
-        bridge_soft_off,
-        middle_site_soft_off,
-        bridge_on,
-        top_site_on,
-        middle_site_on,
-        lower_site_on,
-        arms_open,
-    ]
-    # apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
-
-
 #################################################################################
 #                           Print to post processing                            #
 #################################################################################
