@@ -746,7 +746,7 @@ with open(path / "post_processing_parameters.py", 'w') as file:
     file.write("\n")
     dna_indices_list = []
     for dna_grp in dna_groups:
-        if not isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
+        if not isinstance(dnaConfig, (Obstacle, ObstacleSafety, Line)):
             dna_indices_list.append(
                 (
                     gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
