@@ -588,7 +588,7 @@ pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0
 gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
 
-
+# Interactions that change for different phases of SMC
 bridge_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, atp_type]
 bridge_on = [None, "{} {} " + f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
 
@@ -597,6 +597,13 @@ bridge_soft_on = [None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2
 
 top_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
 top_site_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
+
+if isinstance(dnaConfig, ObstacleSafety):
+    # always keep site on
+    lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
+else:
+    lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
+lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 
 middle_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteM_type]
 middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n", dna_type, siteM_type]
@@ -622,6 +629,12 @@ angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms,  np.rad2deg( ma
 angles = smc_1.get_angles(angle_t2, angle_t3)
 gen.bais += angles
 
+# Angle interactions that change for different phases of SMC
+# angle3angleAPO1 = np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))
+# angle3angleAPO1 = np.rad2deg(np.arccos(2 * par.bridgeWidth / par.armLength))
+arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))}\n", angle_t3]
+arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", angle_t3]
+
 # We impose zero improper angle
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 0 ) )
 imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 180 - par.foldingAngleAPO ) )
@@ -629,33 +642,30 @@ imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, abs(90 - par.foldi
 
 gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
 
+
+# Improper interactions that change for different phases of SMC
+lower_compartment_folds1 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} {180 - par.foldingAngleATP}\n", imp_t2]
+lower_compartment_unfolds1 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} {180 - par.foldingAngleAPO}\n", imp_t2]
+
+lower_compartment_folds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 - par.foldingAngleATP)}\n", imp_t3]
+lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 - par.foldingAngleAPO)}\n", imp_t3]
+
+
+# Override molecule ids to form rigid safety-belt bond
 if isinstance(dnaConfig, ObstacleSafety):
     gen.molecule_override[(dna_groups[0], ttt)] = molSiteD
     # add neighbors to prevent rotation
     gen.molecule_override[(dna_groups[0], ttt - 1)] = molSiteD
     gen.molecule_override[(dna_groups[0], ttt + 1)] = molSiteD
 
+# Create datafile
 with open(filepath_data, 'w') as datafile:
     gen.write(datafile)
 
 
-if isinstance(dnaConfig, ObstacleSafety):
-    # always keep site on
-    lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
-else:
-    lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
-lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
-
-# angle3angleAPO1 = np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))
-# angle3angleAPO1 = np.rad2deg(np.arccos(2 * par.bridgeWidth / par.armLength))
-arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))}\n", angle_t3]
-arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", angle_t3]
-
-lower_compartment_folds1 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} {180 - par.foldingAngleATP}\n", imp_t2]
-lower_compartment_unfolds1 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} {180 - par.foldingAngleAPO}\n", imp_t2]
-
-lower_compartment_folds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 - par.foldingAngleATP)}\n", imp_t3]
-lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 - par.foldingAngleAPO)}\n", imp_t3]
+#################################################################################
+#                                Phases of SMC                                  #
+#################################################################################
 
 # make sure the directory exists
 states_path = path / "states"
