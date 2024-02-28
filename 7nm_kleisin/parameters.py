@@ -13,5 +13,17 @@ epsilon6 = 500.0
 # weak force
 force = 0.08
 
+# Average number of steps in each state
+stepsrelaxed = 100000
+stepsATP_1 = 400000
+stepsATP_2 = 200000
+stepsreleased_1 = 800000
+stepsreleased_2 = 3000
+
+# middle
+epsilon5 = 50.0
+# lower + HeatA
+epsilon6 = 500.0
+
 # configuration
-dnaConfig = "advanced_obstacle_safety"
+dnaConfig = "safety_loop"
