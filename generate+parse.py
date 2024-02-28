@@ -182,7 +182,7 @@ sigmaSiteDvsDNA = sigmaSMCvsDNA
 rcutSiteDvsDNA = par.cutoff6
 
 # Epsilon parameter of LJ attraction
-epsilonSiteDvsDNA = par.epsilon6 * kBT
+epsilonSiteDvsDNA = par.epsilon6
 
 
 #################################################################################
@@ -390,8 +390,8 @@ bondFlSMC = 1e-2
 bondMax = 1.
 
 # Spring constant obeying equilibrium relative bond fluctuations
-kBondDNA = 3 * kBT/ (DNAbondLength * bondFlDNA)**2
-kBondSMC = 3 * kBT/ (SMCspacing * bondFlSMC)**2
+kBondDNA = 3 * kBT / (DNAbondLength * bondFlDNA)**2
+kBondSMC = 3 * kBT / (SMCspacing * bondFlSMC)**2
 kBondAlign1 = 10 * kBT / SMCspacing**2
 kBondAlign2 = 200 * kBT / SMCspacing**2
 
@@ -424,6 +424,7 @@ kFolding = par.foldingStiffness * kBT
 
 # Makes folding asymmetric (should be stiff)
 kAsymmetry = par.asymmetryStiffness * kBT
+
 
 # SET UP DATAFILE GENERATOR
 gen = Generator()
@@ -571,21 +572,37 @@ else:
 # Pair coefficients
 pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
 
-pair_inter.add_interaction(dna_type, dna_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
-pair_inter.add_interaction(dna_type, armHK_type, epsilonSMCvsDNA, sigmaSMCvsDNA, rcutSMCvsDNA)
-pair_inter.add_interaction(dna_type, siteD_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
+pair_inter.add_interaction(dna_type, dna_type, epsilonDNAvsDNA * kBT, sigmaDNAvsDNA, rcutDNAvsDNA)
+pair_inter.add_interaction(dna_type, armHK_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
+pair_inter.add_interaction(dna_type, siteD_type, epsilonSiteDvsDNA * kBT, sigmaSiteDvsDNA, rcutSiteDvsDNA)
 if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
     # tether
-    pair_inter.add_interaction(tether_type, tether_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
-    pair_inter.add_interaction(tether_type, dna_type, epsilonDNAvsDNA, sigmaDNAvsDNA, rcutDNAvsDNA)
-    pair_inter.add_interaction(tether_type, armHK_type, epsilonSMCvsDNA, sigmaSMCvsDNA, rcutSMCvsDNA)
-    pair_inter.add_interaction(tether_type, siteD_type, epsilonSiteDvsDNA, sigmaSiteDvsDNA, rcutSiteDvsDNA)
+    pair_inter.add_interaction(tether_type, tether_type, epsilonDNAvsDNA * kBT, sigmaDNAvsDNA, rcutDNAvsDNA)
+    pair_inter.add_interaction(tether_type, dna_type, epsilonDNAvsDNA * kBT, sigmaDNAvsDNA, rcutDNAvsDNA)
+    pair_inter.add_interaction(tether_type, armHK_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
+    pair_inter.add_interaction(tether_type, siteD_type, epsilonSiteDvsDNA * kBT, sigmaSiteDvsDNA, rcutSiteDvsDNA)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
 
 gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
+
+
+bridge_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, atp_type]
+bridge_on = [None, "{} {} " + f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
+
+bridge_soft_off = [None, "{} {} soft 0 0\n", dna_type, atp_type]
+bridge_soft_on = [None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
+
+top_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
+top_site_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
+
+middle_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteM_type]
+middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n", dna_type, siteM_type]
+
+middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
+middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
 
 
 # Every joint is kept in place through bonds
@@ -608,7 +625,7 @@ gen.bais += angles
 # We impose zero improper angle
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 0 ) )
 imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 180 - par.foldingAngleAPO ) )
-imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, math.fabs(90 - par.foldingAngleAPO) ) )
+imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, abs(90 - par.foldingAngleAPO) ) )
 
 gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
 
@@ -622,37 +639,6 @@ with open(filepath_data, 'w') as datafile:
     gen.write(datafile)
 
 
-# TODO
-angle3kappa = par.armsStiffness * kBT
-angle3angleATP = par.armsAngleATP
-
-improper2kappa = par.foldingStiffness * kBT
-improper2angleAPO = 180 - par.foldingAngleAPO
-
-improper3kappa = par.asymmetryStiffness * kBT
-improper3angleAPO = abs(90 - par.foldingAngleAPO)
-
-angle3angleAPO1 = 180 / math.pi * np.arccos(par.bridgeWidth / par.armLength)
-# angle3angleAPO1 = 180 / math.pi * np.arccos(2 * par.bridgeWidth / par.armLength)
-
-improper2angleATP = 180 - par.foldingAngleATP
-improper3angleATP = abs(90 - par.foldingAngleATP)
-
-bridge_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, atp_type]
-bridge_on = [None, "{} {} " + f"lj/cut {par.epsilon3 * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
-
-bridge_soft_off = [None, "{} {} soft 0 0\n", dna_type, atp_type]
-bridge_soft_on = [None, "{} {} soft " + f"{par.epsilon3 * kBT} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
-
-top_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
-top_site_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
-
-middle_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteM_type]
-middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n", dna_type, siteM_type]
-
-middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
-middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
-
 if isinstance(dnaConfig, ObstacleSafety):
     # always keep site on
     lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
@@ -660,14 +646,16 @@ else:
     lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
 lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 
-arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO1}\n", angle_t3]
-arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleATP}\n", angle_t3]
+# angle3angleAPO1 = np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))
+# angle3angleAPO1 = np.rad2deg(np.arccos(2 * par.bridgeWidth / par.armLength))
+arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))}\n", angle_t3]
+arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", angle_t3]
 
-lower_compartment_folds1 = [BAI_Kind.IMPROPER, "{} " + f"{improper2kappa} {improper2angleATP}\n", imp_t2]
-lower_compartment_unfolds1 = [BAI_Kind.IMPROPER, "{} " + f"{improper2kappa} {improper2angleAPO}\n", imp_t2]
+lower_compartment_folds1 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} {180 - par.foldingAngleATP}\n", imp_t2]
+lower_compartment_unfolds1 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} {180 - par.foldingAngleAPO}\n", imp_t2]
 
-lower_compartment_folds2 = [BAI_Kind.IMPROPER, "{} " + f"{improper3kappa} {improper3angleATP}\n", imp_t3]
-lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{improper3kappa} {improper3angleAPO}\n", imp_t3]
+lower_compartment_folds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 - par.foldingAngleATP)}\n", imp_t3]
+lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 - par.foldingAngleAPO)}\n", imp_t3]
 
 # make sure the directory exists
 states_path = path / "states"
