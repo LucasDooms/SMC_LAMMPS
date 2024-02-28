@@ -95,7 +95,9 @@ intRadDNAvsDNA = 3.5
 #######
 
 # Bending stiffness (nm)
-DNAstiff = 50.
+# DNAstiff = 50.
+# FIX
+DNAstiff = 70.
 
 # Base pair step (nm)
 bpStep = 0.34
@@ -260,7 +262,7 @@ smc_creator = SMC_Creator(
 rot_vec = np.array([0.0, 0.0, -np.deg2rad(42)]) if dnaConfigClass is dna.AdvancedObstacleSafety else None
 rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rHeatA, rSiteU, rSiteM, rSiteD = \
         smc_creator.get_smc(
-            siteD_points_down=dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
+            siteD_points_down=dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.SafetyLoop},
             extra_rotation=rot_vec
         )
 
@@ -438,10 +440,12 @@ arms_closed = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {np.rad2deg(np.arccos(
 arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", angle_t3]
 
 # We impose zero improper angle
-imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 0 ) )
+imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 10 ) )
 # imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 180 - par.foldingAngleAPO ) )
 imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 170 ) )
-imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, abs(90 - par.foldingAngleAPO) ) )
+# imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, abs(90 - par.foldingAngleAPO) ) )
+# makes a better angle for folding the DNA into the open arms
+imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, 90 ) )
 imp_t4 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 0 ) )
 imp_t5 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 100 ) )
 
@@ -457,7 +461,7 @@ lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 
 
 
 # Override molecule ids to form rigid safety-belt bond
-if isinstance(dnaConfig, dna.ObstacleSafety): #TODO
+if isinstance(dnaConfig, (dna.ObstacleSafety, dna.SafetyLoop)):
     safety_index = dnaConfig.dna_safety_belt_index
     gen.molecule_override[(dnaConfig.dna_groups[0], safety_index)] = molSiteD
     # add neighbors to prevent rotation
@@ -472,10 +476,6 @@ with open(filepath_data, 'w') as datafile:
 #################################################################################
 #                                Phases of SMC                                  #
 #################################################################################
-
-# keep off FIX
-lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
-lower_site_on = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
 
 heatA_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, heatA_type]
 heatA_on = [None, "{} {} " + f"lj/cut {epsilonSiteDvsDNA} {par.sigma} {par.cutoff6}\n", dna_type, heatA_type]
@@ -492,6 +492,16 @@ arms_unfolded3 = [BAI_Kind.IMPROPER, "{} " + f"0 180\n", imp_t5] # turned off
 arms_folded_ = [arms_folded1, arms_folded2, arms_folded3]
 arms_unfolded_ = [arms_unfolded1, arms_unfolded2, arms_unfolded3]
 
+
+# keep off FIX
+lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
+lower_site_on = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
+# keep on FIX
+# middle_site_off = [None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n", dna_type, siteM_type]
+# middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n", dna_type, siteM_type]
+# keep on FIX
+# heatA_off = [None, "{} {} " + f"lj/cut {epsilonSiteDvsDNA} {par.sigma} {par.cutoff6}\n", dna_type, heatA_type]
+# heatA_on = [None, "{} {} " + f"lj/cut {epsilonSiteDvsDNA} {par.sigma} {par.cutoff6}\n", dna_type, heatA_type]
 
 # make sure the directory exists
 states_path = path / "states"
@@ -579,7 +589,7 @@ with open(states_path / "released-2", 'w') as released_2_file:
 
 with open(states_path / "soft_before_relaxed", 'w') as soft_before_relaxed_file:
     options = [
-        heatA_off,
+        heatA_on,
         bridge_soft_on,
         top_site_off,
         middle_site_soft_on,

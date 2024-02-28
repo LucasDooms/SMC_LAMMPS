@@ -229,8 +229,9 @@ class SMC_Creator:
         rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM = \
             self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM)
 
-        # Add HEAT-A bead
-        rHeatA = np.array([rHK[int(len(rHK) * 13/15)]])
+        # Add HEAT-A beads
+        central_index = int(len(rHK) * 13/15)
+        rHeatA = np.array([rHK[i] for i in (central_index - 1, central_index, central_index + 1)])
 
         # apply extra rotation to entire SMC
         if extra_rotation is not None:

@@ -111,6 +111,7 @@ class DnaConfiguration:
             "obstacle": Obstacle,
             "obstacle_safety": ObstacleSafety,
             "advanced_obstacle_safety": AdvancedObstacleSafety,
+            "safety_loop": SafetyLoop,
         }[string]
 
 class Line(DnaConfiguration):
@@ -440,6 +441,39 @@ class AdvancedObstacleSafety(DnaConfiguration):
             ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
         ppp.end_points += [(self.tether_group, 0)]
+
+        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+
+        return ppp
+
+class SafetyLoop(DnaConfiguration):
+
+    def __init__(self, dna_groups, dna_parameters: DnaParameters, dna_safety_belt_index: int):
+        super().__init__(dna_groups, dna_parameters)
+        self.dna_safety_belt_index = dna_safety_belt_index
+
+    @classmethod
+    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> SafetyLoop:
+        # 1.
+        [rDNA], belt_location, dna_safety_belt_index = dna_creator.get_dna_coordinates_safety_loop(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+
+        # 2.
+        # make sure SMC contains DNA
+        shift = rSiteD[1] - belt_location
+        shift[1] -= par.cutoff6 
+        rDNA += shift
+
+        return cls(dna_parameters.create_dna([rDNA]), dna_parameters, dna_safety_belt_index)
+
+    def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
+        ppp = super().get_post_process_parameters()
+        par = self.par
+
+        if par.force:
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
+            ppp.stretching_forces_array[(0, par.force, 0)] = [(self.dna_groups[0], -1)]
+        else:
+            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 

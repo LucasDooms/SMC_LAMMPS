@@ -73,6 +73,7 @@ def get_dna_coordinates_advanced_safety_belt(nDNA: int, DNAbondLength: float):
             dtype=float
         )
     )
+
     distances = np.linalg.norm(rDNA - 10*DNAbondLength*smc_pos, axis=1)
     belt_index = np.where(distances == np.min(distances))[0][0]
 
@@ -116,6 +117,37 @@ def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength:
     bead_to_tether_id += len(right)
 
     return [np.concatenate([right, rDNA])], belt_location, belt_index + len(right), bead_to_tether_id
+
+
+def get_dna_coordinates_safety_loop(nDNA: int, DNAbondLength: float):
+    rDNA = get_interpolated(
+        DNAbondLength,
+        10 * DNAbondLength * np.array(
+            [
+                [5, 0, 0], [4, 0, 0], # right, straight piece
+                [1.5, -0.75, 0], [0, -0.75, 0], [-1.5, -0.75, 0], [-3, -0.75, 0], # down, to the left
+                [-4, -3, 0], [-6, -1, 0], [-2.5, 1, 0], [-1.5, 0, -0.2], # loop
+                [-1, -0.1, -0.3], [-0.5, 0, -0.45], [0, 0.14, -0.6], [0, 0.15, -0.4], # loop back up, right
+                [1, 0.3, -0.4], [1, 4, -0.4], [1, 5, -0.4], # up
+            ],
+            dtype=float
+        )
+    )
+
+    distances = np.linalg.norm(rDNA - 10*DNAbondLength*np.array([0, -1.5, 0]), axis=1)
+    belt_index = np.where(distances == np.min(distances))[0][0]
+
+    remaining = nDNA - len(rDNA)
+    nLeft = remaining // 2
+    nRight = remaining - nLeft
+    left = get_straight_segment(nLeft + 1, [0, 1, 0]) * DNAbondLength
+    right = get_straight_segment(nRight + 1, [-1, 0, 0]) * DNAbondLength
+    right, rDNA, left = attach_chain(
+        right, [[rDNA, True], [left, True]]
+    )
+    
+    belt_location = rDNA[belt_index]
+    return [np.concatenate([right, rDNA, left])], belt_location, belt_index + len(right)
 
 
 def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcStraight: int):
