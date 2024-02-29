@@ -95,9 +95,7 @@ intRadDNAvsDNA = 3.5
 #######
 
 # Bending stiffness (nm)
-# DNAstiff = 50.
-# FIX
-DNAstiff = 70.
+DNAstiff = 50.
 
 # Base pair step (nm)
 bpStep = 0.34

@@ -346,7 +346,7 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
     new_data.combine_by_ids(new_data_copy1)
 
     if len(new_data.positions) == 0:
-        print(f"call: {step}, {l1=}, {l2=}, {l3=}")
+        # print(f"call: {step}, {l1=}, {l2=}, {l3=}")
         indices.append(-1)
         positions.append(data.positions[indices[-1]])
         return
