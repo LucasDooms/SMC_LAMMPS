@@ -231,8 +231,8 @@ kAsymmetry = par.asymmetryStiffness * kBT
 
 class DnaConfiguration:
 
-    def __init__(self, rDNAlist) -> None:
-        self.rDNAlist = rDNAlist
+    def __init__(self, dna_groups: List[AtomGroup]) -> None:
+        self.dna_groups = dna_groups
 
     @staticmethod
     def str_to_config(string: str):
@@ -247,38 +247,40 @@ class DnaConfiguration:
         }[string]
 
 class Line(DnaConfiguration):
-    def __init__(self, rDNAList):
-        super().__init__(rDNAList)
+    def __init__(self, dna_groups):
+        super().__init__(dna_groups)
 
 class Folded(DnaConfiguration):
 
-    def __init__(self, rDNAList, dnaCenter):
-        super().__init__(rDNAList)
+    def __init__(self, dna_groups, dnaCenter):
+        super().__init__(dna_groups)
         self.dnaCenter = dnaCenter
 
 class RightAngle(DnaConfiguration):
 
-    def __init__(self, rDNAList, dnaCenter):
-        super().__init__(rDNAList)
+    def __init__(self, dna_groups, dnaCenter):
+        super().__init__(dna_groups)
         self.dnaCenter = dnaCenter
 
 class Doubled(DnaConfiguration):
 
-    def __init__(self, rDNAList, dnaCenter):
-        super().__init__(rDNAList)
+    def __init__(self, dna_groups, dnaCenter):
+        super().__init__(dna_groups)
         self.dnaCenter = dnaCenter
 
 class Obstacle(DnaConfiguration):
 
-    def __init__(self, rDNAList, tether_positions):
-        super().__init__(rDNAList)
+    def __init__(self, dna_groups, tether_positions):
+        super().__init__(dna_groups)
         self.tether_positions = tether_positions
+        self.tether_group: AtomGroup | None = None
 
 class ObstacleSafety(DnaConfiguration):
 
-    def __init__(self, rDNAList, tether_positions):
-        super().__init__(rDNAList)
+    def __init__(self, dna_groups, tether_positions):
+        super().__init__(dna_groups)
         self.tether_positions = tether_positions
+        self.tether_group: AtomGroup | None = None
 
 dnaConfigClass = DnaConfiguration.str_to_config(par.dnaConfig)
 
@@ -308,9 +310,29 @@ smc_creator = SMC_Creator(
 rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
         smc_creator.get_smc(siteD_points_down=dnaConfigClass in {ObstacleSafety})
 
+
 #################################################################################
 #                                     DNA                                       #
 #################################################################################
+
+# set DNA bonds, angles, and mass
+molDNA = MoleculeId.get_next()
+dna_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondDNA, maxLengthDNA, 0, 0, DNAbondLength))
+dna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
+dna_type = AtomType(mDNA)
+
+
+def create_dna(dna_positions) -> List[AtomGroup]:
+    return [
+        AtomGroup(
+            positions=rDNA,
+            atom_type=dna_type,
+            molecule_index=molDNA,
+            polymer_bond_type=dna_bond,
+            polymer_angle_type=dna_angle
+        ) for rDNA in dna_positions
+    ]
+
 
 def get_closest(array, position) -> int:
     """returns the index of the array that is closest to the given position"""
@@ -334,7 +356,7 @@ if dnaConfigClass is Line:
     shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
-    dnaConfig = Line([rDNA])
+    dnaConfig = Line(create_dna([rDNA]))
 elif dnaConfigClass is Folded:
     # 1.
     [rDNA], dnaCenter = dna_creator.get_dna_coordinates_twist(nDNA, DNAbondLength, 17)
@@ -346,7 +368,7 @@ elif dnaConfigClass is Folded:
     shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
-    dnaConfig = Folded([rDNA], dnaCenter)
+    dnaConfig = Folded(create_dna([rDNA]), dnaCenter)
 elif dnaConfigClass is RightAngle:
     # 1.
     [rDNA], dnaCenter = dna_creator.get_dna_coordinates(nDNA, DNAbondLength, 14, 10)
@@ -358,7 +380,7 @@ elif dnaConfigClass is RightAngle:
     shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
-    dnaConfig = RightAngle([rDNA], dnaCenter)
+    dnaConfig = RightAngle(create_dna([rDNA]), dnaCenter)
 elif dnaConfigClass is Doubled:
     # 1.
     rDNAlist, dnaCenter = dna_creator.get_dna_coordinates_doubled(nDNA, DNAbondLength, 24)
@@ -371,7 +393,7 @@ elif dnaConfigClass is Doubled:
     rDNAlist[0] += shift
     rDNAlist[1] += shift
 
-    dnaConfig = Doubled(rDNAlist, dnaCenter)
+    dnaConfig = Doubled(create_dna(rDNAlist), dnaCenter)
 elif dnaConfigClass is Obstacle:
     # 1.
     [rDNA] = dna_creator.get_dna_coordinates_straight(nDNA, DNAbondLength)
@@ -393,7 +415,7 @@ elif dnaConfigClass is Obstacle:
     # move down a little
     tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
 
-    dnaConfig = Obstacle([rDNA], tether_positions)
+    dnaConfig = Obstacle(create_dna([rDNA]), tether_positions)
 elif dnaConfigClass is ObstacleSafety:
     # 1.
     [rDNA], belt_location, ttt = dna_creator.get_dna_coordinates_safety_belt(nDNA, DNAbondLength)
@@ -412,7 +434,7 @@ elif dnaConfigClass is ObstacleSafety:
     # move down a little
     tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
 
-    dnaConfig = ObstacleSafety([rDNA], tether_positions)
+    dnaConfig = ObstacleSafety(create_dna([rDNA]), tether_positions)
 else:
     raise TypeError
 
@@ -438,24 +460,10 @@ gen = Generator()
 gen.set_system_size(boxWidth)
 
 # Molecule for each rigid body
-molDNA = MoleculeId.get_next()
 molTether = MoleculeId.get_next()
 molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molSiteU = [MoleculeId.get_next() for _ in range(7)]
 molSiteM = molATP
 molSiteD = molHK
-
-dna_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondDNA, maxLengthDNA, 0, 0, DNAbondLength))
-dna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
-dna_type = AtomType(mDNA)
-dna_groups = []
-for rDNA in dnaConfig.rDNAlist:
-    dna_groups.append(AtomGroup(
-        positions=rDNA,
-        atom_type=dna_type,
-        molecule_index=molDNA,
-        polymer_bond_type=dna_bond,
-        polymer_angle_type=dna_angle
-    ))
 
 armHK_type = AtomType(mSMC)
 atp_type = AtomType(mSMC)
@@ -497,21 +505,21 @@ smc_1 = SMC(
 smc_1_groups = smc_1.get_groups()
 
 gen.atom_groups += [
-    *dna_groups,
+    *dnaConfig.dna_groups,
     *smc_1_groups
 ]
 
 if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
     tether_type = AtomType(mDNA)
 
-    tether_group = AtomGroup(
+    dnaConfig.tether_group = AtomGroup(
         positions=dnaConfig.tether_positions,
         atom_type=tether_type,
         molecule_index=molTether,
         polymer_bond_type=dna_bond,
         polymer_angle_type=dna_angle
     )
-    gen.atom_groups += [tether_group]
+    gen.atom_groups += [dnaConfig.tether_group]
 
 
 # indices to freeze permanently
@@ -523,36 +531,36 @@ freeze_indices: List[AtomIdentifier] = []
 stretching_forces_array: Dict[Tuple[float, float, float], List[AtomIdentifier]] = dict()
 if isinstance(dnaConfig, Line):
     if par.force:
-        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0)]
-        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
+        stretching_forces_array[(par.force, 0, 0)] = [(dnaConfig.dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dnaConfig.dna_groups[0], -1)]
     else:
-        end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
+        end_points += [(dnaConfig.dna_groups[0], 0), (dnaConfig.dna_groups[0], -1)]
 
     freeze_indices += [
-        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteD[1])), # closest to bottom -> rSiteD[1]
-        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteM[1])), # closest to middle -> rSiteM[1]
+        (dnaConfig.dna_groups[0], get_closest(dnaConfig.dna_groups[0].positions, rSiteD[1])), # closest to bottom -> rSiteD[1]
+        (dnaConfig.dna_groups[0], get_closest(dnaConfig.dna_groups[0].positions, rSiteM[1])), # closest to middle -> rSiteM[1]
     ]
 elif isinstance(dnaConfig, Folded):
     if par.force:
-        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0), (dna_groups[0], -1)]
+        stretching_forces_array[(par.force, 0, 0)] = [(dnaConfig.dna_groups[0], 0), (dnaConfig.dna_groups[0], -1)]
     else:
-        end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
+        end_points += [(dnaConfig.dna_groups[0], 0), (dnaConfig.dna_groups[0], -1)]
 
     freeze_indices += [
-        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteD[1])), # closest to bottom -> rSiteD[1]
-        (dna_groups[0], get_closest(dna_groups[0].positions, rSiteM[1])), # closest to middle -> rSiteM[1]
+        (dnaConfig.dna_groups[0], get_closest(dnaConfig.dna_groups[0].positions, rSiteD[1])), # closest to bottom -> rSiteD[1]
+        (dnaConfig.dna_groups[0], get_closest(dnaConfig.dna_groups[0].positions, rSiteM[1])), # closest to middle -> rSiteM[1]
     ]
 elif isinstance(dnaConfig, RightAngle):
     if par.force:
-        stretching_forces_array[(0, par.force, 0)] = [(dna_groups[0], 0)]
-        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
+        stretching_forces_array[(0, par.force, 0)] = [(dnaConfig.dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dnaConfig.dna_groups[0], -1)]
     else:
-        end_points += [(dna_groups[0], 0), (dna_groups[0], -1)]
+        end_points += [(dnaConfig.dna_groups[0], 0), (dnaConfig.dna_groups[0], -1)]
     # find closest DNA bead to siteD
-    closest_DNA_index = get_closest(dna_groups[0].positions, rSiteD[1])
+    closest_DNA_index = get_closest(dnaConfig.dna_groups[0].positions, rSiteD[1])
 elif isinstance(dnaConfig, Doubled):
     # get dna beads to freeze
-    for dna_grp in dna_groups:
+    for dna_grp in dnaConfig.dna_groups:
         if par.force:
             stretching_forces_array[(par.force, 0, 0)] = [(dna_grp, 0), (dna_grp, -1)]
         else:
@@ -564,14 +572,14 @@ elif isinstance(dnaConfig, Doubled):
         ]
 elif isinstance(dnaConfig, Obstacle):
     if par.force:
-        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0)]
-        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
-    end_points += [(tether_group, 0)]
+        stretching_forces_array[(par.force, 0, 0)] = [(dnaConfig.dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dnaConfig.dna_groups[0], -1)]
+    end_points += [(dnaConfig.tether_group, 0)]
 elif isinstance(dnaConfig, ObstacleSafety):
     if par.force:
-        stretching_forces_array[(par.force, 0, 0)] = [(dna_groups[0], 0)]
-        stretching_forces_array[(-par.force, 0, 0)] = [(dna_groups[0], -1)]
-    end_points += [(tether_group, 0)]
+        stretching_forces_array[(par.force, 0, 0)] = [(dnaConfig.dna_groups[0], 0)]
+        stretching_forces_array[(-par.force, 0, 0)] = [(dnaConfig.dna_groups[0], -1)]
+    end_points += [(dnaConfig.tether_group, 0)]
 else:
     raise TypeError
 
@@ -627,7 +635,7 @@ bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, 
 bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4, indL, indR)
 gen.bais += bonds
 if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
-    tether_to_dna_bond = BAI(dna_bond, (tether_group, -1), (dna_groups[0], dna_bead_to_tether_id))
+    tether_to_dna_bond = BAI(dna_bond, (dnaConfig.tether_group, -1), (dnaConfig.dna_groups[0], dna_bead_to_tether_id))
     gen.bais += [tether_to_dna_bond]
 
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kElbows, 180 ) )
@@ -660,10 +668,10 @@ lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 
 
 # Override molecule ids to form rigid safety-belt bond
 if isinstance(dnaConfig, ObstacleSafety):
-    gen.molecule_override[(dna_groups[0], ttt)] = molSiteD
+    gen.molecule_override[(dnaConfig.dna_groups[0], ttt)] = molSiteD
     # add neighbors to prevent rotation
-    gen.molecule_override[(dna_groups[0], ttt - 1)] = molSiteD
-    gen.molecule_override[(dna_groups[0], ttt + 1)] = molSiteD
+    gen.molecule_override[(dnaConfig.dna_groups[0], ttt - 1)] = molSiteD
+    gen.molecule_override[(dnaConfig.dna_groups[0], ttt + 1)] = molSiteD
 
 # Create datafile
 with open(filepath_data, 'w') as datafile:
@@ -752,7 +760,7 @@ with open(path / "post_processing_parameters.py", 'w') as file:
     )
     file.write("\n")
     dna_indices_list = []
-    for dna_grp in dna_groups:
+    for dna_grp in dnaConfig.dna_groups:
         if not isinstance(dnaConfig, (Obstacle, ObstacleSafety, Line)):
             dna_indices_list.append(
                 (
@@ -872,7 +880,7 @@ with open(filepath_param, 'w') as parameterfile:
     if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
         parameterfile.write(f"variable wall_y equal {dnaConfig.tether_positions[0,1]}\n")
 
-        excluded = [gen.get_atom_index((tether_group, 0)), gen.get_atom_index((tether_group, 1))]
+        excluded = [gen.get_atom_index((dnaConfig.tether_group, 0)), gen.get_atom_index((dnaConfig.tether_group, 1))]
         parameterfile.write(
             get_string_def("excluded",
                 prepend_or_empty(list_to_space_str(excluded), "id ")
