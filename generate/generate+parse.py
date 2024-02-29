@@ -445,7 +445,7 @@ imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 170 ) )
 # makes a better angle for folding the DNA into the open arms
 imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, 90 ) )
 imp_t4 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 0 ) )
-imp_t5 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 100 ) )
+imp_t5 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, 90 ) )
 
 gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3, imp_t4, imp_t5)
 
