@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from generator import AtomIdentifier, Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise
+from generator import AtomIdentifier, Generator, BAI, BAI_Type, BAI_Kind, AtomGroup, AtomType, PairWise, MoleculeId
 from sys import argv
 from pathlib import Path
 from typing import Any, List, Dict, Tuple
@@ -147,7 +147,7 @@ siteDhDist = 2
 
 
 # Width of cubic simulation box (nm)
-boxWidth = 2*DNAcontourLength
+boxWidth = 2 * DNAcontourLength
 
 
 ################################## Interactions #################################
@@ -432,9 +432,9 @@ gen = Generator()
 gen.set_system_size(boxWidth)
 
 # Molecule for each rigid body
-molDNA = 1
-molTether = 2
-molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molSiteU = range(molTether + 1, molTether + 8)
+molDNA = MoleculeId.get_next()
+molTether = MoleculeId.get_next()
+molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molSiteU = [MoleculeId.get_next() for _ in range(7)]
 molSiteM = molATP
 molSiteD = molHK
 
