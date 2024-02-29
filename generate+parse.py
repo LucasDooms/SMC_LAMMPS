@@ -273,10 +273,11 @@ class Doubled(DnaConfiguration):
 
 class Obstacle(DnaConfiguration):
 
-    def __init__(self, dna_groups, tether_group: AtomGroup, dna_tether_id: int):
+    def __init__(self, dna_groups, tether_group: AtomGroup, dna_tether_id: int, dna_start_index: int):
         super().__init__(dna_groups)
         self.tether_group = tether_group
         self.dna_tether_id = dna_tether_id
+        self.dna_start_index = dna_start_index
 
     def get_all_groups(self) -> List[AtomGroup]:
         return super().get_all_groups() + [self.tether_group]
@@ -411,8 +412,8 @@ elif dnaConfigClass is Obstacle:
     # 2.
     # make sure SMC contains DNA
     goal = default_dna_pos
-    an_index = int(len(rDNA)*13/15)
-    start = np.array([rDNA[an_index][0] - 10.0 * DNAbondLength, rDNA[an_index][1], 0])
+    dna_start_index = int(len(rDNA)*13/15)
+    start = np.array([rDNA[dna_start_index][0] - 10.0 * DNAbondLength, rDNA[dna_start_index][1], 0])
     shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
@@ -433,7 +434,7 @@ elif dnaConfigClass is Obstacle:
         polymer_angle_type=dna_angle
     )
 
-    dnaConfig = Obstacle(create_dna([rDNA]), tether_group, dna_bead_to_tether_id)
+    dnaConfig = Obstacle(create_dna([rDNA]), tether_group, dna_bead_to_tether_id, dna_start_index)
 elif dnaConfigClass is ObstacleSafety:
     # 1.
     [rDNA], belt_location, dna_safety_belt_index = dna_creator.get_dna_coordinates_safety_belt(nDNA, DNAbondLength)
@@ -775,25 +776,25 @@ with open(path / "post_processing_parameters.py", 'w') as file:
     file.write("\n")
     dna_indices_list = []
     for dna_grp in dnaConfig.dna_groups:
-        if not isinstance(dnaConfig, (Obstacle, ObstacleSafety, Line)):
-            dna_indices_list.append(
-                (
-                    gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
-                    gen.get_atom_index((dna_grp, len(dna_grp.positions) // 2)) # max = half way point (so that lower DNA is not included)
-                )
-            )
-        elif not isinstance(dnaConfig, Obstacle):
+        if isinstance(dnaConfig, (ObstacleSafety, Line)):
             dna_indices_list.append(
                 ( # take all DNA
                     gen.get_atom_index((dna_grp, 0)),
                     gen.get_atom_index((dna_grp, -1))
                 )
             )
-        else:
+        elif isinstance(dnaConfig, Obstacle):
             dna_indices_list.append(
                 ( # take up to index where SMC is
                     gen.get_atom_index((dna_grp, 0)),
-                    gen.get_atom_index((dna_grp, an_index))
+                    gen.get_atom_index((dna_grp, dnaConfig.dna_start_index))
+                )
+            )
+        else:
+            dna_indices_list.append(
+                (
+                    gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
+                    gen.get_atom_index((dna_grp, len(dna_grp.positions) // 2)) # max = half way point (so that lower DNA is not included)
                 )
             )
     file.write(
