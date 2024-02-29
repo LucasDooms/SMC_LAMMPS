@@ -185,6 +185,46 @@ rcutSiteDvsDNA = par.cutoff6
 epsilonSiteDvsDNA = par.epsilon6
 
 
+# Even More Parameters
+
+
+# Relative bond fluctuations
+bondFlDNA = 1e-2
+bondFlSMC = 1e-2
+
+# Maximum relative bond extension (units of rest length)
+bondMax = 1.
+
+# Spring constant obeying equilibrium relative bond fluctuations
+kBondDNA = 3 * kBT / (DNAbondLength * bondFlDNA)**2
+kBondSMC = 3 * kBT / (SMCspacing * bondFlSMC)**2
+kBondAlign1 = 10 * kBT / SMCspacing**2
+kBondAlign2 = 200 * kBT / SMCspacing**2
+
+
+# Maximum bond length
+maxLengthDNA = DNAbondLength * bondMax
+maxLengthSMC = SMCspacing * bondMax
+
+# DNA bending rigidity
+kDNA = DNAstiff * kBT / DNAbondLength
+
+# Angular trap constants
+# kElbows: Bending of elbows (kinkable arms, hence soft)
+# kArms:   Arms opening angle wrt ATP bridge (should be stiff)
+kElbows = par.elbowsStiffness * kBT
+kArms = par.armsStiffness * kBT
+
+# Fixes site orientation (prevents free rotation, should be stiff)
+kAlignSite = par.siteStiffness * kBT
+
+# Folding stiffness of lower compartment (should be stiff)
+kFolding = par.foldingStiffness * kBT
+
+# Makes folding asymmetric (should be stiff)
+kAsymmetry = par.asymmetryStiffness * kBT
+
+
 #################################################################################
 #                                 Start Setup                                   #
 #################################################################################
@@ -383,48 +423,14 @@ else:
 # Divide total mass evenly among the segments
 mSMC = smc_creator.get_mass_per_atom(mSMCtotal)
 
-# Relative bond fluctuations
-bondFlDNA = 1e-2
-bondFlSMC = 1e-2
 
-# Maximum relative bond extension (units of rest length)
-bondMax = 1.
-
-# Spring constant obeying equilibrium relative bond fluctuations
-kBondDNA = 3 * kBT / (DNAbondLength * bondFlDNA)**2
-kBondSMC = 3 * kBT / (SMCspacing * bondFlSMC)**2
-kBondAlign1 = 10 * kBT / SMCspacing**2
-kBondAlign2 = 200 * kBT / SMCspacing**2
-
-
+# get indices to bind top site to arms
 indL = get_closest(rArmUL, rSiteU[-2])
 indR = get_closest(rArmUR, rSiteU[-2])
 # binds from the side of the arms to the shields of SiteU
 bondMinArmUSide = np.linalg.norm(rSiteU[-2] - rArmUL[indL])
 # binds from the top of the arms to the shields of SiteU
 bondMinArmUTop = np.linalg.norm(rSiteU[-2] - rArmUL[-1])
-
-# Maximum bond length
-maxLengthDNA = DNAbondLength * bondMax
-maxLengthSMC = SMCspacing * bondMax
-
-# DNA bending rigidity
-kDNA = DNAstiff * kBT / DNAbondLength
-
-# Angular trap constants
-# kElbows: Bending of elbows (kinkable arms, hence soft)
-# kArms:   Arms opening angle wrt ATP bridge (should be stiff)
-kElbows = par.elbowsStiffness * kBT
-kArms = par.armsStiffness * kBT
-
-# Fixes site orientation (prevents free rotation, should be stiff)
-kAlignSite = par.siteStiffness * kBT
-
-# Folding stiffness of lower compartment (should be stiff)
-kFolding = par.foldingStiffness * kBT
-
-# Makes folding asymmetric (should be stiff)
-kAsymmetry = par.asymmetryStiffness * kBT
 
 
 # SET UP DATAFILE GENERATOR
