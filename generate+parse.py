@@ -339,15 +339,16 @@ elif dnaConfigClass is Obstacle:
     # 2.
     # make sure SMC contains DNA
     goal = default_dna_pos
-    an_index = int(len(rDNA)*9/15)
+    an_index = int(len(rDNA)*13/15)
     start = np.array([rDNA[an_index][0] - 10.0 * DNAbondLength, rDNA[an_index][1], 0])
     shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
     import structure_creator
-    tether_positions = structure_creator.get_straight_segment(15, [0, 1, 0]) * DNAbondLength
+    obstacle_length = 45
+    tether_positions = structure_creator.get_straight_segment(obstacle_length, [0, 1, 0]) * DNAbondLength
     # place the tether next to the DNA bead
-    dna_bead_to_tether_id = len(rDNA) // 2
+    dna_bead_to_tether_id = int(len(rDNA)*12/15)
     tether_positions += rDNA[dna_bead_to_tether_id] - tether_positions[-1]
     # move down a little
     tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
@@ -753,11 +754,18 @@ with open(path / "post_processing_parameters.py", 'w') as file:
                     gen.get_atom_index((dna_grp, len(dna_grp.positions) // 2)) # max = half way point (so that lower DNA is not included)
                 )
             )
-        else:
+        elif not isinstance(dnaConfig, Obstacle):
             dna_indices_list.append(
                 ( # take all DNA
                     gen.get_atom_index((dna_grp, 0)),
                     gen.get_atom_index((dna_grp, -1))
+                )
+            )
+        else:
+            dna_indices_list.append(
+                ( # take up to index where SMC is
+                    gen.get_atom_index((dna_grp, 0)),
+                    gen.get_atom_index((dna_grp, an_index))
                 )
             )
     file.write(
@@ -837,7 +845,7 @@ with open(filepath_param, 'w') as parameterfile:
         )
     )
 
-    print("\n")
+    parameterfile.write("\n")
 
     # turn into LAMMPS indices
     end_points_LAMMPS = atomIds_to_LAMMPS_ids(end_points)

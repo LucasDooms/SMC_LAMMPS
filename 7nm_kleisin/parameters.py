@@ -2,9 +2,9 @@
 HKradius = 7.
 
 # amount of DNA
-N = 500
+N = 750
 
-cycles = 6
+cycles = 10
 
 # very weak force
 force = 0.025
