@@ -273,18 +273,21 @@ class Doubled(DnaConfiguration):
 
 class Obstacle(DnaConfiguration):
 
-    def __init__(self, dna_groups, tether_group: AtomGroup):
+    def __init__(self, dna_groups, tether_group: AtomGroup, dna_tether_id: int):
         super().__init__(dna_groups)
         self.tether_group = tether_group
+        self.dna_tether_id = dna_tether_id
 
     def get_all_groups(self) -> List[AtomGroup]:
         return super().get_all_groups() + [self.tether_group]
 
 class ObstacleSafety(DnaConfiguration):
 
-    def __init__(self, dna_groups, tether_group: AtomGroup):
+    def __init__(self, dna_groups, tether_group: AtomGroup, dna_tether_id: int, dna_safety_belt_index: int):
         super().__init__(dna_groups)
         self.tether_group = tether_group
+        self.dna_tether_id = dna_tether_id
+        self.dna_safety_belt_index = dna_safety_belt_index
 
     def get_all_groups(self) -> List[AtomGroup]:
         return super().get_all_groups() + [self.tether_group]
@@ -430,11 +433,10 @@ elif dnaConfigClass is Obstacle:
         polymer_angle_type=dna_angle
     )
 
-    dnaConfig = Obstacle(create_dna([rDNA]), tether_group)
-
+    dnaConfig = Obstacle(create_dna([rDNA]), tether_group, dna_bead_to_tether_id)
 elif dnaConfigClass is ObstacleSafety:
     # 1.
-    [rDNA], belt_location, ttt = dna_creator.get_dna_coordinates_safety_belt(nDNA, DNAbondLength)
+    [rDNA], belt_location, dna_safety_belt_index = dna_creator.get_dna_coordinates_safety_belt(nDNA, DNAbondLength)
     
     # 2.
     # make sure SMC contains DNA
@@ -458,7 +460,7 @@ elif dnaConfigClass is ObstacleSafety:
         polymer_angle_type=dna_angle
     )
 
-    dnaConfig = ObstacleSafety(create_dna([rDNA]), tether_group)
+    dnaConfig = ObstacleSafety(create_dna([rDNA]), tether_group, dna_bead_to_tether_id, dna_safety_belt_index)
 else:
     raise TypeError
 
@@ -646,7 +648,7 @@ bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, 
 bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4, indL, indR)
 gen.bais += bonds
 if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
-    tether_to_dna_bond = BAI(dna_bond, (dnaConfig.tether_group, -1), (dnaConfig.dna_groups[0], dna_bead_to_tether_id))
+    tether_to_dna_bond = BAI(dna_bond, (dnaConfig.tether_group, -1), (dnaConfig.dna_groups[0], dnaConfig.dna_tether_id))
     gen.bais += [tether_to_dna_bond]
 
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kElbows, 180 ) )
@@ -679,10 +681,11 @@ lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 
 
 # Override molecule ids to form rigid safety-belt bond
 if isinstance(dnaConfig, ObstacleSafety):
-    gen.molecule_override[(dnaConfig.dna_groups[0], ttt)] = molSiteD
+    safety_index = dnaConfig.dna_safety_belt_index
+    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index)] = molSiteD
     # add neighbors to prevent rotation
-    gen.molecule_override[(dnaConfig.dna_groups[0], ttt - 1)] = molSiteD
-    gen.molecule_override[(dnaConfig.dna_groups[0], ttt + 1)] = molSiteD
+    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = molSiteD
+    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = molSiteD
 
 # Create datafile
 with open(filepath_data, 'w') as datafile:
