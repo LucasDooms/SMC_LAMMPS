@@ -234,6 +234,9 @@ class DnaConfiguration:
     def __init__(self, dna_groups: List[AtomGroup]) -> None:
         self.dna_groups = dna_groups
 
+    def get_all_groups(self) -> List[AtomGroup]:
+        return self.dna_groups
+
     @staticmethod
     def str_to_config(string: str):
         string = string.lower()
@@ -270,17 +273,21 @@ class Doubled(DnaConfiguration):
 
 class Obstacle(DnaConfiguration):
 
-    def __init__(self, dna_groups, tether_positions):
+    def __init__(self, dna_groups, tether_group: AtomGroup):
         super().__init__(dna_groups)
-        self.tether_positions = tether_positions
-        self.tether_group: AtomGroup | None = None
+        self.tether_group = tether_group
+
+    def get_all_groups(self) -> List[AtomGroup]:
+        return super().get_all_groups() + [self.tether_group]
 
 class ObstacleSafety(DnaConfiguration):
 
-    def __init__(self, dna_groups, tether_positions):
+    def __init__(self, dna_groups, tether_group: AtomGroup):
         super().__init__(dna_groups)
-        self.tether_positions = tether_positions
-        self.tether_group: AtomGroup | None = None
+        self.tether_group = tether_group
+
+    def get_all_groups(self) -> List[AtomGroup]:
+        return super().get_all_groups() + [self.tether_group]
 
 dnaConfigClass = DnaConfiguration.str_to_config(par.dnaConfig)
 
@@ -415,7 +422,16 @@ elif dnaConfigClass is Obstacle:
     # move down a little
     tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
 
-    dnaConfig = Obstacle(create_dna([rDNA]), tether_positions)
+    tether_group = AtomGroup(
+        positions=tether_positions,
+        atom_type=AtomType(mDNA),
+        molecule_index=MoleculeId.get_next(),
+        polymer_bond_type=dna_bond,
+        polymer_angle_type=dna_angle
+    )
+
+    dnaConfig = Obstacle(create_dna([rDNA]), tether_group)
+
 elif dnaConfigClass is ObstacleSafety:
     # 1.
     [rDNA], belt_location, ttt = dna_creator.get_dna_coordinates_safety_belt(nDNA, DNAbondLength)
@@ -434,7 +450,15 @@ elif dnaConfigClass is ObstacleSafety:
     # move down a little
     tether_positions += np.array([0, -DNAbondLength, 0], dtype=float)
 
-    dnaConfig = ObstacleSafety(create_dna([rDNA]), tether_positions)
+    tether_group = AtomGroup(
+        positions=tether_positions,
+        atom_type=AtomType(mDNA),
+        molecule_index=MoleculeId.get_next(),
+        polymer_bond_type=dna_bond,
+        polymer_angle_type=dna_angle
+    )
+
+    dnaConfig = ObstacleSafety(create_dna([rDNA]), tether_group)
 else:
     raise TypeError
 
@@ -460,7 +484,6 @@ gen = Generator()
 gen.set_system_size(boxWidth)
 
 # Molecule for each rigid body
-molTether = MoleculeId.get_next()
 molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molSiteU = [MoleculeId.get_next() for _ in range(7)]
 molSiteM = molATP
 molSiteD = molHK
@@ -505,22 +528,9 @@ smc_1 = SMC(
 smc_1_groups = smc_1.get_groups()
 
 gen.atom_groups += [
-    *dnaConfig.dna_groups,
+    *dnaConfig.get_all_groups(),
     *smc_1_groups
 ]
-
-if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
-    tether_type = AtomType(mDNA)
-
-    dnaConfig.tether_group = AtomGroup(
-        positions=dnaConfig.tether_positions,
-        atom_type=tether_type,
-        molecule_index=molTether,
-        polymer_bond_type=dna_bond,
-        polymer_angle_type=dna_angle
-    )
-    gen.atom_groups += [dnaConfig.tether_group]
-
 
 # indices to freeze permanently
 end_points: List[AtomIdentifier] = []
@@ -591,6 +601,7 @@ pair_inter.add_interaction(dna_type, dna_type, epsilonDNAvsDNA * kBT, sigmaDNAvs
 pair_inter.add_interaction(dna_type, armHK_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
 pair_inter.add_interaction(dna_type, siteD_type, epsilonSiteDvsDNA * kBT, sigmaSiteDvsDNA, rcutSiteDvsDNA)
 if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
+    tether_type = dnaConfig.tether_group.type
     # tether
     pair_inter.add_interaction(tether_type, tether_type, epsilonDNAvsDNA * kBT, sigmaDNAvsDNA, rcutDNAvsDNA)
     pair_inter.add_interaction(tether_type, dna_type, epsilonDNAvsDNA * kBT, sigmaDNAvsDNA, rcutDNAvsDNA)
@@ -848,7 +859,7 @@ with open(filepath_param, 'w') as parameterfile:
     # NOTE: indices are allowed to be the same, LAMMPS will ignore duplicates
     parameterfile.write(
         get_string_def("DNA_mols",
-            list_to_space_str([molDNA, molTether])
+            list_to_space_str([dna_grp.molecule_index for dna_grp in dnaConfig.dna_groups])
         )
     )
     parameterfile.write(
@@ -878,7 +889,7 @@ with open(filepath_param, 'w') as parameterfile:
     )
     
     if isinstance(dnaConfig, (Obstacle, ObstacleSafety)):
-        parameterfile.write(f"variable wall_y equal {dnaConfig.tether_positions[0,1]}\n")
+        parameterfile.write(f"variable wall_y equal {dnaConfig.tether_group.positions[0,1]}\n")
 
         excluded = [gen.get_atom_index((dnaConfig.tether_group, 0)), gen.get_atom_index((dnaConfig.tether_group, 1))]
         parameterfile.write(
