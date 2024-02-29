@@ -863,7 +863,9 @@ with open(filepath_param, 'w') as parameterfile:
     # NOTE: indices are allowed to be the same, LAMMPS will ignore duplicates
     parameterfile.write(
         get_string_def("DNA_mols",
-            list_to_space_str([dna_grp.molecule_index for dna_grp in dnaConfig.dna_groups])
+            list_to_space_str(
+                [grp.molecule_index for grp in dnaConfig.get_all_groups()]
+            )
         )
     )
     parameterfile.write(
