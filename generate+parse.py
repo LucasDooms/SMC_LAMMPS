@@ -850,7 +850,7 @@ def get_universe_def(name: str, values: List[str]) -> str:
 
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
-    
+
     # change seed if arg 2 provided
     if len(argv) > 2:
         seed_overwrite = int(argv[2])
