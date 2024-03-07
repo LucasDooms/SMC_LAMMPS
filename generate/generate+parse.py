@@ -4,10 +4,10 @@ from generator import AtomIdentifier, Generator, BAI, BAI_Type, BAI_Kind, AtomGr
 from sys import argv
 from pathlib import Path
 from typing import Any, List, Dict, Tuple
-import dna_creator
-from smc_creator import SMC_Creator
-from smc import SMC
-from importlib import import_module
+from structures.dna import dna_creator
+from structures.smc.smc_creator import SMC_Creator
+from structures.smc.smc import SMC
+from runpy import run_path
 import default_parameters
 
 
@@ -15,20 +15,21 @@ if len(argv) < 2:
     raise Exception("Provide a folder path")
 path = Path(argv[1])
 
-parameters = import_module((path / "parameters").as_posix().replace('/', '.'))
+parameters = run_path((path / "parameters.py").as_posix())
 
 class Parameters:
 
     def __getattr__(self, __name: str) -> Any:
-        return getattr(parameters, __name, getattr(default_parameters, __name))
+        return parameters.get(__name , getattr(default_parameters, __name))
 
     def __setattr__(self, __name: str, __value: Any) -> None:
-        setattr(parameters, __name, __value)
+        parameters[__name] = __value
 
     def __dir__(self):
-        return list(set(dir(parameters)) | set(dir(default_parameters)))
+        return dir(default_parameters)
 
 par = Parameters()
+
 
 # Name of generated data file
 filename_data = 'datafile'
@@ -417,7 +418,7 @@ elif dnaConfigClass is Obstacle:
     shift = (goal - start).reshape(1, 3)
     rDNA += shift
 
-    import structure_creator
+    from structures import structure_creator
     obstacle_length = 45
     tether_positions = structure_creator.get_straight_segment(obstacle_length, [0, 1, 0]) * DNAbondLength
     # place the tether next to the DNA bead
@@ -445,7 +446,7 @@ elif dnaConfigClass is ObstacleSafety:
     shift[1] -= 0.65 * par.cutoff6 
     rDNA += shift
 
-    import structure_creator
+    from structures import structure_creator
     tether_positions = structure_creator.get_straight_segment(35, [0, 1, 0]) * DNAbondLength
     # place the tether next to the DNA bead
     dna_bead_to_tether_id = int(len(rDNA) / 3.5)

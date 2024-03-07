@@ -1,4 +1,4 @@
-from structure_creator import get_circle_segment_unit_radius, get_straight_segment, attach_chain
+from ..structure_creator import get_circle_segment_unit_radius, get_straight_segment, attach_chain
 from dataclasses import dataclass
 import math
 import numpy as np

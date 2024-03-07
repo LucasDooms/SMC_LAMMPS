@@ -41,7 +41,7 @@ if args.generate:
     if args.seed:
         extra_args.append(args.seed)
     print("running setup file...")
-    run_and_stop_on_error(lambda: subprocess.run(["python", "generate+parse.py", f"{path}"] + extra_args))
+    run_and_stop_on_error(lambda: subprocess.run(["python", "generate/generate+parse.py", f"{path}"] + extra_args))
     print("succesfully ran setup file")
 
 
@@ -57,12 +57,12 @@ else:
 
 if args.post_process:
     print("running post processing...")
-    run_and_stop_on_error(lambda: subprocess.run(["python", "process_displacement.py", f"{path}"]))
+    run_and_stop_on_error(lambda: subprocess.run(["python", "post-process/process_displacement.py", f"{path}"]))
     print("succesfully ran post processing")
 
 if args.visualize:
     print("starting VMD")
-    run_and_stop_on_error(lambda: subprocess.run(["python", "visualize.py", f"{path}"]))
+    run_and_stop_on_error(lambda: subprocess.run(["python", "post-process/visualize.py", f"{path}"]))
     print("VMD exited")
 
 print("end of run.py")

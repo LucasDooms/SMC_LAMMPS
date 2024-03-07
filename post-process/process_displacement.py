@@ -1,7 +1,7 @@
 # post-processing to find the movement of the SMC relative to the DNA
 
 from __future__ import annotations
-from importlib import import_module
+from runpy import run_path
 from sys import argv
 from pathlib import Path
 from itertools import islice
@@ -299,11 +299,11 @@ def remove_outside_planar_n_gon(data: LammpsData, points, delta: float): # step 
     data.delete_side_of_plane(plane, Plane.Side.OUTSIDE)
     stop = False
     if not stop and len(data.positions) == 0:
-        stop == True
+        stop = True
     plane = Plane(points[0] - delta * normal, normal)
     data.delete_side_of_plane(plane, Plane.Side.INSIDE)
     if not stop and len(data.positions) == 0:
-        stop == True
+        stop = True
 
     # delete points far away in the plane of the n-gon
     for point1, point2 in zip(points, points[1:] + [points[0]]):
@@ -313,7 +313,7 @@ def remove_outside_planar_n_gon(data: LammpsData, points, delta: float): # step 
         # INSIDE of plane points out of the shape
         data.delete_side_of_plane(side_plane, Plane.Side.INSIDE)
         if not stop and len(data.positions) == 0:
-            stop == True
+            stop = True
 
 
 def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, parameters, step):
@@ -322,26 +322,26 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
         positions.append(data.positions[indices[-1]])
         return
     
-    pos_top = data.get_position_from_index(parameters.top_bead_id)
-    pos_left = data.get_position_from_index(parameters.left_bead_id)
-    pos_right = data.get_position_from_index(parameters.right_bead_id)
-    pos_middle_left = data.get_position_from_index(parameters.middle_left_bead_id)
-    pos_middle_right = data.get_position_from_index(parameters.middle_right_bead_id)
-    pos_kleisins = [data.get_position_from_index(i) for i in parameters.kleisin_ids]
+    pos_top = data.get_position_from_index(parameters["top_bead_id"])
+    pos_left = data.get_position_from_index(parameters["left_bead_id"])
+    pos_right = data.get_position_from_index(parameters["right_bead_id"])
+    pos_middle_left = data.get_position_from_index(parameters["middle_left_bead_id"])
+    pos_middle_right = data.get_position_from_index(parameters["middle_right_bead_id"])
+    pos_kleisins = [data.get_position_from_index(i) for i in parameters["kleisin_ids"]]
     
     new_data_copy1 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data, [pos_top, pos_left, pos_right], 1.05 * parameters.dna_spacing)
+    remove_outside_planar_n_gon(new_data, [pos_top, pos_left, pos_right], 1.05 * parameters["dna_spacing"])
     l1 = len(new_data.positions)
 
     new_data_copy2 = deepcopy(new_data_copy1)
     # TODO: this is not in the same plane!
     # TEMPORARY FIX: use larger delta
-    delta = min(1.05 * parameters.dna_spacing, np.linalg.norm(pos_right - pos_left))
+    delta = min(1.05 * parameters["dna_spacing"], np.linalg.norm(pos_right - pos_left))
     remove_outside_planar_n_gon(new_data_copy2, [pos_middle_right, pos_middle_left, pos_left], delta)
     l2 = len(new_data_copy2.positions)
     new_data.combine_by_ids(new_data_copy2)
 
-    remove_outside_planar_n_gon(new_data_copy1, pos_kleisins, 1.25 * parameters.dna_spacing)
+    remove_outside_planar_n_gon(new_data_copy1, pos_kleisins, 1.25 * parameters["dna_spacing"])
     l3 = len(new_data_copy1.positions)
     new_data.combine_by_ids(new_data_copy1)
 
@@ -373,18 +373,19 @@ def get_best_match_dna_bead_in_smc(folder_path):
         remove DNA part of lower segment (we only want the upper segment here)
         find DNA closest to SMC plane
     """
-    parameters = import_module((path / "post_processing_parameters").as_posix().replace('/', '.'))
+    parameters = run_path((path / "post_processing_parameters.py").as_posix())
 
     par = Parser(folder_path / "output.lammpstrj")
+    dna_indices_list = parameters["dna_indices_list"]
     steps = []
-    indices_array = [[] for _ in range(len(parameters.dna_indices_list))]
-    positions_array = [[] for _ in range(len(parameters.dna_indices_list))]
+    indices_array = [[] for _ in range(len(dna_indices_list))]
+    positions_array = [[] for _ in range(len(dna_indices_list))]
     while True:
         try:
             step, arr = par.next_step()
         except Parser.EndOfLammpsFile:
             break
-        
+
         steps.append(step)
 
         data = Parser.split_data(arr)
@@ -393,7 +394,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
         new_data = data.delete_outside_box(box)
         new_data.filter_by_types([1])
         # split, and call for each
-        for i, (min_index, max_index) in enumerate(parameters.dna_indices_list):
+        for i, (min_index, max_index) in enumerate(dna_indices_list):
             # if i == 1:
             #     continue
             new_data_temp = deepcopy(new_data)
