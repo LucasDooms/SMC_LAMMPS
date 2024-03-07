@@ -385,19 +385,13 @@ class Generator:
 
     @staticmethod
     def get_script_bai_command_name(pair_or_BAI: BAI_Kind | None) -> str:
-        name = ""
-        match pair_or_BAI:
-            case None:
-                name = "pair_coeff"
-            case BAI_Kind.BOND:
-                name = "bond_coeff"
-            case BAI_Kind.ANGLE:
-                name = "angle_coeff"
-            case BAI_Kind.IMPROPER:
-                name = "improper_coeff"
-            case _:
-                raise Exception("unkown type")
-        return name
+        name_dict = {
+            None: "pair_coeff",
+            BAI_Kind.BOND: "bond_coeff",
+            BAI_Kind.ANGLE: "angle_coeff",
+            BAI_Kind.IMPROPER: "improper_coeff",
+        }
+        return name_dict[pair_or_BAI]
 
     def write_script_bai_coeffs(self, file, pair_or_BAI: BAI_Kind | None, format_string: str, *args) -> None:
         cmd_name = self.get_script_bai_command_name(pair_or_BAI)
