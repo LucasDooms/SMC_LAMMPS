@@ -25,11 +25,11 @@ args = parser.parse_args()
 path = Path(args.directory)
 
 
-def run_and_stop_on_error(process):
+def run_and_handle_error(process, ignore_errors: bool):
     completion = process()
     if completion.returncode != 0:
         message = f"process ended with error code {completion.returncode}\n{completion}\n"
-        if args.ignore_errors:
+        if ignore_errors:
             print(message)
             print("-n (--ignore-errors) flag is set, continuing...\n")
             return
@@ -41,7 +41,7 @@ if args.generate:
     if args.seed:
         extra_args.append(args.seed)
     print("running setup file...")
-    run_and_stop_on_error(lambda: subprocess.run(["python", "generate/generate+parse.py", f"{path}"] + extra_args))
+    run_and_handle_error(lambda: subprocess.run(["python", "generate/generate+parse.py", f"{path}"] + extra_args), args.ignore_errors)
     print("succesfully ran setup file")
 
 
@@ -50,19 +50,19 @@ run_with_output = partial(subprocess.run, [f"{args.executable}", "-in", f"{Path(
 if args.output:
     with open(args.output, 'w') as output_file:
         print(f"running LAMMPS file {args.input}, output redirected to {args.output}")
-        run_and_stop_on_error(lambda: run_with_output(stdout=output_file))
+        run_and_handle_error(lambda: run_with_output(stdout=output_file), args.ignore_errors)
 else:
     print(f"running LAMMPS file {args.input}, printing output to terminal")
-    run_and_stop_on_error(lambda: run_with_output())
+    run_and_handle_error(lambda: run_with_output(), args.ignore_errors)
 
 if args.post_process:
     print("running post processing...")
-    run_and_stop_on_error(lambda: subprocess.run(["python", "post-process/process_displacement.py", f"{path}"]))
-    print("succesfully ran post processing")
+    run_and_handle_error(lambda: subprocess.run(["python", "post-process/process_displacement.py", f"{path}"]), args.ignore_errors)
+    print("succesfully ran post processing", args.ignore_errors)
 
 if args.visualize:
     print("starting VMD")
-    run_and_stop_on_error(lambda: subprocess.run(["python", "post-process/visualize.py", f"{path}"]))
+    run_and_handle_error(lambda: subprocess.run(["python", "post-process/visualize.py", f"{path}"]), args.ignore_errors)
     print("VMD exited")
 
 print("end of run.py")
