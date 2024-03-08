@@ -521,6 +521,7 @@ with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
 #                           Print to post processing                            #
 #################################################################################
 
+ppp = dnaConfig.get_post_process_parameters()
 
 with open(path / "post_processing_parameters.py", 'w') as file:
     file.write(
@@ -538,29 +539,10 @@ with open(path / "post_processing_parameters.py", 'w') as file:
         )
     )
     file.write("\n")
-    dna_indices_list = []
-    for dna_grp in dnaConfig.dna_groups:
-        if isinstance(dnaConfig, (dna.ObstacleSafety, dna.Line)):
-            dna_indices_list.append(
-                ( # take all DNA
-                    gen.get_atom_index((dna_grp, 0)),
-                    gen.get_atom_index((dna_grp, -1))
-                )
-            )
-        elif isinstance(dnaConfig, dna.Obstacle):
-            dna_indices_list.append(
-                ( # take up to index where SMC is
-                    gen.get_atom_index((dna_grp, 0)),
-                    gen.get_atom_index((dna_grp, dnaConfig.dna_start_index))
-                )
-            )
-        else:
-            dna_indices_list.append(
-                (
-                    gen.get_atom_index((dna_grp, 0)), # min = start (starts at upper DNA, which we want)
-                    gen.get_atom_index((dna_grp, len(dna_grp.positions) // 2)) # max = half way point (so that lower DNA is not included)
-                )
-            )
+    dna_indices_list = [
+        (gen.get_atom_index(atomId1), gen.get_atom_index(atomId2))
+        for (atomId1, atomId2) in ppp.dna_indices_list
+    ]
     file.write(
         "# list of (min, max) of DNA indices for separate pieces to analyze\n"
         "dna_indices_list = {}\n".format(dna_indices_list)
@@ -613,7 +595,6 @@ def get_universe_def(name: str, values: List[str]) -> str:
     return f'variable {name} universe {list_to_space_str(values)}\n'
 
 
-ppp = dnaConfig.get_post_process_parameters()
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 

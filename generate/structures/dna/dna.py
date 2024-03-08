@@ -39,6 +39,8 @@ class DnaConfiguration:
 
     @dataclass
     class PostProcessParameters:
+        # LAMMPS DATA
+
         # indices to freeze permanently
         end_points: List[AtomIdentifier]
         # indices to temporarily freeze, in order to equilibrate the system
@@ -46,6 +48,11 @@ class DnaConfiguration:
         # forces to apply:
         # the keys are the forces (3d vectors), and the value is a list of indices to which the force will be applied
         stretching_forces_array: Dict[Tuple[float, float, float], List[AtomIdentifier]]
+        
+        # POST PROCESSING
+
+        # indices to use for marked bead tracking
+        dna_indices_list: List[Tuple[AtomIdentifier, AtomIdentifier]]
 
     @classmethod
     def set_parameters(cls, par) -> None:
@@ -66,8 +73,27 @@ class DnaConfiguration:
         return self.PostProcessParameters(
             end_points=[],
             freeze_indices=[],
-            stretching_forces_array=dict()
+            stretching_forces_array=dict(),
+            dna_indices_list=[]
         )
+    
+    def dna_indices_list_get_all_dna(self) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+        return [
+            (
+                (dna_grp, 0),
+                (dna_grp, -1)
+            )
+            for dna_grp in self.dna_groups
+        ]
+
+    def dna_indices_list_get_dna_to(self, ratio: float) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+        return [
+            (
+                (dna_grp, 0),
+                (dna_grp, int(len(dna_grp.positions) * ratio))
+            )
+            for dna_grp in self.dna_groups
+        ]
 
     @staticmethod
     def str_to_config(string: str):
@@ -100,6 +126,8 @@ class Line(DnaConfiguration):
             (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteM[1])), # closest to middle -> rSiteM[1]
         ]
 
+        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+
         return ppp
 
 class Folded(DnaConfiguration):
@@ -122,6 +150,8 @@ class Folded(DnaConfiguration):
             (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteM[1])), # closest to middle -> rSiteM[1]
         ]
 
+        ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
+
         return ppp
 
 class RightAngle(DnaConfiguration):
@@ -141,6 +171,8 @@ class RightAngle(DnaConfiguration):
             ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
         # find closest DNA bead to siteD
         # closest_DNA_index = get_closest(self.dna_groups[0].positions, rSiteD[1])
+
+        ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
 
         return ppp
 
@@ -166,6 +198,8 @@ class Doubled(DnaConfiguration):
                 (dna_grp, get_closest(dna_grp.positions, self.smc.rSiteM[1])), # closest to middle
             ]
 
+        ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
+
         return ppp
 
 class Obstacle(DnaConfiguration):
@@ -188,6 +222,14 @@ class Obstacle(DnaConfiguration):
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
         ppp.end_points += [(self.tether_group, 0)]
 
+        ppp.dna_indices_list += [
+            (
+                (dna_grp, 0),
+                (dna_grp, self.dna_start_index)
+            )
+            for dna_grp in self.dna_groups
+        ]
+
         return ppp
 
 class ObstacleSafety(DnaConfiguration):
@@ -209,6 +251,8 @@ class ObstacleSafety(DnaConfiguration):
             ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
         ppp.end_points += [(self.tether_group, 0)]
+
+        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
         return ppp
 
