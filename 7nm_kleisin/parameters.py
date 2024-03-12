@@ -6,8 +6,8 @@ N = 750
 
 cycles = 10
 
-# very weak force
-force = 0.025
+# weak force
+force = 0.8
 
 # configuration
 dnaConfig = "obstacle"
