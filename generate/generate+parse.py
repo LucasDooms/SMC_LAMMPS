@@ -285,7 +285,7 @@ dna_parameters = dna.DnaParameters(
     dna_bond=dna_bond,
     dna_angle=dna_angle
 )
-dnaConfig = dna.get_dna_config(dnaConfigClass, dna_parameters, rSiteD, par)
+dnaConfig = dnaConfigClass.get_dna_config(dna_parameters, rSiteD, par)
 
 #################################################################################
 #                                Print to file                                  #
