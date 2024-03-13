@@ -108,8 +108,12 @@ class SMC:
             BAI(bond_t4, (self.armUL_group, -1), (self.siteU_arm_group, -3)),
         ]
 
-    def get_angles(self, angle_t2: BAI_Type, angle_t3: BAI_Type) -> List[BAI]:
+    def get_angles(self, angle_t1: BAI_Type, angle_t2: BAI_Type, angle_t3: BAI_Type, angle_t4: BAI_Type) -> List[BAI]:
         return [
+            # prevent crossing of the arms
+            BAI(angle_t1, (self.armDL_group, -2), (self.armDL_group, -1), (self.armDR_group, 0)),
+            BAI(angle_t1, (self.armDR_group, 0), (self.armDR_group, 1), (self.armDL_group, -1)),
+
             # keep left arms rigid (prevent too much bending)
             BAI(angle_t2, (self.armDL_group, 0), (self.armUL_group, 0), (self.armUL_group, -1)),
             # same, but for right arms
@@ -117,10 +121,14 @@ class SMC:
 
             # prevent too much bending between lower arms and the bridge
             BAI(angle_t3, (self.armDL_group, -1), (self.armDL_group, 0), (self.atp_group, -1)),
-            BAI(angle_t3, (self.armDR_group, 0), (self.armDR_group, -1), (self.atp_group, 0))
+            BAI(angle_t3, (self.armDR_group, 0), (self.armDR_group, -1), (self.atp_group, 0)),
+
+            # angle between middle site and top site, a weird non-local way to break the
+            # symmetry of the arms folding
+            BAI(angle_t4, (self.siteM_group, 0), (self.siteM_group, 1), (self.armUL_group, -1)),
         ]
 
-    def get_impropers(self, imp_t1: BAI_Type, imp_t2: BAI_Type, imp_t3: BAI_Type, imp_t4: BAI_Type, imp_t5: BAI_Type) -> List[BAI]:
+    def get_impropers(self, imp_t1: BAI_Type, imp_t2: BAI_Type, imp_t3: BAI_Type, imp_t4: BAI_Type) -> List[BAI]:
         nHK = len(self.rHK)
         # WARNING: siteM is split into groups, be careful with index
         return [
@@ -140,8 +148,4 @@ class SMC:
 
             # fold upper arms relative to lower arms
             BAI(imp_t4, (self.armUL_group, -1), (self.armDL_group, -1), (self.armDR_group, 0), (self.siteM_group, 1)),
-            # BAI(imp_t4, (self.armUL_group, -1), (self.armDL_group, -1), (self.armDR_group, 0), (self.armDL_group, 0)),
-            # BAI(imp_t4, (self.armUL_group, -1), (self.armDL_group, -1), (self.armDR_group, 0), (self.armDR_group, -1)),
-            # assymetry
-            BAI(imp_t5, (self.armUL_group, -1), (self.atp_group, 0), (self.atp_group, -1), (self.hk_group, nHK//2))
         ]

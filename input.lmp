@@ -127,6 +127,13 @@ run 10000
 
 unfix frz
 
+# start in the released state -> more stable
+include states/released-2
+run 100
+
+include states/soft_before_relaxed
+run 100
+
 
 # Reference point in script (enter loop)
 label main_loop

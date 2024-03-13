@@ -425,10 +425,12 @@ if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacle
     tether_to_dna_bond = BAI(dna_bond, (dnaConfig.tether_group, -1), (dnaConfig.dna_groups[0], dnaConfig.dna_tether_id))
     gen.bais += [tether_to_dna_bond]
 
+angle_t1 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kElbows / 2.0, 90 ) )
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kElbows, 180 ) )
 angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
+angle_t4 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms, 90 ) )
 
-angles = smc_1.get_angles(angle_t2, angle_t3)
+angles = smc_1.get_angles(angle_t1, angle_t2, angle_t3, angle_t4)
 gen.bais += angles
 
 # Angle interactions that change for different phases of SMC
@@ -445,9 +447,8 @@ imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 170 ) )
 # makes a better angle for folding the DNA into the open arms
 imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, 90 ) )
 imp_t4 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 0 ) )
-imp_t5 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, 90 ) )
 
-gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3, imp_t4, imp_t5)
+gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3, imp_t4)
 
 
 # Improper interactions that change for different phases of SMC
@@ -484,8 +485,8 @@ arms_unfolded1 = [BAI_Kind.ANGLE, "{} harmonic " + f"{kFolding} 180\n", angle_t2
 arms_folded2 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 45\n", imp_t4]
 arms_unfolded2 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 170\n", imp_t4]
 
-arms_folded3 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} 90\n", imp_t5]
-arms_unfolded3 = [BAI_Kind.IMPROPER, "{} " + f"0 180\n", imp_t5] # turned off
+arms_folded3 = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} 175\n", angle_t4]
+arms_unfolded3 = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} 100\n", angle_t4]
 
 arms_folded_ = [arms_folded1, arms_folded2, arms_folded3]
 arms_unfolded_ = [arms_unfolded1, arms_unfolded2, arms_unfolded3]
