@@ -18,7 +18,7 @@ parser.add_argument('-p', '--post-process', action='store_true', help='run the p
 parser.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
 parser.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
 parser.add_argument('-e', '--executable', help='name of the LAMMPS executable to use', default="lmp")
-parser.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default="input")
+parser.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default="input.lmp")
 parser.add_argument('-o', '--output', help='path to dump LAMMPS output to (prints to terminal by default)')
 
 args = parser.parse_args()
