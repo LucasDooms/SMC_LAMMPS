@@ -42,18 +42,18 @@ class Molecules:
         self.color_index += 1
         return color_id
 
-    def create_new(self, file_name: str) -> None:
+    def create_new(self, file_name: str, other_args: str) -> None:
         with open(self.path, 'a') as file:
-            file.write(f"mol new {file_name}\n")
+            file.write(f"mol new {file_name} {other_args}\n")
             self.index += 1
     
     def create_new_marked(self, file_name: str) -> None:
-        self.create_new(file_name)
+        self.create_new(file_name, "waitfor all")
         with open(self.path, 'a') as file:
             file.write(f"mol modstyle 0 {self.index} vdw\n")
     
     def create_new_dna(self, file_name: str, dna_pieces: List[Tuple[int, int]]) -> None:
-        self.create_new(file_name)
+        self.create_new(file_name, "waitfor all")
         with open(self.path, 'a') as file:
             # show everything, slightly smaller
             file.write(f"mol modstyle 0 {self.index} cpk 0.9\n")
