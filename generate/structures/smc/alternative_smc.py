@@ -1,7 +1,6 @@
 from generator import AtomType, AtomGroup, BAI_Type, BAI
 from dataclasses import dataclass
 from typing import List
-import numpy as np
 
 
 @dataclass
@@ -58,7 +57,7 @@ class SMC:
         cut = 2
         self.siteM_group = AtomGroup(self.rSiteM[:cut], self.siteM_type, self.molSiteM)
         self.siteM_atp_group = AtomGroup(self.rSiteM[cut:-1], self.atp_type, self.molSiteM)
-        # ref site
+        # ref site (symmetry breaking bead)
         self.siteM_ref_group = AtomGroup(self.rSiteM[-1:], self.refSite_type, self.molSiteM)
 
         # split B in two parts
