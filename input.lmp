@@ -122,12 +122,12 @@ group frozen ${indices}
 
 fix frz frozen setforce 0 0 0
 
-# Equilibrate in the APO-state
+# start in the released state -> more stable
+include states/released-1
 run 10000
 
 unfix frz
 
-# start in the released state -> more stable
 include states/released-2
 run 100
 
