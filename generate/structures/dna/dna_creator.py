@@ -126,15 +126,16 @@ def get_dna_coordinates_safety_loop(nDNA: int, DNAbondLength: float):
             [
                 [5, 0, 0], [4, 0, 0], # right, straight piece
                 [1.5, -0.75, 0], [0, -0.75, 0], [-1.5, -0.75, 0], [-3, -0.75, 0], # down, to the left
-                [-4, -3, 0], [-6, -1, 0], [-2.5, 1, 0], [-1.5, 0, -0.2], # loop
-                [-1, -0.1, -0.3], [-0.5, 0, -0.45], [0, 0.14, -0.6], [0, 0.15, -0.4], # loop back up, right
-                [1, 0.3, -0.4], [1, 4, -0.4], [1, 5, -0.4], # up
+                [-4, -3, 0], [-6, -1, 0], [-2.5, 1, 0], [-1.5, 0, 0], # loop
+                [-1, -0.2, -0.8], [-0.1, -0.1, -1], [0.1, 0.0, -0.6], [0.25, 0.45, 0.0], # loop back up, right
+                [0.4, 0.5, -0.05], [0.6, 0.55, -0.2],
+                [1, 1.0, -0.25], [1, 4, -0.4], [1, 5, -0.4], # up
             ],
             dtype=float
         )
     )
 
-    distances = np.linalg.norm(rDNA - 10*DNAbondLength*np.array([0, -1.5, 0]), axis=1)
+    distances = np.linalg.norm(rDNA - 10*DNAbondLength*np.array([0, -0.75, 0]), axis=1)
     belt_index = np.where(distances == np.min(distances))[0][0]
 
     remaining = nDNA - len(rDNA)

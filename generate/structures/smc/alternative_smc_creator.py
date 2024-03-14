@@ -220,6 +220,24 @@ class SMC_Creator:
         rSiteM += rATP[len(rATP)//2]
         rSiteD += rHK[len(rHK)//2]
         
+        # Add HEAT-A beads
+        central_position = rHK[int(len(rHK) * 14/15)]
+        rHeatA = self.shielded_site_template(3, 3, 3/4*self.siteMhDist, 2.0)[:-2] # remove horizontal shields
+
+        # rotate around z 100°
+        rotMat = Rotation.from_rotvec(math.radians(100) * np.array([0.0, 0.0, 1.0])).as_matrix()
+        rHeatA = self.transpose_rotate_transpose(rotMat, rHeatA)
+
+        # rotate around x 55°
+        rotMat = Rotation.from_rotvec(math.radians(55) * np.array([1.0, 0.0, 0.0])).as_matrix()
+        rHeatA = self.transpose_rotate_transpose(rotMat, rHeatA)
+
+        rHeatA += central_position - rHeatA[1]
+        # move a little away
+        rHeatA[:,0] += self.SMCspacing
+        rHeatA[:,1] += -0.2 * self.SMCspacing
+        rHeatA[:,2] += 0.2 * self.SMCspacing
+
         ############################# Fold upper compartment ############################
 
         # Rotation matrix (clockwise about z axis)

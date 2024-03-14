@@ -42,7 +42,6 @@ class SMC:
         self.armUR_group = AtomGroup(self.rArmUR, self.armHK_type, self.molArmUR)
         self.armDR_group = AtomGroup(self.rArmDR, self.armHK_type, self.molArmDR)
         self.hk_group = AtomGroup(self.rHK, self.armHK_type, self.molHK)
-        self.heatA_group = AtomGroup(self.rHeatA, self.heatA_type, self.molHK)
 
         self.atp_group = AtomGroup(self.rATP, self.atp_type, self.molATP)
 
@@ -66,6 +65,12 @@ class SMC:
         self.siteD_group = AtomGroup(self.rSiteD[:cut], self.siteD_type, self.molSiteD)
         self.siteD_arm_group = AtomGroup(self.rSiteD[cut:], self.armHK_type, self.molSiteD)
 
+        # split HeatA in two parts
+
+        cut = 3
+        self.heatA_group = AtomGroup(self.rHeatA[:cut], self.heatA_type, self.molHK)
+        self.heatA_shell_group = AtomGroup(self.rHeatA[cut:], self.armHK_type, self.molHK)
+
     def get_groups(self) -> List[AtomGroup]:
         return [
             self.armDL_group,
@@ -74,6 +79,7 @@ class SMC:
             self.armDR_group,
             self.hk_group,
             self.heatA_group,
+            self.heatA_shell_group,
             self.atp_group,
             self.siteU_group,
             self.siteU_arm_group,
