@@ -132,6 +132,12 @@ class SMC:
             # angle between middle site and top site, a weird non-local way to break the
             # symmetry of the arms folding
             BAI(angle_t4, (self.siteM_group, 0), (self.siteM_group, 1), (self.armUL_group, -1)),
+
+            # keep top site aligned
+            # BAI(angle_t1, (self.siteU_group, 1), (self.siteU_group, 0), (self.armUL_group, -3)),
+            # BAI(angle_t1, (self.siteU_group, 1), (self.siteU_group, 0), (self.armUR_group, 2)),
+            BAI(angle_t1, (self.siteU_group, 1), (self.siteU_group, 0), (self.armUL_group, 0)),
+            BAI(angle_t1, (self.siteU_group, 1), (self.siteU_group, 0), (self.armUR_group, -1)),
         ]
 
     def get_impropers(self, imp_t1: BAI_Type, imp_t2: BAI_Type, imp_t3: BAI_Type, imp_t4: BAI_Type) -> List[BAI]:
@@ -141,6 +147,9 @@ class SMC:
             # Fix orientation of ATP/kleisin bridge
             BAI(imp_t1, (self.armDL_group, -1), (self.armDL_group, 0), (self.atp_group, -1), (self.siteM_group, 1)),
             BAI(imp_t1, (self.armDR_group, 0), (self.armDR_group, -1), (self.atp_group, 0), (self.siteM_group, 1)),
+
+            # Fix lower arms in same plane
+            BAI(imp_t1, (self.armUL_group, 0), (self.armDR_group, -1), (self.armDL_group, 0), (self.armUR_group, -1)),
 
             # Fix orientation of arms with respect to kleisin ring
             BAI(imp_t2, (self.armDL_group, -1), (self.armDL_group, 0), (self.atp_group, -1), (self.hk_group, nHK//2)),
