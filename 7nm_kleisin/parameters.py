@@ -1,5 +1,6 @@
 # Radius of lower circular-arc compartment (nm)
 HKradius = 7.
+# HKradius = 4.5 # from original paper (used incorrect formula??)
 
 # amount of DNA
 N = 750
