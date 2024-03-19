@@ -24,15 +24,24 @@ def get_npz_files_from_args(args: List[str]):
 
 def process(files: List[str]):
     files = get_npz_files_from_args(files)
+    if not files:
+        raise Exception("did not receive files to process")
+
+    steps_array = []
     indices_array = []
-    steps = None
     for file in files:
         data = np.load(file)
+        steps_array.append(data["steps"])
         indices_array.append(data["ids"])
-        if steps is None:
-            steps = data["steps"]
-        else:
-            assert(np.array_equal(steps, data["steps"]))
+
+    shortest_steps_length = min([len(x) for x in steps_array])
+    steps_array = [steps[:shortest_steps_length] for steps in steps_array]
+    steps = steps_array[0]
+    assert(all([np.array_equal(steps, others) for others in steps_array]))
+
+    for i in range(len(indices_array)):
+        indices_array[i] = indices_array[i][:shortest_steps_length]
+
     indices_array = np.array(indices_array).transpose()
 
     def custom_average(arr):
