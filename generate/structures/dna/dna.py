@@ -412,7 +412,7 @@ class AdvancedObstacleSafety(DnaConfiguration):
         # 2.
         # make sure SMC contains DNA
         shift = rSiteD[1] - belt_location
-        shift[1] -= 1.5 * par.cutoff6 
+        shift[1] -= 1.35 * par.cutoff6 
         rDNA += shift
 
         tether_positions = structure_creator.get_straight_segment(35, [0, 1, 0]) * dna_parameters.DNAbondLength
