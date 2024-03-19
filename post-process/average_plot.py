@@ -1,9 +1,29 @@
 from sys import argv
+from glob import glob
 from typing import List
+from pathlib import Path
 import numpy as np
 
 
+def get_npz_files_from_args(args: List[str]):
+    files = []
+    for arg in args:
+        matches = glob(arg)
+        for match in matches:
+            match = Path(match)
+            if match.is_dir():
+                for npzfile in match.glob("*.npz"):
+                    files.append(str(npzfile))
+            else:
+                if match.suffix == ".npz":
+                    files.append(str(match))
+                else:
+                    print(f"WARNING: entered non npz file: {match}")
+    return files
+
+
 def process(files: List[str]):
+    files = get_npz_files_from_args(files)
     indices_array = []
     steps = None
     for file in files:
@@ -34,6 +54,6 @@ def process(files: List[str]):
 
 if __name__ == "__main__":
     argv = argv[1:]
-    if len(argv) < 1:
-        raise Exception("Please provide npz files")
+    if not argv:
+        raise Exception("Please provide glob patterns of npz files or folders containing them")
     process(argv)
