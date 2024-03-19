@@ -7,18 +7,22 @@ import numpy as np
 
 def get_npz_files_from_args(args: List[str]):
     files = []
+
+    # replace glob patterns
+    matches = []
     for arg in args:
-        matches = glob(arg)
-        for match in matches:
-            match = Path(match)
-            if match.is_dir():
-                for npzfile in match.glob("*.npz"):
-                    files.append(str(npzfile))
-            else:
-                if match.suffix == ".npz":
-                    files.append(str(match))
-                else:
-                    print(f"WARNING: entered non npz file: {match}")
+        matches += glob(arg)
+
+    for match in matches:
+        match = Path(match)
+        if match.is_dir():
+            for npzfile in match.glob("*.npz"):
+                files.append(str(npzfile))
+        else:
+            if match.suffix != ".npz":
+                print(f"WARNING: entered non npz file: {match}")
+            files.append(str(match))
+
     return files
 
 
