@@ -109,7 +109,8 @@ class DnaConfiguration:
             "right_angle": RightAngle,
             "doubled": Doubled,
             "obstacle": Obstacle,
-            "obstacle_safety": ObstacleSafety
+            "obstacle_safety": ObstacleSafety,
+            "advanced_obstacle_safety": AdvancedObstacleSafety,
         }[string]
 
 class Line(DnaConfiguration):
@@ -365,6 +366,57 @@ class ObstacleSafety(DnaConfiguration):
         tether_positions = structure_creator.get_straight_segment(35, [0, 1, 0]) * dna_parameters.DNAbondLength
         # place the tether next to the DNA bead
         dna_bead_to_tether_id = int(len(rDNA) / 3.5)
+        tether_positions += rDNA[dna_bead_to_tether_id] - tether_positions[-1]
+        # move down a little
+        tether_positions += np.array([0, -dna_parameters.DNAbondLength, 0], dtype=float)
+
+        tether_group = AtomGroup(
+            positions=tether_positions,
+            atom_type=AtomType(dna_parameters.mDNA),
+            molecule_index=MoleculeId.get_next(),
+            polymer_bond_type=dna_parameters.dna_bond,
+            polymer_angle_type=dna_parameters.dna_angle
+        )
+
+        return cls(dna_parameters.create_dna([rDNA]), dna_parameters, tether_group, dna_bead_to_tether_id, dna_safety_belt_index)
+
+    def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
+        ppp = super().get_post_process_parameters()
+        par = self.par
+
+        if par.force:
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+        ppp.end_points += [(self.tether_group, 0)]
+
+        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+
+        return ppp
+
+class AdvancedObstacleSafety(DnaConfiguration):
+
+    def __init__(self, dna_groups, dna_parameters: DnaParameters, tether_group: AtomGroup, dna_tether_id: int, dna_safety_belt_index: int):
+        super().__init__(dna_groups, dna_parameters)
+        self.tether_group = tether_group
+        self.dna_tether_id = dna_tether_id
+        self.dna_safety_belt_index = dna_safety_belt_index
+
+    def get_all_groups(self) -> List[AtomGroup]:
+        return super().get_all_groups() + [self.tether_group]
+    
+    @classmethod
+    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> AdvancedObstacleSafety:
+        # 1.
+        [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_advanced_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+
+        # 2.
+        # make sure SMC contains DNA
+        shift = rSiteD[1] - belt_location
+        shift[1] -= 1.5 * par.cutoff6 
+        rDNA += shift
+
+        tether_positions = structure_creator.get_straight_segment(35, [0, 1, 0]) * dna_parameters.DNAbondLength
+        # place the tether next to the DNA bead
         tether_positions += rDNA[dna_bead_to_tether_id] - tether_positions[-1]
         # move down a little
         tether_positions += np.array([0, -dna_parameters.DNAbondLength, 0], dtype=float)

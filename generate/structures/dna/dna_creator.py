@@ -52,6 +52,34 @@ def get_dna_coordinates_safety_belt(nDNA: int, DNAbondLength: float):
     return [np.concatenate([right, rDNA, left])], belt_location, belt_index + len(right)
 
 
+def get_dna_coordinates_advanced_safety_belt(nDNA: int, DNAbondLength: float):
+    smc_pos = np.array([3.3, -2.1, 0.0])
+    rDNA = get_interpolated(
+        DNAbondLength,
+        10 * DNAbondLength * np.array(
+            [
+                [6, -2.0, 0], [5, -1.4, 0], [4, 0, 0], [2, 0, 0], # right, straight piece
+                [0, 1.0, 0], [-3, 1.5, 0], [-4, 1.25, 0], # up, to the left
+                [-5, 0.75, 0], [-6, 0.5, 0], [-7, 0, 0], # down, to the left
+                [-5.5, -1, 0], [-4, -1.3, 0], [0.7, -1.4, 0], [2.8, -1.8, 0], [3.5, -2.2, 0.0], [3.5, -2.5, 0.0], # down, to the right
+                [3, -3.1, 0], [2.5, -3.2, 0], [2, -3.2, 0], # down, to the left
+            ],
+            dtype=float
+        )
+    )
+    distances = np.linalg.norm(rDNA - 10*DNAbondLength*smc_pos, axis=1)
+    belt_index = np.where(distances == np.min(distances))[0][0]
+
+    remaining = nDNA - len(rDNA)
+    right = get_straight_segment(remaining + 1, [-1, 0, 0]) * DNAbondLength
+    rDNA = attach(right, rDNA, delete_overlap=True)
+
+    belt_location = rDNA[belt_index]
+    bead_to_tether_id = len(right) + 31
+
+    return [np.concatenate([right, rDNA])], belt_location, belt_index + len(right), bead_to_tether_id
+
+
 def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcStraight: int):
     # form vertical + quarter circle + straight + semi circle + horizontal parts
 
@@ -91,7 +119,7 @@ def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcSt
 
     rUpperDNA, rArcQuart, rArcStraight, rArcSemi, rLowerDNA = \
             attach_chain(rUpperDNA, [[rArcQuart, True], [rArcStraight, False, 1.0], [rArcSemi, True], [rLowerDNA, False, 1.0]])
-    
+
     # alternative, without attach_chain method:
     # rArcQuart = attach(rUpperDNA, rArcQuart, delete_overlap=True)
     # rArcStraight = attach(rArcQuart, rArcStraight, delete_overlap=False, extra_distance=1.0)
