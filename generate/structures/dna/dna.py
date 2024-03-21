@@ -452,10 +452,15 @@ class SafetyLoop(DnaConfiguration):
         super().__init__(dna_groups, dna_parameters)
         self.dna_safety_belt_index = dna_safety_belt_index
 
+    dna_inside: bool = False
+
     @classmethod
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> SafetyLoop:
         # 1.
-        [rDNA], belt_location, dna_safety_belt_index = dna_creator.get_dna_coordinates_safety_loop(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+        [rDNA], belt_location, dna_safety_belt_index = \
+            dna_creator.get_dna_coordinates_safety_loop(dna_parameters.nDNA, dna_parameters.DNAbondLength) \
+            if not cls.dna_inside \
+            else dna_creator.get_dna_coordinates_safety_loop_inside(dna_parameters.nDNA, dna_parameters.DNAbondLength)
 
         # 2.
         # make sure SMC contains DNA

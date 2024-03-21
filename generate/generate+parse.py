@@ -289,6 +289,7 @@ dna_parameters = dna.DnaParameters(
     dna_bond=dna_bond,
     dna_angle=dna_angle
 )
+dna.SafetyLoop.dna_inside = True
 dnaConfig = dnaConfigClass.get_dna_config(dna_parameters, rSiteD, par)
 
 #################################################################################
