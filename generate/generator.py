@@ -20,12 +20,22 @@ How to use:
 
 class AtomType:
 
-    index = 1
+    __index = 1
 
     def __init__(self, mass: float = 1.0) -> None:
-        self.index = self.__class__.index
-        self.__class__.index += 1
+        self.index = self.__class__.__index
+        self.__class__.__index += 1
         self.mass = mass
+
+
+class MoleculeId:
+
+    __index = 0
+
+    @classmethod
+    def get_next(cls) -> int:
+        cls.__index += 1
+        return cls.__index
 
 
 class BAI_Kind(Enum):
@@ -375,19 +385,13 @@ class Generator:
 
     @staticmethod
     def get_script_bai_command_name(pair_or_BAI: BAI_Kind | None) -> str:
-        name = ""
-        match pair_or_BAI:
-            case None:
-                name = "pair_coeff"
-            case BAI_Kind.BOND:
-                name = "bond_coeff"
-            case BAI_Kind.ANGLE:
-                name = "angle_coeff"
-            case BAI_Kind.IMPROPER:
-                name = "improper_coeff"
-            case _:
-                raise Exception("unkown type")
-        return name
+        name_dict = {
+            None: "pair_coeff",
+            BAI_Kind.BOND: "bond_coeff",
+            BAI_Kind.ANGLE: "angle_coeff",
+            BAI_Kind.IMPROPER: "improper_coeff",
+        }
+        return name_dict[pair_or_BAI]
 
     def write_script_bai_coeffs(self, file, pair_or_BAI: BAI_Kind | None, format_string: str, *args) -> None:
         cmd_name = self.get_script_bai_command_name(pair_or_BAI)

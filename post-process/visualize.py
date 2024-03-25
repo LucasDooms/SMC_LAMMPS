@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 from typing import List, Tuple
-from importlib import import_module
+from runpy import run_path
 import subprocess
 
 # TODO: VMD uses zero-indexed arrays!
@@ -18,7 +18,7 @@ parser.add_argument('directory', help='the directory containing LAMMPS output fi
 args = parser.parse_args()
 path = Path(args.directory)
 
-parameters = import_module((path / "post_processing_parameters").as_posix().replace('/', '.'))
+parameters = run_path((path / "post_processing_parameters.py").as_posix())
 
 class Molecules:
 
@@ -42,18 +42,18 @@ class Molecules:
         self.color_index += 1
         return color_id
 
-    def create_new(self, file_name: str) -> None:
+    def create_new(self, file_name: str, other_args: str) -> None:
         with open(self.path, 'a') as file:
-            file.write(f"mol new {file_name}\n")
+            file.write(f"mol new {file_name} {other_args}\n")
             self.index += 1
     
     def create_new_marked(self, file_name: str) -> None:
-        self.create_new(file_name)
+        self.create_new(file_name, "waitfor all")
         with open(self.path, 'a') as file:
             file.write(f"mol modstyle 0 {self.index} vdw\n")
     
     def create_new_dna(self, file_name: str, dna_pieces: List[Tuple[int, int]]) -> None:
-        self.create_new(file_name)
+        self.create_new(file_name, "waitfor all")
         with open(self.path, 'a') as file:
             # show everything, slightly smaller
             file.write(f"mol modstyle 0 {self.index} cpk 0.9\n")
@@ -73,8 +73,8 @@ mol = Molecules(path)
 for p in path.glob("marked_bead*.lammpstrj"):
     mol.create_new_marked(p.name)
 
-mol.create_new_dna("output.lammpstrj", parameters.dna_indices_list)
+mol.create_new_dna("output.lammpstrj", parameters["dna_indices_list"])
 
-# ISSUE: -startup will ignore .vimdrc
-cmd = ["vmd", "-startup", str((Path(".") / "vmd.init").absolute()), "-e", f"{mol.path.absolute()}"]
+# ISSUE: -startup will ignore .vmdrc
+cmd = ["vmd", "-startup", str((Path("post-process") / "vmd.rc").absolute()), "-e", f"{mol.path.absolute()}"]
 subprocess.run(cmd, cwd=path)
