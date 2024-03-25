@@ -407,7 +407,8 @@ class AdvancedObstacleSafety(DnaConfiguration):
     @classmethod
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> AdvancedObstacleSafety:
         # 1.
-        [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_advanced_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+        # [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_advanced_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+        [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_advanced_safety_belt_plus_loop(dna_parameters.nDNA, dna_parameters.DNAbondLength)
 
         # 2.
         # make sure SMC contains DNA
