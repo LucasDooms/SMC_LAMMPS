@@ -94,7 +94,8 @@ def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength:
         10 * DNAbondLength * np.array(
             [
                 [6, -2.0, 0], [5, -1.4, 0], [4.7, -0.5, 0], # right piece
-                [4.6, -0.4, 2], [4.5, -0.2, 4], [4.2, 0, 2], # loop
+                [4.6, -0.4, 2], [4.7, -0.2, 4], [4.5, -0.2, 4], [4.0, -0.15, 4],
+                [0.0, -0.15, 4], [1.0, -0.15, 2], [4.0, -0.05, 2.4], [4.2, 0, 2], # loop
                 [4, 0, 0], [2, 0, 0],
                 [0, 1.0, 0], [-3, 1.5, 0], [-4, 1.25, 0], # up, to the left
                 [-5, 0.75, 0], [-6, 0.5, 0], [-7, 0, 0], # down, to the left
@@ -112,7 +113,6 @@ def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength:
     rDNA = attach(right, rDNA, delete_overlap=True)
 
     belt_location = rDNA[belt_index]
-    # bead_to_tether_id = len(right) + 31
     bead_to_tether_id += len(right)
 
     return [np.concatenate([right, rDNA])], belt_location, belt_index + len(right), bead_to_tether_id
