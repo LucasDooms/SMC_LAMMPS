@@ -299,15 +299,15 @@ class Obstacle(DnaConfiguration):
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        dna_start_index = int(len(rDNA)*8.2/15)
+        dna_start_index = int(len(rDNA)*10.5/15)
         start = np.array([rDNA[dna_start_index][0] - 10.0 * dna_parameters.DNAbondLength, rDNA[dna_start_index][1], 0])
         shift = (goal - start).reshape(1, 3)
         rDNA += shift
 
-        obstacle_length = 45
+        obstacle_length = 25
         tether_positions = structure_creator.get_straight_segment(obstacle_length, [0, 1, 0]) * dna_parameters.DNAbondLength
         # place the tether next to the DNA bead
-        dna_bead_to_tether_id = int(len(rDNA)*1/2)
+        dna_bead_to_tether_id = int(len(rDNA)*10/15)
         tether_positions += rDNA[dna_bead_to_tether_id] - tether_positions[-1]
         # move down a little
         tether_positions += np.array([0, -dna_parameters.DNAbondLength, 0], dtype=float)
