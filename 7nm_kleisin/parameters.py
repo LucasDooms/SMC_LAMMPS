@@ -5,7 +5,7 @@ HKradius = 7.
 # amount of DNA
 N = 400
 
-cycles = 6
+cycles = 10
 
 # bottom site
 # epsilon6 = 500.0
