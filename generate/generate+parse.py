@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from generator import AtomIdentifier, Generator, BAI, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
+from generator import AtomGroup, AtomIdentifier, Generator, BAI, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
 from sys import argv
 from pathlib import Path
 from typing import Any, List
@@ -363,7 +363,6 @@ gen.atom_groups += [
     *smc_1_groups
 ]
 
-# get post process stuff
 
 # Pair coefficients
 pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
@@ -381,6 +380,27 @@ if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacle
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
+
+infinite_wall = False
+if not infinite_wall and isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)):
+    obstacle_radius = 25 * sigmaDNAvsDNA
+    obstacle_cut = 25 * rcutDNAvsDNA
+    pos = dnaConfig.tether_group.positions[0] - np.array([0, obstacle_radius*0.5, 0], dtype=float)
+    obstacle_type = AtomType(100 * bpMass)
+    obstacle_group = AtomGroup(
+        positions=np.array([pos]),
+        atom_type=obstacle_type,
+        molecule_index=dnaConfig.tether_group.molecule_index
+    )
+    gen.atom_groups += [obstacle_group]
+
+    obstacle_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondDNA, 25*maxLengthDNA, 0, 0, 25*DNAbondLength))
+    tether_obstacle_bond = BAI(obstacle_bond, (dnaConfig.tether_group, 0), (obstacle_group, 0))
+    gen.bais += [tether_obstacle_bond]
+
+    pair_inter.add_interaction(obstacle_type, dna_type, epsilonDNAvsDNA * kBT, obstacle_radius, obstacle_cut)
+    pair_inter.add_interaction(obstacle_type, armHK_type, epsilonDNAvsDNA * kBT, obstacle_radius, obstacle_cut)
+    pair_inter.add_interaction(obstacle_type, tether_type, epsilonDNAvsDNA * kBT, obstacle_radius, obstacle_cut)
 
 gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
@@ -629,6 +649,8 @@ with open(filepath_param, 'w') as parameterfile:
 
     parameterfile.write("\n")
 
+    if not infinite_wall and isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)):
+        ppp.end_points = ppp.end_points[:-1] # FIX WARNING TODO
     # turn into LAMMPS indices
     end_points_LAMMPS = atomIds_to_LAMMPS_ids(ppp.end_points)
     parameterfile.write(
@@ -645,7 +667,7 @@ with open(filepath_param, 'w') as parameterfile:
         )
     )
     
-    if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)):
+    if infinite_wall and isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)):
         parameterfile.write(f"variable wall_y equal {dnaConfig.tether_group.positions[0][1]}\n")
 
         excluded = [gen.get_atom_index((dnaConfig.tether_group, 0)), gen.get_atom_index((dnaConfig.tether_group, 1))]
