@@ -646,7 +646,7 @@ with open(filepath_param, 'w') as parameterfile:
             prepend_or_empty(list_to_space_str(freeze_indices_LAMMPS), "id ")
         )
     )
-    
+
     if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)) and dnaConfig.tether.obstacle is dna.Tether.Wall:
         parameterfile.write(f"variable wall_y equal {dnaConfig.tether.group.positions[0][1]}\n")
 
