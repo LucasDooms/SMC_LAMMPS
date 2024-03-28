@@ -1,3 +1,5 @@
+# File containing different initial DNA configurations
+
 from __future__ import annotations
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
@@ -120,7 +122,7 @@ class Tether:
             tether_obstacle_bond = BAI(obstacle_bond, (tether_group, 0), (obstacle_group, 0))
             return Tether.Gold(obstacle_group, obstacle_radius, obstacle_cut, tether_obstacle_bond)
         else:
-            return Tether.Wall(0)
+            return Tether.Wall(tether_group.positions[0][1])
 
     @classmethod
     def create_tether(cls, dna_tether_id: AtomIdentifier, tether_length: int, bond_length: float, mass: float, bond_type: BAI_Type, angle_type: BAI_Type, obstacle: Tether.Obstacle) -> Tether:
@@ -183,6 +185,38 @@ class Tether:
         if isinstance(self.obstacle, Tether.Gold):
             bonds += [self.obstacle.tether_bond]
         return bonds
+
+
+# decorator to add tether logic to DnaConfiguration classes
+def with_tether(cls):
+    def new1(f):
+        def get_all_groups(self) -> List[AtomGroup]:
+            return f(self) + self.tether.get_all_groups()
+        return get_all_groups
+    cls.get_all_groups = new1(cls.get_all_groups)
+
+    def new2(f):
+        def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
+            ppp = f(self)
+            self.tether.handle_end_points(ppp.end_points)
+            return ppp
+        return get_post_process_parameters
+    cls.get_post_process_parameters = new2(cls.get_post_process_parameters)
+
+    def new3(f):
+        def add_interactions(self, pair_inter: PairWise) -> None:
+            f(self, pair_inter)
+            self.tether.add_interactions(pair_inter, self.inter_par, self.dna_parameters.type, self.smc, self.par.kB * self.par.T)
+        return add_interactions
+    cls.add_interactions = new3(cls.add_interactions)
+
+    def new4(f):
+        def get_bonds(self) -> List[BAI]:
+            return f(self) + self.tether.get_bonds(self.dna_parameters.bond)
+        return get_bonds
+    cls.get_bonds = new4(cls.get_bonds)
+
+    return cls
 
 
 class DnaConfiguration:
@@ -439,7 +473,7 @@ class Doubled(DnaConfiguration):
 
         return ppp
 
-# TODO: maybe use decorator to add tether more easily?
+@with_tether
 class Obstacle(DnaConfiguration):
 
     def __init__(self, dna_groups, dna_parameters: DnaParameters, tether: Tether, dna_start_index: int):
@@ -447,9 +481,6 @@ class Obstacle(DnaConfiguration):
         self.tether = tether
         self.dna_start_index = dna_start_index
 
-    def get_all_groups(self) -> List[AtomGroup]:
-        return super().get_all_groups() + self.tether.get_all_groups()
-    
     @classmethod
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> Obstacle:
         # place your DNA here, inside the SMC
@@ -489,8 +520,6 @@ class Obstacle(DnaConfiguration):
             ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
 
-        self.tether.handle_end_points(ppp.end_points)
-
         ppp.dna_indices_list += [
             (
                 (dna_grp, 0),
@@ -501,13 +530,7 @@ class Obstacle(DnaConfiguration):
 
         return ppp
 
-    def add_interactions(self, pair_inter: PairWise) -> None:
-        super().add_interactions(pair_inter)
-        self.tether.add_interactions(pair_inter, self.inter_par, self.dna_parameters.type, self.smc, self.par.kB * self.par.T)
-
-    def get_bonds(self) -> List[BAI]:
-        return super().get_bonds() + self.tether.get_bonds(self.dna_parameters.bond)
-
+@with_tether
 class ObstacleSafety(DnaConfiguration):
 
     def __init__(self, dna_groups, dna_parameters: DnaParameters, tether: Tether, dna_safety_belt_index: int):
@@ -515,9 +538,6 @@ class ObstacleSafety(DnaConfiguration):
         self.tether = tether
         self.dna_safety_belt_index = dna_safety_belt_index
 
-    def get_all_groups(self) -> List[AtomGroup]:
-        return super().get_all_groups() + self.tether.get_all_groups()
-    
     @classmethod
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> ObstacleSafety:
         # 1.
@@ -550,19 +570,11 @@ class ObstacleSafety(DnaConfiguration):
             ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
 
-        self.tether.handle_end_points(ppp.end_points)
-
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
         return ppp
 
-    def add_interactions(self, pair_inter: PairWise) -> None:
-        super().add_interactions(pair_inter)
-        self.tether.add_interactions(pair_inter, self.inter_par, self.dna_parameters.type, self.smc, self.par.kB * self.par.T)
-
-    def get_bonds(self) -> List[BAI]:
-        return super().get_bonds() + self.tether.get_bonds(self.dna_parameters.bond)
-
+@with_tether
 class AdvancedObstacleSafety(DnaConfiguration):
 
     def __init__(self, dna_groups, dna_parameters: DnaParameters, tether: Tether, dna_safety_belt_index: int):
@@ -570,9 +582,6 @@ class AdvancedObstacleSafety(DnaConfiguration):
         self.tether = tether
         self.dna_safety_belt_index = dna_safety_belt_index
 
-    def get_all_groups(self) -> List[AtomGroup]:
-        return super().get_all_groups() + self.tether.get_all_groups()
-    
     @classmethod
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> AdvancedObstacleSafety:
         # 1.
@@ -606,15 +615,6 @@ class AdvancedObstacleSafety(DnaConfiguration):
             ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
         
-        self.tether.handle_end_points(ppp.end_points)
-
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
         return ppp
-
-    def add_interactions(self, pair_inter: PairWise) -> None:
-        super().add_interactions(pair_inter)
-        self.tether.add_interactions(pair_inter, self.inter_par, self.dna_parameters.type, self.smc, self.par.kB * self.par.T)
-
-    def get_bonds(self) -> List[BAI]:
-        return super().get_bonds() + self.tether.get_bonds(self.dna_parameters.bond)
