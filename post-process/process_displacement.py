@@ -323,21 +323,20 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
     pos_kleisins = [data.get_position_from_index(i) for i in parameters["kleisin_ids"]]
 
     new_data_copy1 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data, [pos_top, pos_left, pos_right], 0.7 * parameters["dna_spacing"])
+    remove_outside_planar_n_gon(new_data, [pos_top, pos_left, pos_right], 0.5 * parameters["dna_spacing"])
 
     new_data_copy2 = deepcopy(new_data_copy1)
-    # TODO: this is not in the same plane!
-    # TEMPORARY FIX: use larger delta
-    delta = 0.7 * parameters["dna_spacing"]
+    # TODO shape is not planar, currently use two triangles
+    delta = 0.5 * parameters["dna_spacing"]
     remove_outside_planar_n_gon(new_data_copy2, [pos_middle_right, pos_middle_left, pos_left], delta)
     new_data.combine_by_ids(new_data_copy2)
 
     new_data_copy3 = deepcopy(new_data_copy1)
-    delta = 0.7 * parameters["dna_spacing"]
+    delta = 0.5 * parameters["dna_spacing"]
     remove_outside_planar_n_gon(new_data_copy3, [pos_middle_right, pos_left, pos_right], delta)
     new_data.combine_by_ids(new_data_copy3)
 
-    remove_outside_planar_n_gon(new_data_copy1, pos_kleisins, 0.7 * parameters["dna_spacing"])
+    remove_outside_planar_n_gon(new_data_copy1, pos_kleisins, 0.5 * parameters["dna_spacing"])
     new_data.combine_by_ids(new_data_copy1)
 
     if len(new_data.positions) == 0:
@@ -348,6 +347,12 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
 
     # find groups
     grps = split_into_index_groups(new_data.ids)
+    # TODO: there are still bugs in finding the index
+    # if step == 50250000:
+    #     print(grps)
+    #     print(new_data_copy1.ids)
+    #     print(new_data_copy2.ids)
+    #     print(new_data_copy3.ids)
 
     grp = grps[0]
     grp = [np.where(new_data.ids == id)[0][0] for id in grp]
@@ -394,7 +399,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
             #     continue
             new_data_temp = deepcopy(new_data)
             new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
-            handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters, step if i == 0 else "stop")
+            handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters, step)
 
     # delete old files
     for p in folder_path.glob("marked_bead*.lammpstrj"):
