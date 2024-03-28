@@ -252,7 +252,12 @@ class DnaConfiguration:
         ]
 
     def add_interactions(self, pair_inter: PairWise) -> None:
-        return
+        dna_type = self.dna_parameters.type
+        ip = self.inter_par
+        kBT = self.par.kB * self.par.T
+        pair_inter.add_interaction(dna_type, dna_type, ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA)
+        pair_inter.add_interaction(dna_type, self.smc.armHK_type, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
+        pair_inter.add_interaction(dna_type, self.smc.siteD_type, ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA)
     
     def get_bonds(self) -> List[BAI]:
         return []
