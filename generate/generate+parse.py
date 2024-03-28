@@ -417,7 +417,10 @@ bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, 
 bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, bondMinArmUTop))
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4, indL, indR)
-gen.bais += bonds + dnaConfig.get_bonds()
+gen.bais += [
+    *bonds,
+    *dnaConfig.get_bonds()
+]
 
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kElbows, 180 ) )
 angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )

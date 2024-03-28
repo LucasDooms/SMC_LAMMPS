@@ -8,6 +8,7 @@ log.lammps
 */states/*
 post_processing_parameters.py
 test/
+alt_test/
 */vmd.init
 runs/*
 *.npz
