@@ -127,6 +127,11 @@ run 10000
 
 unfix frz
 
+# collect msd for obstacle
+if $(is_defined(variable,obstacle_id)) then &
+	"group obst_group id ${obstacle_id}" &
+	"dump obst_dump obst_group custom ${output_steps} obstacle.lammpstrj id type x y z" &
+	"dump_modify obst_dump pbc yes"
 
 # Reference point in script (enter loop)
 label main_loop

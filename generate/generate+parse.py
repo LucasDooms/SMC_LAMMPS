@@ -675,3 +675,11 @@ with open(filepath_param, 'w') as parameterfile:
                 sf_forces
             )
         )
+
+    # obstacle, if particle
+    if hasattr(dnaConfig, "tether") and isinstance(dnaConfig.tether.obstacle, dna.Tether.Gold):
+        obstacle_lammps_id = gen.get_atom_index((dnaConfig.tether.obstacle.group, 0))
+        parameterfile.write(
+            "variable obstacle_id equal {}\n".format(obstacle_lammps_id)
+        )
+
