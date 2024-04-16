@@ -188,7 +188,7 @@ class Parser:
         return array
 
     def next_step(self) -> Tuple[int, List[List[float]]]:
-        """returns timestep and list of [x, y, z] for each atom"""
+        """returns timestep and list of [id, type, x, y, z] for each atom"""
 
         saved = self.skip_to_atoms()
         timestep = int(saved["ITEM: TIMESTEP"][0])
@@ -426,6 +426,49 @@ def get_best_match_dna_bead_in_smc(folder_path):
     plt.savefig(folder_path / "bead_id_in_time.png")
 
 
+def get_msd_obstacle(folder_path):
+    par = Parser(folder_path / "obstacle.lammpstrj")
+    steps = []
+    positions = []
+    while True:
+        try:
+            step, arr = par.next_step()
+        except Parser.EndOfLammpsFile:
+            break
+
+        steps.append(step)
+        positions.append(arr[2])
+
+    print(cached)
+
+    # calculate msd in time chunks
+    time_chunk_size = 75 # number of timesteps to pick for one window
+
+    def calculate_msd(array) -> float:
+        return np.sum((array - array[0])**2)
+    
+    def apply_moving_window(window_size: int, func, array):
+        """returns the array of the results from applying the func to
+        windows along the array."""
+        result = []
+        for i in range(len(array) - window_size):
+            result.append(
+                func(array[i:i + window_size])
+            )
+        return result
+    
+    msd_array = apply_moving_window(time_chunk_size, calculate_msd, positions)
+
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(8, 6), dpi=144)
+    plt.title(f"MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size}")
+    plt.xlabel("time")
+    plt.ylabel("MSD")
+    plt.scatter(steps[:-time_chunk_size], msd_array, s=0.5)
+    plt.savefig(folder_path / "msd_in_time.png")
+
+
 def test_plane_distances():
     p1 = np.array([0, 1, 0], dtype=float)
     p2 = np.array([0, 1, 2], dtype=float)
@@ -455,4 +498,5 @@ if __name__ == "__main__":
     if len(argv) != 1:
         raise Exception("Please provide a folder path")
     path = Path(argv[0])
-    get_best_match_dna_bead_in_smc(path)
+    # get_best_match_dna_bead_in_smc(path)
+    get_msd_obstacle(path)
