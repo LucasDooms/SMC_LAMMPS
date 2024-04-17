@@ -647,7 +647,7 @@ with open(filepath_param, 'w') as parameterfile:
         )
     )
 
-    if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)) and dnaConfig.tether.obstacle is dna.Tether.Wall:
+    if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)) and isinstance(dnaConfig.tether.obstacle, dna.Tether.Wall):
         parameterfile.write(f"variable wall_y equal {dnaConfig.tether.group.positions[0][1]}\n")
 
         excluded = [gen.get_atom_index((dnaConfig.tether.group, 0)), gen.get_atom_index((dnaConfig.tether.group, 1))]
