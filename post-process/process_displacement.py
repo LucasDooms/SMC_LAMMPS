@@ -442,10 +442,10 @@ def get_msd_obstacle(folder_path):
     print(cached)
 
     # calculate msd in time chunks
-    time_chunk_size = 75 # number of timesteps to pick for one window
+    time_chunk_size = 1000 # number of timesteps to pick for one window
 
     def calculate_msd(array) -> float:
-        return np.sum((array - array[0])**2)
+        return np.average((array - array[0])**2)
     
     def apply_moving_window(window_size: int, func, array):
         """returns the array of the results from applying the func to
