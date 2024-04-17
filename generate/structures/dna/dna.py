@@ -572,6 +572,12 @@ class ObstacleSafety(DnaConfiguration):
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
+        # prevent breaking of safety belt
+        # ppp.freeze_indices += [
+        #     *[(self.dna_groups[0], self.dna_safety_belt_index + i) for i in range(-6, 6)],
+        #     *[(self.smc.siteD_group, i) for i in range(len(self.smc.siteD_group.positions))]
+        # ]
+
         return ppp
 
 @with_tether
@@ -616,5 +622,11 @@ class AdvancedObstacleSafety(DnaConfiguration):
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
         
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+
+        # prevent breaking of safety belt
+        # ppp.freeze_indices += [
+        #     *[(self.dna_groups[0], self.dna_safety_belt_index + i) for i in range(-6, 6)],
+        #     *[(self.smc.siteD_group, i) for i in range(len(self.smc.siteD_group.positions))]
+        # ]
 
         return ppp
