@@ -498,5 +498,5 @@ if __name__ == "__main__":
     if len(argv) != 1:
         raise Exception("Please provide a folder path")
     path = Path(argv[0])
-    # get_best_match_dna_bead_in_smc(path)
+    get_best_match_dna_bead_in_smc(path)
     get_msd_obstacle(path)
