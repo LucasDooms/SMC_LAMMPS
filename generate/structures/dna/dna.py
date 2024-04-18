@@ -546,7 +546,7 @@ class ObstacleSafety(DnaConfiguration):
         # 2.
         # make sure SMC contains DNA
         shift = rSiteD[1] - belt_location
-        shift[1] -= 0.65 * par.cutoff6 
+        shift[1] -= 0.65 * par.cutoff6 + 0.5 * par.cutoff6 # TODO: if siteDup
         rDNA += shift
 
         dna_groups = dna_parameters.create_dna([rDNA])
@@ -597,9 +597,9 @@ class AdvancedObstacleSafety(DnaConfiguration):
         # 2.
         # make sure SMC contains DNA
         shift = rSiteD[1] - belt_location
-        shift[1] -= 1.35 * par.cutoff6 
+        shift[1] -= 1.35 * par.cutoff6 + 0.5 * par.cutoff6 # TODO: if siteDup
         rDNA += shift
-        
+
         dna_groups = dna_parameters.create_dna([rDNA])
 
         tether = Tether.create_tether((dna_groups[0], dna_bead_to_tether_id), 35, dna_parameters.DNAbondLength, dna_parameters.mDNA, dna_parameters.bond, dna_parameters.angle, Tether.Obstacle())

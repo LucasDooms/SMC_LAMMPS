@@ -271,7 +271,8 @@ smc_creator = SMC_Creator(
 rot_vec = np.array([0.0, 0.0, -np.deg2rad(42)]) if dnaConfigClass is dna.AdvancedObstacleSafety else None
 rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
         smc_creator.get_smc(
-            siteD_points_down=dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
+            siteD_points_down=False,
+            #dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
             extra_rotation=rot_vec
         )
 
@@ -397,7 +398,7 @@ bridge_soft_on = [None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2
 top_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
 top_site_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
 
-if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)):
+if False: #isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
     # always keep site on
     lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 else:

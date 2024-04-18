@@ -442,7 +442,7 @@ def get_msd_obstacle(folder_path):
     print(cached)
 
     # calculate msd in time chunks
-    time_chunk_size = 1000 # number of timesteps to pick for one window
+    time_chunk_size = 2000 # number of timesteps to pick for one window
 
     def calculate_msd(array) -> float:
         return np.average((array - array[0])**2)
@@ -462,7 +462,7 @@ def get_msd_obstacle(folder_path):
     import matplotlib.pyplot as plt
 
     plt.figure(figsize=(8, 6), dpi=144)
-    plt.title(f"MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size}")
+    plt.title(f"MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size} (all average = {calculate_msd(positions)})")
     plt.xlabel("time")
     plt.ylabel("MSD")
     plt.scatter(steps[:-time_chunk_size], msd_array, s=0.5)
