@@ -11,7 +11,7 @@ cycles = 10
 # epsilon6 = 500.0
 
 # weak force
-force = 0.01
+force = 0.05
 
 # configuration
 # dnaConfig = "advanced_obstacle_safety"

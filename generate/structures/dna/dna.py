@@ -541,7 +541,7 @@ class ObstacleSafety(DnaConfiguration):
     @classmethod
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> ObstacleSafety:
         # 1.
-        [rDNA], belt_location, dna_safety_belt_index = dna_creator.get_dna_coordinates_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+        [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
         
         # 2.
         # make sure SMC contains DNA
@@ -551,7 +551,6 @@ class ObstacleSafety(DnaConfiguration):
 
         dna_groups = dna_parameters.create_dna([rDNA])
 
-        dna_bead_to_tether_id = int(len(rDNA) / 3.5)
         tether = Tether.create_tether((dna_groups[0], dna_bead_to_tether_id), 35, dna_parameters.DNAbondLength, dna_parameters.mDNA, dna_parameters.bond, dna_parameters.angle, Tether.Obstacle())
         obstacle = Tether.get_obstacle(True, cls.inter_par, 100 * dna_parameters.mDNA, tether.group)
         tether.obstacle = obstacle
