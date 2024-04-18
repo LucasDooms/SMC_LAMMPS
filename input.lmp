@@ -133,6 +133,10 @@ if $(is_defined(variable,obstacle_id)) then &
 	"dump obst_dump obst_group custom ${output_steps} obstacle.lammpstrj id type x y z" &
 	"dump_modify obst_dump pbc yes"
 
+# apply force to smc
+if $(is_defined(variable,smc_force)) then &
+	"fix smc_force SMC addforce $(-v_smc_force) $(v_smc_force) 0"
+
 # Reference point in script (enter loop)
 label main_loop
 

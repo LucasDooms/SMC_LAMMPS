@@ -14,6 +14,8 @@ cycles = 10
 force = 0.05
 
 # configuration
-# dnaConfig = "advanced_obstacle_safety"
-dnaConfig = "obstacle_safety"
+dnaConfig = "advanced_obstacle_safety"
+# dnaConfig = "obstacle_safety"
 # dnaConfig = "line"
+
+smc_force = 0.01
