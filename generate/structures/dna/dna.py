@@ -171,10 +171,10 @@ class Tether:
             tether_type, smc.armHK_type,
             ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA
         )
-        pair_inter.add_interaction(
-            tether_type, smc.siteD_type,
-            ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA
-        )
+        # pair_inter.add_interaction(
+        #     tether_type, smc.siteD_type,
+        #     ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA
+        # )
         if isinstance(self.obstacle, Tether.Gold):
             pair_inter.add_interaction(self.obstacle.group.type, dna_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
             pair_inter.add_interaction(self.obstacle.group.type, smc.armHK_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
