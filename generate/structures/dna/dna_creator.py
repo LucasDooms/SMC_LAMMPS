@@ -46,7 +46,7 @@ def get_dna_coordinates_safety_belt(nDNA: int, DNAbondLength: float):
     belt_index = np.where(distances == np.min(distances))[0][0]
 
     remaining = nDNA - len(rDNA)
-    nLeft = int(remaining * 0.3)
+    nLeft = int(remaining * 0.05)
     nRight = remaining - nLeft
     left = get_straight_segment(nLeft + 1, [-1, 0, 0]) * DNAbondLength
     right = get_straight_segment(nRight + 1, [-1, 0, 0]) * DNAbondLength
