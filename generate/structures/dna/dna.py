@@ -117,7 +117,7 @@ class Tether:
         if real_obstacle:
             obstacle_radius = 100 # nanometers
             obstacle_cut = obstacle_radius * 2**(1/6)
-            pos = tether_group.positions[0] - np.array([0, obstacle_radius*0.9, 0], dtype=float)
+            pos = tether_group.positions[0] - np.array([0, obstacle_radius - ip.sigmaDNAvsDNA, 0], dtype=float)
             obstacle_type = AtomType(cls.get_gold_mass(obstacle_radius))
             obstacle_group = AtomGroup(
                 positions=np.array([pos]),
@@ -125,7 +125,7 @@ class Tether:
                 molecule_index=tether_group.molecule_index
             )
 
-            obstacle_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(1, 25*ip.sigmaDNAvsDNA, 0, 0, ip.sigmaDNAvsDNA))
+            obstacle_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(1, obstacle_radius, 0, 0, ip.sigmaDNAvsDNA))
             tether_obstacle_bond = BAI(obstacle_bond, (tether_group, 0), (obstacle_group, 0))
             return Tether.Gold(obstacle_group, obstacle_radius, obstacle_cut, tether_obstacle_bond)
         else:
