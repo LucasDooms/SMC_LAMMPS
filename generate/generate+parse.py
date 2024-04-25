@@ -456,8 +456,8 @@ if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)): #TOD
     safety_index = dnaConfig.dna_safety_belt_index
     gen.molecule_override[(dnaConfig.dna_groups[0], safety_index)] = molSiteD
     # add neighbors to prevent rotation
-    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = molSiteD
-    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = molSiteD
+    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = molSiteD
+    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = molSiteD
 
 # Create datafile
 with open(filepath_data, 'w') as datafile:
