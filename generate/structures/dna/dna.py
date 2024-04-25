@@ -105,13 +105,20 @@ class Tether:
     dna_tether_id: AtomIdentifier
     obstacle: Tether.Obstacle
 
+    @staticmethod
+    def get_gold_mass(radius: float) -> float:
+        """radius in nanometers, returns attograms"""
+        density = 0.0193 # attograms per nanometer^3
+        volume = 4.0/3.0 * np.pi * radius**3
+        return density * volume
+
     @classmethod
-    def get_obstacle(cls, real_obstacle: bool, ip: InteractionParameters, mass: float, tether_group: AtomGroup) -> Tether.Obstacle:
+    def get_obstacle(cls, real_obstacle: bool, ip: InteractionParameters, tether_group: AtomGroup) -> Tether.Obstacle:
         if real_obstacle:
-            obstacle_radius = 25 * ip.sigmaDNAvsDNA
-            obstacle_cut = 25 * ip.rcutDNAvsDNA
+            obstacle_radius = 100 # nanometers
+            obstacle_cut = obstacle_radius * 2**(1/6)
             pos = tether_group.positions[0] - np.array([0, obstacle_radius*0.9, 0], dtype=float)
-            obstacle_type = AtomType(mass)
+            obstacle_type = AtomType(cls.get_gold_mass(obstacle_radius))
             obstacle_group = AtomGroup(
                 positions=np.array([pos]),
                 atom_type=obstacle_type,
@@ -503,7 +510,7 @@ class Obstacle(DnaConfiguration):
         tether = Tether.create_tether(
             (dna_groups[0], dna_bead_to_tether_id), 25, dna_parameters.DNAbondLength, dna_parameters.mDNA, dna_parameters.bond, dna_parameters.angle, Tether.Obstacle()
         )
-        obstacle = Tether.get_obstacle(True, cls.inter_par, 100 * dna_parameters.mDNA, tether.group)
+        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
         tether.obstacle = obstacle
         # place the tether next to the DNA bead
         tether.move(rDNA[dna_bead_to_tether_id] - tether.group.positions[-1])
@@ -552,7 +559,7 @@ class ObstacleSafety(DnaConfiguration):
         dna_groups = dna_parameters.create_dna([rDNA])
 
         tether = Tether.create_tether((dna_groups[0], dna_bead_to_tether_id), 35, dna_parameters.DNAbondLength, dna_parameters.mDNA, dna_parameters.bond, dna_parameters.angle, Tether.Obstacle())
-        obstacle = Tether.get_obstacle(True, cls.inter_par, 100 * dna_parameters.mDNA, tether.group)
+        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
         tether.obstacle = obstacle
 
         tether.move(rDNA[dna_bead_to_tether_id] - tether.group.positions[-1])
@@ -602,7 +609,7 @@ class AdvancedObstacleSafety(DnaConfiguration):
         dna_groups = dna_parameters.create_dna([rDNA])
 
         tether = Tether.create_tether((dna_groups[0], dna_bead_to_tether_id), 35, dna_parameters.DNAbondLength, dna_parameters.mDNA, dna_parameters.bond, dna_parameters.angle, Tether.Obstacle())
-        obstacle = Tether.get_obstacle(True, cls.inter_par, 100 * dna_parameters.mDNA, tether.group)
+        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
         tether.obstacle = obstacle
 
         # place the tether next to the DNA bead
