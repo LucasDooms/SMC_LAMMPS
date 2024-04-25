@@ -55,7 +55,7 @@ def get_dna_coordinates_safety_belt(nDNA: int, DNAbondLength: float):
     )
 
     belt_location = rDNA[belt_index]
-    return [np.concatenate([right, rDNA, left])], belt_location, belt_index + len(right), int(len(right)*0.75)
+    return [np.concatenate([right, rDNA, left])], belt_location, belt_index + len(right), len(right) - 40
 
 
 def get_dna_coordinates_advanced_safety_belt(nDNA: int, DNAbondLength: float):

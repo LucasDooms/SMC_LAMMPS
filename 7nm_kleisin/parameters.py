@@ -3,7 +3,7 @@ HKradius = 6.
 # HKradius = 4.5 # from original paper (used incorrect formula??)
 
 # amount of DNA
-N = 500
+N = 400
 
 cycles = 40
 
