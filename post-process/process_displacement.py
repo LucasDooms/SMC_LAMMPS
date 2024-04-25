@@ -446,17 +446,17 @@ def get_msd_obstacle(folder_path):
 
     def calculate_msd(array) -> float:
         return np.average((array - array[0])**2)
-    
+
     def apply_moving_window(window_size: int, func, array):
         """returns the array of the results from applying the func to
         windows along the array."""
         result = []
-        for i in range(len(array) - window_size):
+        for i in range(len(array) - window_size + 1):
             result.append(
                 func(array[i:i + window_size])
             )
         return result
-    
+
     msd_array = apply_moving_window(time_chunk_size, calculate_msd, positions)
 
     import matplotlib.pyplot as plt
@@ -465,7 +465,7 @@ def get_msd_obstacle(folder_path):
     plt.title(f"MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size} (all average = {calculate_msd(positions)})")
     plt.xlabel("time")
     plt.ylabel("MSD")
-    plt.scatter(steps[:-time_chunk_size], msd_array, s=0.5)
+    plt.scatter(steps[:-time_chunk_size+1], msd_array, s=0.5)
     plt.savefig(folder_path / "msd_in_time.png")
 
 
