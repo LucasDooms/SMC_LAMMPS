@@ -1,9 +1,9 @@
 # Radius of lower circular-arc compartment (nm)
-HKradius = 6.
+HKradius = 7.
 # HKradius = 4.5 # from original paper (used incorrect formula??)
 
 # amount of DNA
-N = 400
+N = 500
 
 cycles = 40
 
@@ -15,7 +15,8 @@ force = 0.02
 
 # configuration
 # dnaConfig = "advanced_obstacle_safety"
-dnaConfig = "obstacle_safety"
+# dnaConfig = "obstacle_safety"
+dnaConfig = "obstacle"
 # dnaConfig = "line"
 
 # smc_force = 0.01
