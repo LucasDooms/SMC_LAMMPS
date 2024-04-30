@@ -499,7 +499,7 @@ with open(states_path / "apo", 'w') as apo_file:
         lower_compartment_unfolds2
     ]
     apply(gen.write_script_bai_coeffs, apo_file, options)
-    
+
     # gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
 
 with open(states_path / "atp_bound_1", 'w') as atp_bound_1_file:
