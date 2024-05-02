@@ -1,3 +1,5 @@
+# Copyright (c) 2024 Lucas Dooms
+
 from ..structure_creator import get_straight_segment, get_circle_segment, attach, attach_chain, get_interpolated
 import numpy as np
 import math

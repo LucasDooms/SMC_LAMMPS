@@ -1,3 +1,5 @@
+# Copyright (c) 2024 Lucas Dooms
+
 # File containing different initial DNA configurations
 
 from __future__ import annotations

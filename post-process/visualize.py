@@ -1,3 +1,5 @@
+# Copyright (c) 2024 Lucas Dooms
+
 import argparse
 from pathlib import Path
 from typing import List, Tuple

@@ -1,5 +1,10 @@
 # DNA Loop Extrusion by SMCCs in LAMMPS
 
+## Authors
+
+Original code by Stefanos Nomidis (https://github.com/sknomidis/SMC_LAMMPS), released under [MIT license](ORIGINAL_LICENSE).  
+Modifications by Arwin Goossens.  
+All commits in this repository by Lucas Dooms, released under [GPL v3 license](LICENSE).
 
 ## How to run
 

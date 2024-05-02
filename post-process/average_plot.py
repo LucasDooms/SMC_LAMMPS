@@ -1,3 +1,5 @@
+# Copyright (c) 2024 Lucas Dooms
+
 from sys import argv
 from glob import glob
 from typing import List

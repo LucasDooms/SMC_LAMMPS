@@ -1,3 +1,7 @@
+# Copyright (c) 2021 Stefanos Nomidis
+# Copyright (c) 2022 Arwin Goossens
+# Copyright (c) 2024 Lucas Dooms
+
 import math
 import numpy as np
 from generator import AtomIdentifier, Generator, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
