@@ -534,6 +534,8 @@ class Obstacle(DnaConfiguration):
         if par.force:
             ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+        else:
+            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
 
         ppp.dna_indices_list += [
             (
@@ -583,6 +585,8 @@ class ObstacleSafety(DnaConfiguration):
         if par.force:
             ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+        else:
+            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
@@ -634,7 +638,9 @@ class AdvancedObstacleSafety(DnaConfiguration):
         if par.force:
             ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
-        
+        else:
+            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
         # prevent breaking of safety belt

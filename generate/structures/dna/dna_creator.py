@@ -103,6 +103,7 @@ def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength:
                 [-5, 0.75, 0], [-6, 0.5, 0], [-7, 0, 0], # down, to the left
                 [-5.5, -1, 0], [-4, -1.3, 0], [0.7, -1.4, 0], [2.8, -1.8, 0], [3.5, -2.2, 0.0], [3.5, -2.5, 0.0], # down, to the right
                 [3, -3.1, 0], [2.5, -3.2, 0], [2, -3.2, 0], # down, to the left
+                [-1, -3.2, 0], [-7, -3.2, 0], # straight left
             ],
             dtype=float
         )
