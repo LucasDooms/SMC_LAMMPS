@@ -1,3 +1,5 @@
+# Copyright (c) 2024 Lucas Dooms
+
 from __future__ import annotations
 from typing import List, Tuple, Set, Dict, Any
 from enum import Enum

@@ -1,3 +1,5 @@
+# Copyright (c) 2024 Lucas Dooms
+
 from ..structure_creator import get_circle_segment_unit_radius, get_straight_segment, attach_chain
 from dataclasses import dataclass
 import math

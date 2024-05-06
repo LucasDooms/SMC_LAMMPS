@@ -119,3 +119,7 @@ foldingStiffness = 60.
 
 # Folding asymmetry stiffness of lower compartment (kT units)
 asymmetryStiffness = 100.
+
+
+# Extra force on SMC in the -x direction and +y direction (left & up)
+smc_force = 0.0

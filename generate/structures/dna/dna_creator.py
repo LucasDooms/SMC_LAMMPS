@@ -1,3 +1,5 @@
+# Copyright (c) 2024 Lucas Dooms
+
 from ..structure_creator import get_straight_segment, get_circle_segment, attach, attach_chain, get_interpolated
 import numpy as np
 import math
@@ -37,7 +39,7 @@ def get_dna_coordinates_safety_belt(nDNA: int, DNAbondLength: float):
                 [-3.25, 0.75, 0], # down, to the left
                 [-0.5, -1, 0], [0, -1, 0], [0.7, -1, 0], [1.5, -1.5, 0], # down, to the right
                 [1.0, -2, 0], [-2, -2, 0], # down, to the left
-                [-4, 0, 0], [-5, 0, 0], # left, straight
+                [-3, -0.5, 0], [-4, 0, 0], # left, straight
             ],
             dtype=float
         )
@@ -46,16 +48,16 @@ def get_dna_coordinates_safety_belt(nDNA: int, DNAbondLength: float):
     belt_index = np.where(distances == np.min(distances))[0][0]
 
     remaining = nDNA - len(rDNA)
-    nLeft = remaining // 2
+    nLeft = int(remaining * 0.05)
     nRight = remaining - nLeft
     left = get_straight_segment(nLeft + 1, [-1, 0, 0]) * DNAbondLength
     right = get_straight_segment(nRight + 1, [-1, 0, 0]) * DNAbondLength
     right, rDNA, left = attach_chain(
         right, [[rDNA, True], [left, True]]
     )
-    
+
     belt_location = rDNA[belt_index]
-    return [np.concatenate([right, rDNA, left])], belt_location, belt_index + len(right)
+    return [np.concatenate([right, rDNA, left])], belt_location, belt_index + len(right), len(right) - 40
 
 
 def get_dna_coordinates_advanced_safety_belt(nDNA: int, DNAbondLength: float):
@@ -94,12 +96,14 @@ def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength:
         10 * DNAbondLength * np.array(
             [
                 [6, -2.0, 0], [5, -1.4, 0], [4.7, -0.5, 0], # right piece
-                [4.6, -0.4, 2], [4.5, -0.2, 4], [4.2, 0, 2], # loop
+                [4.6, -0.4, 2], [4.7, -0.2, 4], [4.5, -0.2, 4], [4.0, -0.15, 4],
+                [0.0, -0.15, 4], [1.0, -0.15, 2], [4.0, -0.05, 2.4], [4.2, 0, 2], # loop
                 [4, 0, 0], [2, 0, 0],
                 [0, 1.0, 0], [-3, 1.5, 0], [-4, 1.25, 0], # up, to the left
                 [-5, 0.75, 0], [-6, 0.5, 0], [-7, 0, 0], # down, to the left
                 [-5.5, -1, 0], [-4, -1.3, 0], [0.7, -1.4, 0], [2.8, -1.8, 0], [3.5, -2.2, 0.0], [3.5, -2.5, 0.0], # down, to the right
                 [3, -3.1, 0], [2.5, -3.2, 0], [2, -3.2, 0], # down, to the left
+                [-1, -3.2, 0], [-7, -3.2, 0], # straight left
             ],
             dtype=float
         )
@@ -112,7 +116,6 @@ def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength:
     rDNA = attach(right, rDNA, delete_overlap=True)
 
     belt_location = rDNA[belt_index]
-    # bead_to_tether_id = len(right) + 31
     bead_to_tether_id += len(right)
 
     return [np.concatenate([right, rDNA])], belt_location, belt_index + len(right), bead_to_tether_id

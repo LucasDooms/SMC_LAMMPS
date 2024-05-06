@@ -1,4 +1,5 @@
 output.lammpstrj
+obstacle.lammpstrj
 marked_bead*.lammpstrj
 bead_id_in_time.png
 *.out
@@ -8,6 +9,8 @@ log.lammps
 */states/*
 post_processing_parameters.py
 test/
+alt_test/
 */vmd.init
-runs/*
+*runs
+*runs/*
 *.npz

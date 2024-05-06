@@ -58,7 +58,7 @@ else:
 if args.post_process:
     print("running post processing...")
     run_and_handle_error(lambda: subprocess.run(["python", "post-process/process_displacement.py", f"{path}"]), args.ignore_errors)
-    print("succesfully ran post processing", args.ignore_errors)
+    print("succesfully ran post processing")
 
 if args.visualize:
     print("starting VMD")

@@ -1,6 +1,10 @@
+# Copyright (c) 2021 Stefanos Nomidis
+# Copyright (c) 2022 Arwin Goossens
+# Copyright (c) 2024 Lucas Dooms
+
 import math
 import numpy as np
-from generator import AtomIdentifier, Generator, BAI, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
+from generator import AtomIdentifier, Generator, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
 from sys import argv
 from pathlib import Path
 from typing import Any, List
@@ -185,6 +189,17 @@ rcutSiteDvsDNA = par.cutoff6
 # Epsilon parameter of LJ attraction
 epsilonSiteDvsDNA = par.epsilon6
 
+interaction_parameters = dna.InteractionParameters(
+    sigmaDNAvsDNA=sigmaDNAvsDNA,
+    epsilonDNAvsDNA=epsilonDNAvsDNA,
+    rcutDNAvsDNA=rcutDNAvsDNA,
+    sigmaSMCvsDNA=sigmaSMCvsDNA,
+    epsilonSMCvsDNA=epsilonSMCvsDNA,
+    rcutSMCvsDNA=rcutSMCvsDNA,
+    sigmaSiteDvsDNA=sigmaSiteDvsDNA,
+    rcutSiteDvsDNA=rcutSiteDvsDNA,
+    epsilonSiteDvsDNA=epsilonSiteDvsDNA,
+)
 
 # Even More Parameters
 
@@ -231,7 +246,7 @@ kAsymmetry = par.asymmetryStiffness * kBT
 #################################################################################
 
 
-dna.DnaConfiguration.set_parameters(par)
+dna.DnaConfiguration.set_parameters(par, interaction_parameters)
 dnaConfigClass = dna.DnaConfiguration.str_to_config(par.dnaConfig)
 
 
@@ -260,7 +275,8 @@ smc_creator = SMC_Creator(
 rot_vec = np.array([0.0, 0.0, -np.deg2rad(42)]) if dnaConfigClass is dna.AdvancedObstacleSafety else None
 rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
         smc_creator.get_smc(
-            siteD_points_down=dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
+            siteD_points_down=False,
+            #dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
             extra_rotation=rot_vec
         )
 
@@ -284,10 +300,10 @@ dna_parameters = dna.DnaParameters(
     nDNA=nDNA,
     DNAbondLength=DNAbondLength,
     mDNA=mDNA,
-    dna_type=dna_type,
+    type=dna_type,
     molDNA=molDNA,
-    dna_bond=dna_bond,
-    dna_angle=dna_angle
+    bond=dna_bond,
+    angle=dna_angle
 )
 dnaConfig = dnaConfigClass.get_dna_config(dna_parameters, rSiteD, par)
 
@@ -363,24 +379,15 @@ gen.atom_groups += [
     *smc_1_groups
 ]
 
-# get post process stuff
 
 # Pair coefficients
 pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
 
-pair_inter.add_interaction(dna_type, dna_type, epsilonDNAvsDNA * kBT, sigmaDNAvsDNA, rcutDNAvsDNA)
-pair_inter.add_interaction(dna_type, armHK_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
-pair_inter.add_interaction(dna_type, siteD_type, epsilonSiteDvsDNA * kBT, sigmaSiteDvsDNA, rcutSiteDvsDNA)
-if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)):
-    tether_type = dnaConfig.tether_group.type
-    # tether
-    pair_inter.add_interaction(tether_type, tether_type, epsilonDNAvsDNA * kBT, sigmaDNAvsDNA, rcutDNAvsDNA)
-    pair_inter.add_interaction(tether_type, dna_type, epsilonDNAvsDNA * kBT, sigmaDNAvsDNA, rcutDNAvsDNA)
-    pair_inter.add_interaction(tether_type, armHK_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
-    pair_inter.add_interaction(tether_type, siteD_type, epsilonSiteDvsDNA * kBT, sigmaSiteDvsDNA, rcutSiteDvsDNA)
+dnaConfig.add_interactions(pair_inter)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
+
 
 gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
@@ -395,7 +402,7 @@ bridge_soft_on = [None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2
 top_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
 top_site_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
 
-if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)):
+if False: #isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
     # always keep site on
     lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
 else:
@@ -415,10 +422,10 @@ bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, 
 bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, bondMinArmUTop))
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4, indL, indR)
-gen.bais += bonds
-if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)):
-    tether_to_dna_bond = BAI(dna_bond, (dnaConfig.tether_group, -1), (dnaConfig.dna_groups[0], dnaConfig.dna_tether_id))
-    gen.bais += [tether_to_dna_bond]
+gen.bais += [
+    *bonds,
+    *dnaConfig.get_bonds()
+]
 
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kElbows, 180 ) )
 angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
@@ -449,12 +456,12 @@ lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 
 
 
 # Override molecule ids to form rigid safety-belt bond
-if isinstance(dnaConfig, dna.ObstacleSafety): #TODO
+if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)): #TODO
     safety_index = dnaConfig.dna_safety_belt_index
     gen.molecule_override[(dnaConfig.dna_groups[0], safety_index)] = molSiteD
     # add neighbors to prevent rotation
-    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = molSiteD
-    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = molSiteD
+    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = molSiteD
+    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = molSiteD
 
 # Create datafile
 with open(filepath_data, 'w') as datafile:
@@ -496,7 +503,7 @@ with open(states_path / "apo", 'w') as apo_file:
         lower_compartment_unfolds2
     ]
     apply(gen.write_script_bai_coeffs, apo_file, options)
-    
+
     # gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
 
 with open(states_path / "atp_bound_1", 'w') as atp_bound_1_file:
@@ -644,11 +651,11 @@ with open(filepath_param, 'w') as parameterfile:
             prepend_or_empty(list_to_space_str(freeze_indices_LAMMPS), "id ")
         )
     )
-    
-    if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)):
-        parameterfile.write(f"variable wall_y equal {dnaConfig.tether_group.positions[0][1]}\n")
 
-        excluded = [gen.get_atom_index((dnaConfig.tether_group, 0)), gen.get_atom_index((dnaConfig.tether_group, 1))]
+    if isinstance(dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)) and isinstance(dnaConfig.tether.obstacle, dna.Tether.Wall):
+        parameterfile.write(f"variable wall_y equal {dnaConfig.tether.group.positions[0][1]}\n")
+
+        excluded = [gen.get_atom_index((dnaConfig.tether.group, 0)), gen.get_atom_index((dnaConfig.tether.group, 1))]
         parameterfile.write(
             get_string_def("excluded",
                 prepend_or_empty(list_to_space_str(excluded), "id ")
@@ -673,3 +680,11 @@ with open(filepath_param, 'w') as parameterfile:
                 sf_forces
             )
         )
+
+    # obstacle, if particle
+    if hasattr(dnaConfig, "tether") and isinstance(dnaConfig.tether.obstacle, dna.Tether.Gold):
+        obstacle_lammps_id = gen.get_atom_index((dnaConfig.tether.obstacle.group, 0))
+        parameterfile.write(
+            "variable obstacle_id equal {}\n".format(obstacle_lammps_id)
+        )
+

@@ -1,3 +1,5 @@
+# Copyright (c) 2024 Lucas Dooms
+
 from generator import AtomType, AtomGroup, BAI_Type, BAI
 from dataclasses import dataclass
 from typing import List

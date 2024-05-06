@@ -1,3 +1,5 @@
+# Copyright (c) 2024 Lucas Dooms
+
 # post-processing to find the movement of the SMC relative to the DNA
 
 from __future__ import annotations
@@ -61,7 +63,7 @@ class Plane:
     class Side(Enum):
         OUTSIDE = -1 # on the side of the plane that the normal vector is pointing to
         INSIDE = 1 # opposite of OUTSIDE
-        
+
         @classmethod
         def get_opposite(cls, side: Plane.Side) -> Plane.Side:
             if side == cls.INSIDE:
@@ -98,7 +100,7 @@ class LammpsData:
     ids: List[int]
     types: List[int]
     positions: List[List[float]]
-    
+
     @timer_accumulator
     def filter(self, keep) -> None:
         """filters the current lists
@@ -188,7 +190,7 @@ class Parser:
         return array
 
     def next_step(self) -> Tuple[int, List[List[float]]]:
-        """returns timestep and list of [x, y, z] for each atom"""
+        """returns timestep and list of [id, type, x, y, z] for each atom"""
 
         saved = self.skip_to_atoms()
         timestep = int(saved["ITEM: TIMESTEP"][0])
@@ -282,7 +284,7 @@ def get_bead_distances(positions, pos1: int, pos2: int, pos3: int):
     return distance_point_to_plane(positions, pos1, normal_vector)
 
 
-def remove_outside_planar_n_gon(data: LammpsData, points, delta: float): # step = 08070000
+def remove_outside_planar_n_gon(data: LammpsData, points, delta: float):
     """removes all points outside a box created from an n-sided polygon in a plane.
     the points are the vertices of the n-gon and are assumed to be in the same plane.
     delta is the thickness of the box in each direction going out of the plane."""
@@ -297,13 +299,8 @@ def remove_outside_planar_n_gon(data: LammpsData, points, delta: float): # step 
     # delete points further than delta perpendicular to the n-gon
     plane = Plane(points[0] + delta * normal, normal)
     data.delete_side_of_plane(plane, Plane.Side.OUTSIDE)
-    stop = False
-    if not stop and len(data.positions) == 0:
-        stop = True
     plane = Plane(points[0] - delta * normal, normal)
     data.delete_side_of_plane(plane, Plane.Side.INSIDE)
-    if not stop and len(data.positions) == 0:
-        stop = True
 
     # delete points far away in the plane of the n-gon
     for point1, point2 in zip(points, points[1:] + [points[0]]):
@@ -312,8 +309,6 @@ def remove_outside_planar_n_gon(data: LammpsData, points, delta: float): # step 
         side_plane = Plane(point1, normal_to_side)
         # INSIDE of plane points out of the shape
         data.delete_side_of_plane(side_plane, Plane.Side.INSIDE)
-        if not stop and len(data.positions) == 0:
-            stop = True
 
 
 def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, parameters, step):
@@ -321,41 +316,48 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
         indices.append(-1)
         positions.append(data.positions[indices[-1]])
         return
-    
+
     pos_top = data.get_position_from_index(parameters["top_bead_id"])
     pos_left = data.get_position_from_index(parameters["left_bead_id"])
     pos_right = data.get_position_from_index(parameters["right_bead_id"])
     pos_middle_left = data.get_position_from_index(parameters["middle_left_bead_id"])
     pos_middle_right = data.get_position_from_index(parameters["middle_right_bead_id"])
     pos_kleisins = [data.get_position_from_index(i) for i in parameters["kleisin_ids"]]
-    
+
     new_data_copy1 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data, [pos_top, pos_left, pos_right], 1.05 * parameters["dna_spacing"])
-    l1 = len(new_data.positions)
+    remove_outside_planar_n_gon(new_data, [pos_top, pos_left, pos_right], 0.5 * parameters["dna_spacing"])
 
     new_data_copy2 = deepcopy(new_data_copy1)
-    # TODO: this is not in the same plane!
-    # TEMPORARY FIX: use larger delta
-    delta = min(1.05 * parameters["dna_spacing"], np.linalg.norm(pos_right - pos_left))
+    # TODO shape is not planar, currently use two triangles
+    delta = 0.5 * parameters["dna_spacing"]
     remove_outside_planar_n_gon(new_data_copy2, [pos_middle_right, pos_middle_left, pos_left], delta)
-    l2 = len(new_data_copy2.positions)
     new_data.combine_by_ids(new_data_copy2)
 
-    remove_outside_planar_n_gon(new_data_copy1, pos_kleisins, 1.25 * parameters["dna_spacing"])
-    l3 = len(new_data_copy1.positions)
+    new_data_copy3 = deepcopy(new_data_copy1)
+    delta = 0.5 * parameters["dna_spacing"]
+    remove_outside_planar_n_gon(new_data_copy3, [pos_middle_right, pos_left, pos_right], delta)
+    new_data.combine_by_ids(new_data_copy3)
+
+    remove_outside_planar_n_gon(new_data_copy1, pos_kleisins, 0.5 * parameters["dna_spacing"])
     new_data.combine_by_ids(new_data_copy1)
 
     if len(new_data.positions) == 0:
-        print(f"call: {step}, {l1=}, {l2=}, {l3=}")
+        print(f"call: {step}")
         indices.append(-1)
         positions.append(data.positions[indices[-1]])
         return
 
     # find groups
-    search_indices = range(len(new_data.ids))
-    grps = split_into_index_groups(search_indices)
-    
+    grps = split_into_index_groups(new_data.ids)
+    # TODO: there are still bugs in finding the index
+    # if step == 50250000:
+    #     print(grps)
+    #     print(new_data_copy1.ids)
+    #     print(new_data_copy2.ids)
+    #     print(new_data_copy3.ids)
+
     grp = grps[0]
+    grp = [np.where(new_data.ids == id)[0][0] for id in grp]
 
     distances = get_bead_distances(new_data.positions, pos_top, pos_left, pos_right)
 
@@ -399,8 +401,8 @@ def get_best_match_dna_bead_in_smc(folder_path):
             #     continue
             new_data_temp = deepcopy(new_data)
             new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
-            handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters, step if i == 0 else "stop")
-    
+            handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters, step)
+
     # delete old files
     for p in folder_path.glob("marked_bead*.lammpstrj"):
         p.unlink()
@@ -415,7 +417,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
         np.savez(folder_path / f"bead_indices{i}.npz", steps=steps, ids=indices)
 
     import matplotlib.pyplot as plt
-    
+
     plt.figure(figsize=(8, 6), dpi=144)
     plt.title("Index of DNA bead inside SMC loop in time")
     plt.xlabel("time")
@@ -424,6 +426,49 @@ def get_best_match_dna_bead_in_smc(folder_path):
         plt.scatter(steps, indices_array[i], s=0.5, label=f"DNA {i}")
     plt.legend()
     plt.savefig(folder_path / "bead_id_in_time.png")
+
+
+def get_msd_obstacle(folder_path):
+    par = Parser(folder_path / "obstacle.lammpstrj")
+    steps = []
+    positions = []
+    while True:
+        try:
+            step, arr = par.next_step()
+        except Parser.EndOfLammpsFile:
+            break
+
+        steps.append(step)
+        positions.append(arr[2])
+
+    print(cached)
+
+    # calculate msd in time chunks
+    time_chunk_size = 2000 # number of timesteps to pick for one window
+
+    def calculate_msd(array) -> float:
+        return np.average((array - array[0])**2)
+
+    def apply_moving_window(window_size: int, func, array):
+        """returns the array of the results from applying the func to
+        windows along the array."""
+        result = []
+        for i in range(len(array) - window_size + 1):
+            result.append(
+                func(array[i:i + window_size])
+            )
+        return result
+
+    msd_array = apply_moving_window(time_chunk_size, calculate_msd, positions)
+
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(8, 6), dpi=144)
+    plt.title(f"MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size} (all average = {calculate_msd(positions)})")
+    plt.xlabel("time")
+    plt.ylabel("MSD")
+    plt.scatter(steps[:-time_chunk_size+1], msd_array, s=0.5)
+    plt.savefig(folder_path / "msd_in_time.png")
 
 
 def test_plane_distances():
@@ -456,3 +501,4 @@ if __name__ == "__main__":
         raise Exception("Please provide a folder path")
     path = Path(argv[0])
     get_best_match_dna_bead_in_smc(path)
+    get_msd_obstacle(path)
