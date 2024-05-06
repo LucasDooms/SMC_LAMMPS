@@ -181,10 +181,10 @@ class Tether:
             ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA
         )
         # Optional: don't allow bridge to go through tether
-        pair_inter.add_interaction(
-            tether_type, smc.atp_type,
-            ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA
-        )
+        # pair_inter.add_interaction(
+        #     tether_type, smc.atp_type,
+        #     ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA
+        # )
         # Optional: allow tether to bond to siteD
         # pair_inter.add_interaction(
         #     tether_type, smc.siteD_type,
