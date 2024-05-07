@@ -3,18 +3,19 @@ HKradius = 7.
 # HKradius = 4.5 # from original paper (used incorrect formula??)
 
 # amount of DNA
-N = 600
+N = 800
 
 cycles = 20
 
 # bottom site
-# epsilon6 = 500.0
+epsilon6 = 500.0
 
-# weak force
+# end points fixed
 force = None
 
 # configuration
-dnaConfig = "advanced_obstacle_safety"
+dnaConfig = "folded"
+# dnaConfig = "advanced_obstacle_safety"
 # dnaConfig = "obstacle_safety"
 # dnaConfig = "obstacle"
 # dnaConfig = "line"

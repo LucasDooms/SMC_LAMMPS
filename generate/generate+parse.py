@@ -485,7 +485,7 @@ with open(states_path / "adp_bound", 'w') as adp_bound_file:
        bridge_off,
        top_site_on,
        middle_site_off,
-       lower_site_off,
+       # lower_site_off,
        arms_open,
        lower_compartment_unfolds1,
        lower_compartment_unfolds2
@@ -497,7 +497,7 @@ with open(states_path / "apo", 'w') as apo_file:
         bridge_off,
         top_site_off,
         middle_site_off,
-        lower_site_on,
+        # lower_site_on,
         arms_close,
         lower_compartment_unfolds1,
         lower_compartment_unfolds2
@@ -520,13 +520,24 @@ with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
         bridge_on,
         top_site_on,
         middle_site_on,
-        lower_site_on,
+        # lower_site_on,
         arms_open,
         lower_compartment_folds1,
         lower_compartment_folds2
     ]
     apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
 
+with open(states_path / "on", 'w') as on_file:
+    options = [
+        lower_site_on,
+    ]
+    apply(gen.write_script_bai_coeffs, on_file, options)
+
+with open(states_path / "off", 'w') as off_file:
+    options = [
+        lower_site_off,
+    ]
+    apply(gen.write_script_bai_coeffs, off_file, options)
 
 #################################################################################
 #                           Print to post processing                            #

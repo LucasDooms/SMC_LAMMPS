@@ -381,7 +381,7 @@ class Folded(DnaConfiguration):
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        start = np.array([dnaCenter[0] + 10.0 * dna_parameters.DNAbondLength, rDNA[-1][1], 0])
+        start = np.array([dnaCenter[0] + 50.0 * dna_parameters.DNAbondLength, rDNA[-1][1], 0])
         shift = (goal - start).reshape(1, 3)
         rDNA += shift
 
