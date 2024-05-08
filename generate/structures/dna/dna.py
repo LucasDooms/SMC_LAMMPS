@@ -300,6 +300,15 @@ class DnaConfiguration:
             for dna_grp in self.dna_groups
         ]
 
+    def dna_indices_list_get_dna_from(self, ratio: float) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+        return [
+            (
+                (dna_grp, int(len(dna_grp.positions) * ratio + 1)),
+                (dna_grp, -1)
+            )
+            for dna_grp in self.dna_groups
+        ]
+
     def add_interactions(self, pair_inter: PairWise) -> None:
         dna_type = self.dna_parameters.type
         ip = self.inter_par
@@ -401,7 +410,9 @@ class Folded(DnaConfiguration):
             (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteM[1])), # closest to middle -> rSiteM[1]
         ]
 
-        ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
+        top_half = self.dna_indices_list_get_dna_to(ratio=0.5)
+        bottom_half = self.dna_indices_list_get_dna_from(ratio=0.5)
+        ppp.dna_indices_list += top_half + bottom_half
 
         return ppp
 
