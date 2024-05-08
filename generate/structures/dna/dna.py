@@ -405,6 +405,11 @@ class Folded(DnaConfiguration):
         else:
             ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
 
+        # TODO
+        ppp.stretching_forces_array[(-0.1, 0, 0)] = [
+            (self.dna_groups[0], len(self.dna_groups[0].positions) // 2)
+        ]
+
         ppp.freeze_indices += [
             (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteD[1])), # closest to bottom -> rSiteD[1]
             (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteM[1])), # closest to middle -> rSiteM[1]
