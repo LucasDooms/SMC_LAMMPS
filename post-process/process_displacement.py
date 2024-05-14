@@ -439,7 +439,10 @@ def get_msd_obstacle(folder_path):
             break
 
         steps.append(step)
-        positions.append(arr[2])
+        positions.append(arr[2:5])
+
+    steps = np.array(steps)
+    positions = np.array(positions)
 
     print(cached)
 
@@ -459,16 +462,21 @@ def get_msd_obstacle(folder_path):
             )
         return result
 
-    msd_array = apply_moving_window(time_chunk_size, calculate_msd, positions)
-
     import matplotlib.pyplot as plt
 
-    plt.figure(figsize=(8, 6), dpi=144)
-    plt.title(f"MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size} (all average = {calculate_msd(positions)})")
-    plt.xlabel("time")
-    plt.ylabel("MSD")
-    plt.scatter(steps[:-time_chunk_size+1], msd_array, s=0.5)
-    plt.savefig(folder_path / "msd_in_time.png")
+    for i, text in enumerate(("$x$", "$y$", "$z$", "total")):
+        if i != 3:
+            msd_array = apply_moving_window(time_chunk_size, calculate_msd, positions[:,i])
+            all_av = calculate_msd(positions[:,i])
+        else:
+            msd_array = apply_moving_window(time_chunk_size, calculate_msd, positions)
+            all_av = calculate_msd(positions)
+        plt.figure(figsize=(8, 6), dpi=144)
+        plt.title(f"{text} MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size} (all average = {all_av})")
+        plt.xlabel("time")
+        plt.ylabel(f"MSD ({text})")
+        plt.scatter(steps[:-time_chunk_size+1], msd_array, s=0.5)
+        plt.savefig(folder_path / f"msd_in_time{i}.png")
 
 
 def test_plane_distances():
