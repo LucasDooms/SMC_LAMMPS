@@ -16,7 +16,8 @@ force = 0.07
 # configuration
 # dnaConfig = "advanced_obstacle_safety"
 # dnaConfig = "obstacle_safety"
-dnaConfig = "obstacle"
+# dnaConfig = "obstacle"
+dnaConfig = "safety_belt"
 # dnaConfig = "line"
 
 # smc_force = 0.01

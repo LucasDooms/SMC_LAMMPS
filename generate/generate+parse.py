@@ -456,7 +456,7 @@ lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 
 
 
 # Override molecule ids to form rigid safety-belt bond
-if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)): #TODO
+if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.SafetyBelt)): #TODO
     safety_index = dnaConfig.dna_safety_belt_index
     gen.molecule_override[(dnaConfig.dna_groups[0], safety_index)] = molSiteD
     # add neighbors to prevent rotation
