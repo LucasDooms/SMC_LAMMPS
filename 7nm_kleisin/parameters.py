@@ -1,11 +1,11 @@
 # Radius of lower circular-arc compartment (nm)
-HKradius = 5.5
+HKradius = 5.0
 # HKradius = 4.5 # from original paper (used incorrect formula??)
 
 # amount of DNA
-N = 600
+N = 400
 
-cycles = 100
+cycles = 70
 
 # bottom site
 # epsilon6 = 500.0
