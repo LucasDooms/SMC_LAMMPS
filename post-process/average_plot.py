@@ -2,6 +2,7 @@
 
 from sys import argv
 from glob import glob
+from itertools import groupby
 from typing import List
 from pathlib import Path
 import numpy as np
@@ -28,11 +29,7 @@ def get_npz_files_from_args(args: List[str]):
     return files
 
 
-def process(files: List[str]):
-    files = get_npz_files_from_args(files)
-    if not files:
-        raise Exception("did not receive files to process")
-
+def get_averages(files: List[str]):
     steps_array = []
     indices_array = []
     for file in files:
@@ -58,14 +55,34 @@ def process(files: List[str]):
         for indices in indices_array
     ])
 
+    return steps, averages
+
+
+def process(files: List[str]):
+    files = get_npz_files_from_args(files)
+    if not files:
+        raise Exception("did not receive files to process")
+
+    key_function = lambda key: Path(key).name
+    files_groups = groupby(sorted(files, key=key_function), key_function)
+
     import matplotlib.pyplot as plt
-    
+
     plt.figure(figsize=(8, 6), dpi=144)
     plt.title("Averaged index of DNA bead inside SMC loop in time")
+
+    samples = 0
+    for _, files_group in files_groups:
+        files_group = list(files_group)
+        samples = len(files_group)
+        steps, averages = get_averages(files_group)
+        plt.scatter(steps, averages, s=0.5, label=f"DNA {Path(files_group[0]).name[-1]}")
+
     plt.xlabel("time")
-    plt.ylabel(f"Average DNA bead index ({len(files)} samples)")
-    plt.scatter(steps, averages, s=0.5)
+    plt.ylabel(f"Average DNA bead index ({samples} samples)")
+
     plt.savefig("average_bead_id_in_time.png")
+
 
 if __name__ == "__main__":
     argv = argv[1:]
