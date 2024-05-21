@@ -11,14 +11,14 @@ cycles = 70
 # epsilon6 = 500.0
 
 # weak force
-force = None
+force = 0.07
 
 # configuration
 # dnaConfig = "advanced_obstacle_safety"
-# dnaConfig = "obstacle_safety"
+dnaConfig = "obstacle_safety"
 # dnaConfig = "obstacle"
 # dnaConfig = "safety_belt"
 # dnaConfig = "line"
-dnaConfig = "folded"
+# dnaConfig = "folded"
 
 # smc_force = 0.01

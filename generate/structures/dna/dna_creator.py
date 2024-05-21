@@ -35,11 +35,11 @@ def get_dna_coordinates_safety_belt(nDNA: int, DNAbondLength: float):
         10 * DNAbondLength * np.array(
             [
                 [4, 0, 0], [2, 0, 0], # right, straight piece
-                [0, 1.0, 0], [-0.5, 1.0, 0], [-3, 1.25, 0], # up, to the left
-                [-3.25, 0.75, 0], # down, to the left
+                [0, 1.0, 0], [-0.5, 1.25, 0], [-3, 1.5, 0], [-5, 2.0, 0], # up, to the left
+                [-5.25, 0.75, 0], [-3.0, 0.0, 0], # down, to the left
                 [-0.5, -1, 0], [0, -1, 0], [0.7, -1, 0], [1.5, -1.5, 0], # down, to the right
                 [1.0, -2, 0], [-2, -2, 0], # down, to the left
-                [-3, -0.5, 0], [-4, 0, 0], # left, straight
+                [-3, -0.5, 0], [-3.5, -0.5, 0], # left, straight
             ],
             dtype=float
         )
