@@ -2,7 +2,7 @@
 
 from sys import argv
 from glob import glob
-from itertools import groupby
+from itertools import groupby, zip_longest
 from typing import List
 from pathlib import Path
 import numpy as np
@@ -29,14 +29,7 @@ def get_npz_files_from_args(args: List[str]):
     return files
 
 
-def get_averages(files: List[str]):
-    steps_array = []
-    indices_array = []
-    for file in files:
-        data = np.load(file)
-        steps_array.append(data["steps"])
-        indices_array.append(data["ids"])
-
+def filter_smallest_steps(steps_array, indices_array):
     shortest_steps_length = min([len(x) for x in steps_array])
     steps_array = [steps[:shortest_steps_length] for steps in steps_array]
     steps = steps_array[0]
@@ -45,7 +38,39 @@ def get_averages(files: List[str]):
     for i in range(len(indices_array)):
         indices_array[i] = indices_array[i][:shortest_steps_length]
 
-    indices_array = np.array(indices_array).transpose()
+    return steps, np.array(indices_array).transpose()
+
+
+def filter_largest_steps(steps_array, indices_array, *, max_len: int | None = None):
+    lengths = [len(x) for x in steps_array]
+    longest_steps_length = max(lengths)
+    index = lengths.index(longest_steps_length)
+    steps = steps_array[index]
+
+    # zip_longest fills everything to the longest size to make a valid matrix
+    # this also transposes the matrix!
+    indices_array = np.array(list(zip_longest(*indices_array, fillvalue=-1)))
+
+    if max_len is not None:
+        steps = steps[:max_len]
+        indices_array = indices_array[:max_len]
+
+    return steps, indices_array
+
+
+def get_averages(files: List[str]):
+    steps_array = []
+    indices_array = []
+    for file in files:
+        data = np.load(file)
+        steps_array.append(data["steps"])
+        indices_array.append(data["ids"])
+
+    # TODO: add command-line argument
+    if True:
+        steps, indices_array = filter_smallest_steps(steps_array, indices_array)
+    else:
+        steps, indices_array = filter_largest_steps(steps_array, indices_array, max_len=None)
 
     def custom_average(arr):
         return np.average(arr) if arr.size else -1
