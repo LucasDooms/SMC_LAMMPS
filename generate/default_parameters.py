@@ -123,3 +123,6 @@ asymmetryStiffness = 100.
 
 # Extra force on SMC in the -x direction and +y direction (left & up)
 smc_force = 0.0
+
+# Obstacle
+obstacle_is_real = True
