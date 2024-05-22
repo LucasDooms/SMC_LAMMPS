@@ -454,7 +454,7 @@ class Doubled(DnaConfiguration):
     @classmethod
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> Doubled:
         # place your DNA here, inside the SMC
-        default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
+        default_dna_pos = rSiteD[1] + np.array([0, 0.65 * par.cutoff6, 0])
 
         # 1.
         rDNAlist, dnaCenter = dna_creator.get_dna_coordinates_doubled(dna_parameters.nDNA, dna_parameters.DNAbondLength, 24)
@@ -601,7 +601,7 @@ class ObstacleSafety(DnaConfiguration):
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> ObstacleSafety:
         # 1.
         [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
-        
+
         # 2.
         # make sure SMC contains DNA
         shift = rSiteD[1] - belt_location
