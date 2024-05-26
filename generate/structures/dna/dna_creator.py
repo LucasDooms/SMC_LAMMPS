@@ -90,7 +90,7 @@ def get_dna_coordinates_advanced_safety_belt(nDNA: int, DNAbondLength: float):
 
 def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength: float):
     smc_pos = np.array([3.3, -2.1, 0.0])
-    tether_pos = np.array([3.75, 0.0, 0.0])
+    tether_pos = np.array([4.0, 0.0, 0.0])
     rDNA = get_interpolated(
         DNAbondLength,
         10 * DNAbondLength * np.array(
@@ -98,7 +98,7 @@ def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength:
                 [6, -2.0, 0], [5, -1.4, 0], [4.7, -0.5, 0], # right piece
                 [4.6, -0.4, 2], [4.7, -0.2, 4], [4.5, -0.2, 4], [4.0, -0.15, 4],
                 [0.0, -0.15, 4], [1.0, -0.15, 2], [4.0, -0.05, 2.4], [4.2, 0, 2], # loop
-                [4, 0, 0], [2, 0, 0],
+                [4.4, 0, 0], [4, 0, 0], [2, 0, 0],
                 [0, 1.0, 0], [-3, 1.5, 0], [-4, 1.25, 0], # up, to the left
                 [-5, 0.75, 0], [-6, 0.5, 0], [-7, 0, 0], # down, to the left
                 [-5.5, -1, 0], [-4, -1.3, 0], [0.7, -1.4, 0], [2.8, -1.8, 0], [3.5, -2.2, 0.0], [3.5, -2.5, 0.0], # down, to the right

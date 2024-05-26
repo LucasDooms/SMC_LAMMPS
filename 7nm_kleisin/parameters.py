@@ -3,7 +3,7 @@ HKradius = 5.0
 # HKradius = 4.5 # from original paper (used incorrect formula??)
 
 # amount of DNA
-N = 400
+N = 800
 
 cycles = 70
 
@@ -14,10 +14,10 @@ cycles = 70
 force = 0.07
 
 # configuration
-# dnaConfig = "advanced_obstacle_safety"
+dnaConfig = "advanced_obstacle_safety"
 # dnaConfig = "obstacle_safety"
-dnaConfig = "obstacle"
-obstacle_is_real = False
+# dnaConfig = "obstacle"
+obstacle_is_real = True
 # dnaConfig = "line"
 
 # smc_force = 0.01
