@@ -27,7 +27,6 @@ def get_interpolated(spacing: float, values):
 
     return np.array(equidistant_points)
 
-# print(get_interpolated(100, np.array([[0, 0, 0], [1, 0, 0], [0.5, 0.5, 0], [0, 1, 0], [-4, 1, 0]])))
 
 def get_straight_segment(n: int, direction = (1, 0, 0)):
     """returns a straight segment of n beads with unit spacing starting at
@@ -65,6 +64,24 @@ def get_circle_segment(n: int, end_inclusive: bool, theta_start: float = 0, thet
         return segment
     distance = np.linalg.norm(segment[0] - segment[1])
     return segment / distance
+
+def get_sine_wave(n: int, direction = (1, 0, 0), wave_direction = (0, 1, 0), wavelength = 20):
+    """returns a sine wave segment of n beads with unit spacing starting at
+    the origin and going the in provided direction (positive x-axis by default)"""
+    direction = np.array(direction, dtype=float)
+    normalized_direction = direction / np.linalg.norm(direction)
+    wave_direction = np.array(wave_direction, dtype=float)
+    normalized_wave_direction = wave_direction / np.linalg.norm(wave_direction)
+
+    dtheta = 1.0 / wavelength
+    segment = [np.array([0, 0, 0], dtype=float)]
+    for i in range(n - 1):
+        update = normalized_direction - np.cos(dtheta * i * 2 * np.pi) * normalized_wave_direction
+        segment.append(
+            segment[-1] + update / np.linalg.norm(update)
+        )
+
+    return np.array(segment)
 
 
 def attach(reference_segment, other_segment, delete_overlap: bool, extra_distance: float = 0.0):

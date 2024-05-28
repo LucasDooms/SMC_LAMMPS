@@ -1,6 +1,6 @@
 # Copyright (c) 2024 Lucas Dooms
 
-from ..structure_creator import get_straight_segment, get_circle_segment, attach, attach_chain, get_interpolated
+from ..structure_creator import get_straight_segment, get_circle_segment, attach, attach_chain, get_interpolated, get_sine_wave
 import numpy as np
 import math
 
@@ -13,6 +13,24 @@ def get_closest(array, position) -> int:
 
 def get_dna_coordinates_straight(nDNA: int, DNAbondLength: float):
     rDNA = get_straight_segment(nDNA, [1, 0, 0])
+
+    # Shift X-coordinate to get DNA end-point at X = 0
+
+    rDNA[:,0] -= rDNA[0][0]
+
+    # get correct bead spacings
+
+    rDNA *= DNAbondLength
+
+    # Rotate (flip the x-component)
+
+    rDNA[:,0] *= -1
+
+    return [rDNA]
+
+
+def get_dna_coordinates_wavy(nDNA: int, DNAbondLength: float):
+    rDNA = get_sine_wave(nDNA, [1, 0, 0], [0, 1, 0], 40)
 
     # Shift X-coordinate to get DNA end-point at X = 0
 
