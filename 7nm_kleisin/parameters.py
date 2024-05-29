@@ -3,7 +3,7 @@ HKradius = 5.0
 # HKradius = 4.5 # from original paper (used incorrect formula??)
 
 # amount of DNA
-N = 800
+N = 500
 
 cycles = 70
 
@@ -11,12 +11,12 @@ cycles = 70
 # epsilon6 = 500.0
 
 # weak force
-force = 0.07
+force = None
 
 # configuration
-dnaConfig = "advanced_obstacle_safety"
+# dnaConfig = "advanced_obstacle_safety"
 # dnaConfig = "obstacle_safety"
-# dnaConfig = "obstacle"
+dnaConfig = "obstacle"
 obstacle_is_real = True
 # dnaConfig = "line"
 

@@ -541,22 +541,22 @@ class Obstacle(DnaConfiguration):
     @classmethod
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> Obstacle:
         # place your DNA here, inside the SMC
-        default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
+        default_dna_pos = rSiteD[1] + np.array([0, 4*par.cutoff6, 0])
 
         # 1.
-        [rDNA] = dna_creator.get_dna_coordinates_straight(dna_parameters.nDNA, dna_parameters.DNAbondLength)
-        
+        [rDNA] = dna_creator.get_dna_coordinates_wavy(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        dna_start_index = int(len(rDNA)*10.5/15)
+        dna_start_index = int(len(rDNA)*12/15)
         start = np.array([rDNA[dna_start_index][0] - 10.0 * dna_parameters.DNAbondLength, rDNA[dna_start_index][1], 0])
         shift = (goal - start).reshape(1, 3)
         rDNA += shift
 
         dna_groups = dna_parameters.create_dna([rDNA])
 
-        dna_bead_to_tether_id = int(len(rDNA)*10/15)
+        dna_bead_to_tether_id = int(len(rDNA)*6/15)
         tether = Tether.create_tether(
             (dna_groups[0], dna_bead_to_tether_id), 25, dna_parameters.DNAbondLength, dna_parameters.mDNA, dna_parameters.bond, dna_parameters.angle, Tether.Obstacle()
         )
