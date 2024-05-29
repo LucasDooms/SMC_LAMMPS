@@ -65,7 +65,7 @@ def get_circle_segment(n: int, end_inclusive: bool, theta_start: float = 0, thet
     distance = np.linalg.norm(segment[0] - segment[1])
     return segment / distance
 
-def get_sine_wave(n: int, direction = (1, 0, 0), wave_direction = (0, 1, 0), wavelength = 20):
+def get_sine_wave(n: int, direction = (1, 0, 0), wave_direction = (0, 1, 0), wavelength = 20, amplitude = 1.0):
     """returns a sine wave segment of n beads with unit spacing starting at
     the origin and going the in provided direction (positive x-axis by default)"""
     direction = np.array(direction, dtype=float)
@@ -76,7 +76,7 @@ def get_sine_wave(n: int, direction = (1, 0, 0), wave_direction = (0, 1, 0), wav
     dtheta = 1.0 / wavelength
     segment = [np.array([0, 0, 0], dtype=float)]
     for i in range(n - 1):
-        update = normalized_direction - np.cos(dtheta * i * 2 * np.pi) * normalized_wave_direction
+        update = normalized_direction - amplitude * np.cos(dtheta * i * 2 * np.pi) * normalized_wave_direction
         segment.append(
             segment[-1] + update / np.linalg.norm(update)
         )

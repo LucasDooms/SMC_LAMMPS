@@ -602,6 +602,8 @@ class ObstacleSafety(DnaConfiguration):
         # 1.
         [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
 
+        dna_bead_to_tether_id -= 145
+
         # 2.
         # make sure SMC contains DNA
         shift = rSiteD[1] - belt_location
