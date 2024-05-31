@@ -156,16 +156,16 @@ run $(round(-v_stepsAPO*ln(random(0,1,v_seed))))
 
 # APO state
 
-if $(v_cycle % 4 == 0) then &
-	"include states/off"
+variable time_step equal step
+if $(v_cycle % 20 == 0) then &
+	"include states/off" &
+	"print ${time_step} append switches.log"
 
 include states/apo
 run $(round(-(v_stepsATP)*ln(random(0,1,v_seed))))
 
-if $(v_cycle % 4 == 0) then &
+if $(v_cycle % 20 == 0) then &
 	"include states/on"
-
-#print "${stepCurrent}" append ${timesfile} screen no
 
 #dump movie all atom ${output_steps} ${outputfile}
 #dump_modify movie sort id pbc yes append yes
