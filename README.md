@@ -2,9 +2,10 @@
 
 ## Authors
 
-Original code by Stefanos Nomidis (https://github.com/sknomidis/SMC_LAMMPS), released under [MIT license](ORIGINAL_LICENSE).  
+Original code by Stefanos Nomidis (https://github.com/sknomidis/SMC_LAMMPS).  
 Modifications by Arwin Goossens.  
-All commits in this repository by Lucas Dooms, released under [GPL v3 license](LICENSE).
+All commits in this repository by Lucas Dooms.  
+Released under [MIT license](LICENSE)
 
 ## How to run
 
