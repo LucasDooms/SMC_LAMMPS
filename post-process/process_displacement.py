@@ -71,7 +71,7 @@ class Plane:
             elif side == cls.OUTSIDE:
                 return cls.INSIDE
             raise ValueError("unknown Side value")
-    
+
     def __init__(self, point: List[float], normal: List[float]):
         """point: a point on the plain,
         normal: normal vector of the plain (always normalized)"""
@@ -100,6 +100,14 @@ class LammpsData:
     ids: List[int]
     types: List[int]
     positions: List[List[float]]
+
+    @classmethod
+    def empty(cls):
+        return cls(
+            ids=np.array([], dtype=int),
+            types=np.array([], dtype=int),
+            positions=np.array([], dtype=float).reshape(-1, 3)
+        )
 
     @timer_accumulator
     def filter(self, keep) -> None:
@@ -201,9 +209,9 @@ class Parser:
             raise ValueError("reached end of file unexpectedly")
 
         array = self.get_array(lines)
-        
+
         return timestep, array
-    
+
     @staticmethod
     def split_data(array) -> LammpsData:
         """split array into ids, types, xyz"""
@@ -219,7 +227,7 @@ def create_box(data: LammpsData, types: List[int]) -> Box:
     copy_data = deepcopy(data)
     copy_data.filter_by_types(types)
     reduced_xyz = copy_data.positions
-    
+
     return Box(
         xlo = np.min(reduced_xyz[:,0]),
         xhi = np.max(reduced_xyz[:,0]),
@@ -259,7 +267,7 @@ def is_sorted(lst) -> bool:
     return all(lst[i] <= lst[i + 1] for i in range(len(lst) - 1))
 
 
-def split_into_index_groups(indices):
+def split_into_index_groups(indices) -> List[List[int]]:
     """splits a (sorted) list of integers into groups of adjacent integers"""
     indices = list(indices)
     if not indices:
@@ -284,7 +292,7 @@ def get_bead_distances(positions, pos1: int, pos2: int, pos3: int):
     return distance_point_to_plane(positions, pos1, normal_vector)
 
 
-def remove_outside_planar_n_gon(data: LammpsData, points, delta: float):
+def remove_outside_planar_n_gon(data: LammpsData, points, delta_out_of_plane: float, delta_extended_plane: float):
     """removes all points outside a box created from an n-sided polygon in a plane.
     the points are the vertices of the n-gon and are assumed to be in the same plane.
     delta is the thickness of the box in each direction going out of the plane."""
@@ -296,17 +304,21 @@ def remove_outside_planar_n_gon(data: LammpsData, points, delta: float):
     except IndexError:
         normal = np.cross(points[1] - points[0], points[2] - points[1])
 
+    # normalize the normal! (will be used to apply thickness delta)
+    normal = normal / np.linalg.norm(normal)
+
     # delete points further than delta perpendicular to the n-gon
-    plane = Plane(points[0] + delta * normal, normal)
+    plane = Plane(points[0] + delta_out_of_plane * normal, normal)
     data.delete_side_of_plane(plane, Plane.Side.OUTSIDE)
-    plane = Plane(points[0] - delta * normal, normal)
+    plane = Plane(points[0] - delta_out_of_plane * normal, normal)
     data.delete_side_of_plane(plane, Plane.Side.INSIDE)
 
     # delete points far away in the plane of the n-gon
     for point1, point2 in zip(points, points[1:] + [points[0]]):
         side_vector = point2 - point1
         normal_to_side = np.cross(normal, side_vector) # always points INSIDE
-        side_plane = Plane(point1, normal_to_side)
+        normal_to_side = normal_to_side / np.linalg.norm(normal_to_side)
+        side_plane = Plane(point1 - delta_extended_plane * normal_to_side, normal_to_side)
         # INSIDE of plane points out of the shape
         data.delete_side_of_plane(side_plane, Plane.Side.INSIDE)
 
@@ -324,22 +336,26 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
     pos_middle_right = data.get_position_from_index(parameters["middle_right_bead_id"])
     pos_kleisins = [data.get_position_from_index(i) for i in parameters["kleisin_ids"]]
 
+    delta = 0.51 * parameters["dna_spacing"]
+    small_delta = delta / 4.0
+
     new_data_copy1 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data, [pos_top, pos_left, pos_right], 0.5 * parameters["dna_spacing"])
+    remove_outside_planar_n_gon(new_data_copy1, [pos_top, pos_left, pos_right], delta, small_delta)
 
-    new_data_copy2 = deepcopy(new_data_copy1)
-    # TODO shape is not planar, currently use two triangles
-    delta = 0.5 * parameters["dna_spacing"]
-    remove_outside_planar_n_gon(new_data_copy2, [pos_middle_right, pos_middle_left, pos_left], delta)
-    new_data.combine_by_ids(new_data_copy2)
+    new_data_copy2 = deepcopy(new_data)
+    remove_outside_planar_n_gon(new_data_copy2, [pos_middle_right, pos_middle_left, pos_left], delta, small_delta)
 
-    new_data_copy3 = deepcopy(new_data_copy1)
-    delta = 0.5 * parameters["dna_spacing"]
-    remove_outside_planar_n_gon(new_data_copy3, [pos_middle_right, pos_left, pos_right], delta)
-    new_data.combine_by_ids(new_data_copy3)
+    new_data_copy3 = deepcopy(new_data)
+    remove_outside_planar_n_gon(new_data_copy3, [pos_middle_right, pos_left, pos_right], delta, small_delta)
 
-    remove_outside_planar_n_gon(new_data_copy1, pos_kleisins, 0.5 * parameters["dna_spacing"])
+    new_data_copy4 = deepcopy(new_data)
+    remove_outside_planar_n_gon(new_data_copy4, pos_kleisins, delta, small_delta)
+
+    new_data = LammpsData.empty()
     new_data.combine_by_ids(new_data_copy1)
+    new_data.combine_by_ids(new_data_copy2)
+    new_data.combine_by_ids(new_data_copy3)
+    new_data.combine_by_ids(new_data_copy4)
 
     if len(new_data.positions) == 0:
         print(f"call: {step}")
@@ -349,20 +365,18 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
 
     # find groups
     grps = split_into_index_groups(new_data.ids)
-    # TODO: there are still bugs in finding the index
-    # if step == 50250000:
-    #     print(grps)
-    #     print(new_data_copy1.ids)
-    #     print(new_data_copy2.ids)
-    #     print(new_data_copy3.ids)
 
     grp = grps[0]
     grp = [np.where(new_data.ids == id)[0][0] for id in grp]
 
-    distances = get_bead_distances(new_data.positions, pos_top, pos_left, pos_right)
+    # alternative distance method
+    # distances = get_bead_distances(new_data.positions, pos_top, pos_left, pos_right)
+    # closest_val = np.min(distances[grp])
+    # closest_bead_index = np.where(distances == closest_val)[0][0]
 
-    closest_val = np.min(distances[grp])
-    closest_bead_index = np.where(distances == closest_val)[0][0]
+    # TODO: assumes lowest index gives the desired bead
+    closest_bead_index = grp[0]
+
     indices.append(new_data.ids[closest_bead_index])
     positions.append(new_data.positions[closest_bead_index])
 
@@ -397,8 +411,6 @@ def get_best_match_dna_bead_in_smc(folder_path):
         new_data.filter_by_types([1])
         # split, and call for each
         for i, (min_index, max_index) in enumerate(dna_indices_list):
-            # if i == 1:
-            #     continue
             new_data_temp = deepcopy(new_data)
             new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
             handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters, step)
@@ -467,7 +479,7 @@ def get_msd_obstacle(folder_path):
     plt.title(f"MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size} (all average = {calculate_msd(positions)})")
     plt.xlabel("time")
     plt.ylabel("MSD")
-    plt.scatter(steps[:-time_chunk_size+1], msd_array, s=0.5)
+    plt.scatter(steps[:-time_chunk_size+1], msd_array, s=0.3)
     plt.savefig(folder_path / "msd_in_time.png")
 
 
