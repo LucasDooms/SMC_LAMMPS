@@ -273,7 +273,7 @@ smc_creator = SMC_Creator(
 )
 
 rot_vec = np.array([0.0, 0.0, -np.deg2rad(42)]) if dnaConfigClass is dna.AdvancedObstacleSafety else None
-rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
+rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD = \
         smc_creator.get_smc(
             siteD_points_down=False,
             #dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
@@ -315,15 +315,6 @@ dnaConfig = dnaConfigClass.get_dna_config(dna_parameters, rSiteD, par)
 mSMC = smc_creator.get_mass_per_atom(mSMCtotal)
 
 
-# get indices to bind top site to arms
-indL = get_closest(rArmUL, rSiteU[-2])
-indR = get_closest(rArmUR, rSiteU[-2])
-# binds from the side of the arms to the shields of SiteU
-bondMinArmUSide = np.linalg.norm(rSiteU[-2] - rArmUL[indL])
-# binds from the top of the arms to the shields of SiteU
-bondMinArmUTop = np.linalg.norm(rSiteU[-2] - rArmUL[-1])
-
-
 # SET UP DATAFILE GENERATOR
 gen = Generator()
 gen.set_system_size(boxWidth)
@@ -335,7 +326,6 @@ molSiteD = molHK
 
 armHK_type = AtomType(mSMC)
 atp_type = AtomType(mSMC)
-siteU_type = AtomType(mSMC)
 siteM_type = AtomType(mSMC)
 siteD_type = AtomType(mSMC)
 refSite_type = AtomType(mSMC)
@@ -348,7 +338,6 @@ smc_1 = SMC(
     rArmDR=rArmDR,
     rATP=rATP,
     rHK=rHK,
-    rSiteU=rSiteU,
     rSiteM=rSiteM,
     rSiteD=rSiteD,
 
@@ -364,7 +353,6 @@ smc_1 = SMC(
 
     armHK_type=armHK_type,
     atp_type=atp_type,
-    siteU_type=siteU_type,
     siteM_type=siteM_type,
     siteD_type=siteD_type,
     refSite_type=refSite_type,
@@ -399,9 +387,6 @@ bridge_on = [None, "{} {} " + f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.
 bridge_soft_off = [None, "{} {} soft 0 0\n", dna_type, atp_type]
 bridge_soft_on = [None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
 
-top_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
-top_site_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
-
 if False: #isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
     # always keep site on
     lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
@@ -418,10 +403,8 @@ middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma *
 
 # Every joint is kept in place through bonds
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
-bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign1, bondMinArmUSide))
-bond_t4 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n"             %(kBondAlign2, bondMinArmUTop))
 
-bonds = smc_1.get_bonds(bond_t2, bond_t3, bond_t4, indL, indR)
+bonds = smc_1.get_bonds(bond_t2)
 gen.bais += [
     *bonds,
     *dnaConfig.get_bonds()
@@ -483,7 +466,6 @@ def apply(function, file, list_of_args):
 with open(states_path / "adp_bound", 'w') as adp_bound_file:
     options = [
        bridge_off,
-       top_site_on,
        middle_site_off,
        lower_site_off,
        arms_open,
@@ -495,7 +477,6 @@ with open(states_path / "adp_bound", 'w') as adp_bound_file:
 with open(states_path / "apo", 'w') as apo_file:
     options = [
         bridge_off,
-        top_site_off,
         middle_site_off,
         lower_site_on,
         arms_close,
@@ -518,7 +499,6 @@ with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
         bridge_soft_off,
         middle_site_soft_off,
         bridge_on,
-        top_site_on,
         middle_site_on,
         lower_site_on,
         arms_open,

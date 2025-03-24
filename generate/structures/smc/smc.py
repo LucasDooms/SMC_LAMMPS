@@ -14,7 +14,6 @@ class SMC:
     rArmDR : ...
     rATP : ...
     rHK  : ...
-    rSiteU : ...
     rSiteM : ...
     rSiteD : ...
 
@@ -30,7 +29,6 @@ class SMC:
 
     armHK_type : AtomType
     atp_type : AtomType
-    siteU_type : AtomType
     siteM_type : AtomType
     siteD_type : AtomType
     refSite_type : AtomType
@@ -44,12 +42,6 @@ class SMC:
         self.hk_group = AtomGroup(self.rHK, self.armHK_type, self.molHK)
 
         self.atp_group = AtomGroup(self.rATP, self.atp_type, self.molATP)
-
-        # split U in two parts
-
-        cut = 3
-        self.siteU_group = AtomGroup(self.rSiteU[:cut], self.siteU_type, self.molSiteU)
-        self.siteU_arm_group = AtomGroup(self.rSiteU[cut:], self.armHK_type, self.molSiteU)
 
         # split M in three parts
 
@@ -73,8 +65,6 @@ class SMC:
             self.armDR_group,
             self.hk_group,
             self.atp_group,
-            self.siteU_group,
-            self.siteU_arm_group,
             self.siteM_group,
             self.siteM_atp_group,
             self.siteM_ref_group,
@@ -82,28 +72,18 @@ class SMC:
             self.siteD_arm_group
         ]
 
-    def get_bonds(self, bond_t2: BAI_Type, bond_t3: BAI_Type, bond_t4: BAI_Type, indL: int, indR: int) -> List[BAI]:
+    def get_bonds(self, bond_t2: BAI_Type) -> List[BAI]:
         return [
             # attach arms together
             BAI(bond_t2, (self.armDL_group, -1), (self.armUL_group, 0)),
             BAI(bond_t2, (self.armUL_group, -1), (self.armUR_group, 0)),
             BAI(bond_t2, (self.armUR_group, -1), (self.armDR_group, 0)),
-            # connect arms to siteU
-            BAI(bond_t2, (self.armUL_group, -1), (self.siteU_arm_group, -1)),
             # connect atp bridge to arms
             BAI(bond_t2, (self.armDR_group, -1), (self.atp_group, -1)),
             BAI(bond_t2, (self.atp_group,  0), (self.armDL_group, 0)),
             # connect bridge to hk
             BAI(bond_t2, (self.atp_group, -1), (self.hk_group, 0)),
             BAI(bond_t2, (self.hk_group, -1), (self.atp_group, 0)),
-            # bind upper arms to the siteU edges, to keep motion restrained
-            BAI(bond_t3, (self.armUL_group, indL), (self.siteU_arm_group, -2)),
-            BAI(bond_t3, (self.armUL_group, indL), (self.siteU_arm_group, -3)),
-            BAI(bond_t3, (self.armUR_group, indR), (self.siteU_arm_group, -2)),
-            BAI(bond_t3, (self.armUR_group, indR), (self.siteU_arm_group, -3)),
-            # bind top of upper arms to siteU edges
-            BAI(bond_t4, (self.armUL_group, -1), (self.siteU_arm_group, -2)),
-            BAI(bond_t4, (self.armUL_group, -1), (self.siteU_arm_group, -3)),
         ]
 
     def get_angles(self, angle_t2: BAI_Type, angle_t3: BAI_Type) -> List[BAI]:

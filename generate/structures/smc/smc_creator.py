@@ -163,16 +163,10 @@ class SMC_Creator:
         return ret
 
     def get_interaction_sites(self, siteD_points_down: bool, seed: int = 8343859591397577529):
-        # U = upper  interaction site
         # M = middle interaction site
         # D = lower  interaction site
 
         rotate_around_x_axis = Rotation.from_rotvec(math.pi * np.array([1.0, 0.0, 0.0])).as_matrix()
-
-        # UPPER SITE
-        rSiteU = self.shielded_site_template(3, 4, self.siteUhDist, 1)
-        # Inert bead connecting site to arms at top
-        rSiteU = np.concatenate([rSiteU, np.array([0.0, self.siteUvDist, 0.0]).reshape(1, 3)])
 
         # MIDDLE SITE
         rSiteM = self.shielded_site_template(1, 4, self.siteMhDist, 1)
@@ -191,19 +185,17 @@ class SMC_Creator:
 
         # Add randomness
         rng_sites = default_rng(seed=seed)
-        rSiteU += rng_sites.standard_normal(size=rSiteU.shape) * self.SMALL
         rSiteM += rng_sites.standard_normal(size=rSiteM.shape) * self.SMALL
         rSiteD += rng_sites.standard_normal(size=rSiteD.shape) * self.SMALL
 
-        return rSiteU, rSiteM, rSiteD
+        return rSiteM, rSiteD
 
     def get_smc(self, siteD_points_down: bool, extra_rotation = None):
         rArmDL, rArmUL, rArmUR, rArmDR = self.get_arms()
         rATP = self.get_bridge()
         rHK = self.get_heads_kleisin()
-        rSiteU, rSiteM, rSiteD = self.get_interaction_sites(siteD_points_down)
-        
-        rSiteU[:,1] -= self.siteUvDist
+        rSiteM, rSiteD = self.get_interaction_sites(siteD_points_down)
+
         # Inert bead, used for breaking folding symmetry
         rSiteM = np.concatenate([rSiteM, np.array([1.0, -1.0, 0.0]).reshape(1, 3)])
         rSiteM[:,1] += self.siteMvDist
@@ -211,14 +203,12 @@ class SMC_Creator:
             rSiteD[:,1] -= self.siteDvDist
         else:
             rSiteD[:,1] += self.siteDvDist
-        
+
         # scale properly
-        rSiteU *= self.SMCspacing
         rSiteM *= self.SMCspacing
         rSiteD *= self.SMCspacing
-    
+
         # move into the correct location
-        rSiteU += rArmUL[-1]
         rSiteM += rATP[len(rATP)//2]
         rSiteD += rHK[len(rHK)//2]
 
@@ -228,18 +218,18 @@ class SMC_Creator:
         rotMat = Rotation.from_rotvec(-math.radians(self.foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
 
         # Rotations
-        rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM = \
-            self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM)
+        rArmDL, rArmUL, rArmUR, rArmDR, rSiteM = \
+            self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rSiteM)
 
         # apply extra rotation to entire SMC
         if extra_rotation is not None:
             rotMat = Rotation.from_rotvec(extra_rotation).as_matrix()
-            rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD = \
-                self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD)
+            rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD = \
+                self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD)
 
-        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD]
+        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD]
 
-        return rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD
-    
+        return rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD
+
     def get_mass_per_atom(self, total_mass: float) -> float:
         return total_mass / sum(len(x) for x in self.generated_positions)
