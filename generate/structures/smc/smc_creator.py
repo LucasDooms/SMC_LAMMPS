@@ -169,7 +169,8 @@ class SMC_Creator:
 
         # UPPER SITE
 
-        rSiteU = get_straight_segment(1)
+        rSiteU = get_straight_segment(3)
+        rSiteU -= rSiteU[1]
 
         rotate_around_x_axis = Rotation.from_rotvec(math.pi * np.array([1.0, 0.0, 0.0])).as_matrix()
 
