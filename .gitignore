@@ -1,16 +1,19 @@
-output.lammpstrj
-obstacle.lammpstrj
-marked_bead*.lammpstrj
-bead_id_in_time.png
-*.out
+# automatically generated files
 datafile
 parameterfile
-log.lammps
 */states/*
 post_processing_parameters.py
-test/
-alt_test/
+
+# lammps dumps and outputs
+*.lammpstrj
+log.lammps
+tmp.lammps.variable
+
+# vmd
 */vmd.init
-*runs
-*runs/*
+
+# other saved data
 *.npz
+
+# generated images
+bead_id_in_time.png
