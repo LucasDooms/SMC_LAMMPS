@@ -273,7 +273,7 @@ smc_creator = SMC_Creator(
 )
 
 rot_vec = np.array([0.0, 0.0, -np.deg2rad(42)]) if dnaConfigClass is dna.AdvancedObstacleSafety else None
-rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD, rHinge = \
+rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge = \
         smc_creator.get_smc(
             siteD_points_down=False,
             #dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
@@ -327,6 +327,7 @@ molSiteD = molHK
 armHK_type = AtomType(mSMC)
 hinge_type = AtomType(mSMC)
 atp_type = AtomType(mSMC)
+siteU_type = AtomType(mSMC)
 siteM_type = AtomType(mSMC)
 siteD_type = AtomType(mSMC)
 refSite_type = AtomType(mSMC)
@@ -339,6 +340,7 @@ smc_1 = SMC(
     rArmDR=rArmDR,
     rATP=rATP,
     rHK=rHK,
+    rSiteU=rSiteU,
     rSiteM=rSiteM,
     rSiteD=rSiteD,
     rHinge=rHinge,
@@ -356,6 +358,7 @@ smc_1 = SMC(
     armHK_type=armHK_type,
     hinge_type=hinge_type,
     atp_type=atp_type,
+    siteU_type=siteU_type,
     siteM_type=siteM_type,
     siteD_type=siteD_type,
     refSite_type=refSite_type,
@@ -390,8 +393,8 @@ bridge_on = [None, "{} {} " + f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.
 bridge_soft_off = [None, "{} {} soft 0 0\n", dna_type, atp_type]
 bridge_soft_on = [None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
 
-hinge_attraction_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, hinge_type]
-hinge_attraction_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, hinge_type]
+hinge_attraction_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
+hinge_attraction_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
 
 if False: #isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
     # always keep site on

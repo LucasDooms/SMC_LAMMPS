@@ -14,6 +14,7 @@ class SMC:
     rArmDR : ...
     rATP : ...
     rHK  : ...
+    rSiteU : ...
     rSiteM : ...
     rSiteD : ...
     rHinge : ...
@@ -31,6 +32,7 @@ class SMC:
     armHK_type : AtomType
     hinge_type: AtomType
     atp_type : AtomType
+    siteU_type : AtomType
     siteM_type : AtomType
     siteD_type : AtomType
     refSite_type : AtomType
@@ -46,6 +48,7 @@ class SMC:
         self.atp_group = AtomGroup(self.rATP, self.atp_type, self.molATP)
 
         self.hinge_group = AtomGroup(self.rHinge, self.hinge_type, self.molHinge)
+        self.siteU_group = AtomGroup(self.rSiteU, self.siteU_type, self.molHinge)
 
         # split M in three parts
 
@@ -69,6 +72,7 @@ class SMC:
             self.armDR_group,
             self.hk_group,
             self.atp_group,
+            self.siteU_group,
             self.siteM_group,
             self.siteM_atp_group,
             self.siteM_ref_group,
@@ -81,7 +85,6 @@ class SMC:
         return [
             # attach arms together
             BAI(bond_t2, (self.armDL_group, -1), (self.armUL_group, 0)),
-            # BAI(bond_t2, (self.armUL_group, -1), (self.armUR_group, 0)),
             BAI(bond_t2, (self.armUR_group, -1), (self.armDR_group, 0)),
             # connect hinge and arms
             BAI(bond_t2, (self.armUL_group, -1), (self.hinge_group, 3)),

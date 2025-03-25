@@ -163,8 +163,13 @@ class SMC_Creator:
         return ret
 
     def get_interaction_sites(self, siteD_points_down: bool, seed: int = 8343859591397577529):
+        # U = upper  interaction site
         # M = middle interaction site
         # D = lower  interaction site
+
+        # UPPER SITE
+
+        rSiteU = get_straight_segment(1)
 
         rotate_around_x_axis = Rotation.from_rotvec(math.pi * np.array([1.0, 0.0, 0.0])).as_matrix()
 
@@ -185,10 +190,11 @@ class SMC_Creator:
 
         # Add randomness
         rng_sites = default_rng(seed=seed)
+        rSiteU += rng_sites.standard_normal(size=rSiteU.shape) * self.SMALL
         rSiteM += rng_sites.standard_normal(size=rSiteM.shape) * self.SMALL
         rSiteD += rng_sites.standard_normal(size=rSiteD.shape) * self.SMALL
 
-        return rSiteM, rSiteD
+        return rSiteU, rSiteM, rSiteD
 
     def get_hinge(self):
         radius = 2.0
@@ -205,7 +211,7 @@ class SMC_Creator:
         rArmDL, rArmUL, rArmUR, rArmDR = self.get_arms()
         rATP = self.get_bridge()
         rHK = self.get_heads_kleisin()
-        rSiteM, rSiteD = self.get_interaction_sites(siteD_points_down)
+        rSiteU, rSiteM, rSiteD = self.get_interaction_sites(siteD_points_down)
         rHinge = self.get_hinge()
 
         # Inert bead, used for breaking folding symmetry
@@ -223,6 +229,9 @@ class SMC_Creator:
 
         # place hinge at center of top
         rHinge += rArmUR[0]
+        # place bead slightly below
+        rSiteU += rArmUR[0]
+        rSiteU[:,1] -= self.SMCspacing
 
         # rotate upper arms away to attach to hinge properly
         rotArm = Rotation.from_rotvec(math.radians(6.2) * np.array([1.0, 0.0, 0.0])).as_matrix()
@@ -240,18 +249,18 @@ class SMC_Creator:
         rotMat = Rotation.from_rotvec(-math.radians(self.foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
 
         # Rotations
-        rArmDL, rArmUL, rArmUR, rArmDR, rSiteM, rHinge = \
-            self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rSiteM, rHinge)
+        rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM, rHinge = \
+            self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM, rHinge)
 
         # apply extra rotation to entire SMC
         if extra_rotation is not None:
             rotMat = Rotation.from_rotvec(extra_rotation).as_matrix()
-            rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD, rHinge = \
-                self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD, rHinge)
+            rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge = \
+                self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge)
 
-        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD]
+        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge]
 
-        return rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD, rHinge
+        return tuple(self.generated_positions)
 
     def get_mass_per_atom(self, total_mass: float) -> float:
         return total_mass / sum(len(x) for x in self.generated_positions)
