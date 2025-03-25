@@ -273,7 +273,7 @@ smc_creator = SMC_Creator(
 )
 
 rot_vec = np.array([0.0, 0.0, -np.deg2rad(42)]) if dnaConfigClass is dna.AdvancedObstacleSafety else None
-rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD = \
+rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteM, rSiteD, rHinge = \
         smc_creator.get_smc(
             siteD_points_down=False,
             #dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
@@ -320,7 +320,7 @@ gen = Generator()
 gen.set_system_size(boxWidth)
 
 # Molecule for each rigid body
-molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molSiteU = [MoleculeId.get_next() for _ in range(7)]
+molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHinge = [MoleculeId.get_next() for _ in range(7)]
 molSiteM = molATP
 molSiteD = molHK
 
@@ -340,6 +340,7 @@ smc_1 = SMC(
     rHK=rHK,
     rSiteM=rSiteM,
     rSiteD=rSiteD,
+    rHinge=rHinge,
 
     molArmDL=molArmDL,
     molArmUL=molArmUL,
@@ -347,7 +348,7 @@ smc_1 = SMC(
     molArmDR=molArmDR,
     molHK=molHK,
     molATP=molATP,
-    molSiteU=molSiteU,
+    molHinge=molHinge,
     molSiteM=molSiteM,
     molSiteD=molSiteD,
 
@@ -403,17 +404,19 @@ middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma *
 
 # Every joint is kept in place through bonds
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
+bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondSMC, maxLengthSMC))
 
-bonds = smc_1.get_bonds(bond_t2)
+bonds = smc_1.get_bonds(bond_t2, bond_t3)
 gen.bais += [
     *bonds,
     *dnaConfig.get_bonds()
 ]
 
 angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kElbows, 180 ) )
-angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength ) ) ) )
+angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength / 4.0 ) ) ) )
+angle_t4 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms, 90 ) )
 
-angles = smc_1.get_angles(angle_t2, angle_t3)
+angles = smc_1.get_angles(angle_t2, angle_t3, angle_t4)
 gen.bais += angles
 
 # Angle interactions that change for different phases of SMC
@@ -609,7 +612,7 @@ with open(filepath_param, 'w') as parameterfile:
     parameterfile.write(
         get_string_def("SMC_mols",
             list_to_space_str(
-                [molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molSiteU, molSiteM, molSiteD]
+                [molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHinge, molSiteM, molSiteD]
             )
         )
     )

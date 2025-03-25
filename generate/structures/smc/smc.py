@@ -16,6 +16,7 @@ class SMC:
     rHK  : ...
     rSiteM : ...
     rSiteD : ...
+    rHinge : ...
 
     molArmDL: int
     molArmUL: int
@@ -23,7 +24,7 @@ class SMC:
     molArmDR: int
     molHK   : int
     molATP  : int
-    molSiteU: int
+    molHinge: int
     molSiteM: int
     molSiteD: int
 
@@ -42,6 +43,8 @@ class SMC:
         self.hk_group = AtomGroup(self.rHK, self.armHK_type, self.molHK)
 
         self.atp_group = AtomGroup(self.rATP, self.atp_type, self.molATP)
+
+        self.hinge_group = AtomGroup(self.rHinge, self.armHK_type, self.molHinge)
 
         # split M in three parts
 
@@ -69,15 +72,19 @@ class SMC:
             self.siteM_atp_group,
             self.siteM_ref_group,
             self.siteD_group,
-            self.siteD_arm_group
+            self.siteD_arm_group,
+            self.hinge_group,
         ]
 
-    def get_bonds(self, bond_t2: BAI_Type) -> List[BAI]:
+    def get_bonds(self, bond_t2: BAI_Type, bond_t3: BAI_Type) -> List[BAI]:
         return [
             # attach arms together
             BAI(bond_t2, (self.armDL_group, -1), (self.armUL_group, 0)),
-            BAI(bond_t2, (self.armUL_group, -1), (self.armUR_group, 0)),
+            # BAI(bond_t2, (self.armUL_group, -1), (self.armUR_group, 0)),
             BAI(bond_t2, (self.armUR_group, -1), (self.armDR_group, 0)),
+            # connect hinge and arms
+            BAI(bond_t2, (self.armUL_group, -1), (self.hinge_group, 3)),
+            BAI(bond_t2, (self.armUR_group, 0), (self.hinge_group, -3)),
             # connect atp bridge to arms
             BAI(bond_t2, (self.armDR_group, -1), (self.atp_group, -1)),
             BAI(bond_t2, (self.atp_group,  0), (self.armDL_group, 0)),
@@ -86,12 +93,19 @@ class SMC:
             BAI(bond_t2, (self.hk_group, -1), (self.atp_group, 0)),
         ]
 
-    def get_angles(self, angle_t2: BAI_Type, angle_t3: BAI_Type) -> List[BAI]:
+    def get_angles(self, angle_t2: BAI_Type, angle_t3: BAI_Type, angle_t4: BAI_Type) -> List[BAI]:
         return [
             # keep left arms rigid (prevent too much bending)
             BAI(angle_t2, (self.armDL_group, 0), (self.armUL_group, 0), (self.armUL_group, -1)),
             # same, but for right arms
             BAI(angle_t2, (self.armUR_group, 0), (self.armUR_group, -1), (self.armDR_group, -1)),
+
+            # keep hinge perpendicular to arms
+            BAI(angle_t4, (self.armUL_group, -2), (self.armUL_group, -1), (self.hinge_group, 4)),
+            BAI(angle_t4, (self.armUL_group, -2), (self.armUL_group, -1), (self.hinge_group, 2)),
+
+            BAI(angle_t4, (self.armUR_group, 1), (self.hinge_group, 0), (self.hinge_group, -4)),
+            BAI(angle_t4, (self.armUR_group, 1), (self.hinge_group, 0), (self.hinge_group, -2)),
 
             # prevent too much bending between lower arms and the bridge
             BAI(angle_t3, (self.armDL_group, -1), (self.armDL_group, 0), (self.atp_group, -1)),
