@@ -78,7 +78,7 @@ class InteractionParameters:
 class Tether:
 
     class Obstacle:
-        
+
         def move(self, vector) -> None:
             raise Exception("don't use Tether.Obstacle directly")
 
@@ -193,6 +193,7 @@ class Tether:
         if isinstance(self.obstacle, Tether.Gold):
             pair_inter.add_interaction(self.obstacle.group.type, dna_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
             pair_inter.add_interaction(self.obstacle.group.type, smc.armHK_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
+            pair_inter.add_interaction(self.obstacle.group.type, smc.hinge_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
             pair_inter.add_interaction(self.obstacle.group.type, tether_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
 
     def get_bonds(self, bond_type: BAI_Type) -> List[BAI]:
@@ -306,6 +307,7 @@ class DnaConfiguration:
         kBT = self.par.kB * self.par.T
         pair_inter.add_interaction(dna_type, dna_type, ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA)
         pair_inter.add_interaction(dna_type, self.smc.armHK_type, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
+        pair_inter.add_interaction(dna_type, self.smc.hinge_type, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
         pair_inter.add_interaction(dna_type, self.smc.siteD_type, ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA)
     
     def get_bonds(self) -> List[BAI]:
@@ -507,7 +509,7 @@ class Obstacle(DnaConfiguration):
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        dna_start_index = int(len(rDNA)*14/15)
+        dna_start_index = int(len(rDNA)*9/15)
         start = np.array([rDNA[dna_start_index][0] - 10.0 * dna_parameters.DNAbondLength, rDNA[dna_start_index][1], 0])
         shift = (goal - start).reshape(1, 3)
         rDNA += shift

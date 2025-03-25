@@ -325,6 +325,7 @@ molSiteM = molATP
 molSiteD = molHK
 
 armHK_type = AtomType(mSMC)
+hinge_type = AtomType(mSMC)
 atp_type = AtomType(mSMC)
 siteM_type = AtomType(mSMC)
 siteD_type = AtomType(mSMC)
@@ -353,6 +354,7 @@ smc_1 = SMC(
     molSiteD=molSiteD,
 
     armHK_type=armHK_type,
+    hinge_type=hinge_type,
     atp_type=atp_type,
     siteM_type=siteM_type,
     siteD_type=siteD_type,

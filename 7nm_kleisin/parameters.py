@@ -3,9 +3,9 @@ HKradius = 7.
 # HKradius = 4.5 # from original paper (used incorrect formula??)
 
 # amount of DNA
-N = 400
+N = 200
 
-cycles = 1
+cycles = 20
 
 # bottom site
 # epsilon6 = 500.0

@@ -29,6 +29,7 @@ class SMC:
     molSiteD: int
 
     armHK_type : AtomType
+    hinge_type: AtomType
     atp_type : AtomType
     siteM_type : AtomType
     siteD_type : AtomType
@@ -44,7 +45,7 @@ class SMC:
 
         self.atp_group = AtomGroup(self.rATP, self.atp_type, self.molATP)
 
-        self.hinge_group = AtomGroup(self.rHinge, self.armHK_type, self.molHinge)
+        self.hinge_group = AtomGroup(self.rHinge, self.hinge_type, self.molHinge)
 
         # split M in three parts
 
