@@ -390,6 +390,9 @@ bridge_on = [None, "{} {} " + f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.
 bridge_soft_off = [None, "{} {} soft 0 0\n", dna_type, atp_type]
 bridge_soft_on = [None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
 
+hinge_attraction_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, hinge_type]
+hinge_attraction_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, hinge_type]
+
 if False: #isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
     # always keep site on
     lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
@@ -471,6 +474,7 @@ def apply(function, file, list_of_args):
 with open(states_path / "adp_bound", 'w') as adp_bound_file:
     options = [
        bridge_off,
+       hinge_attraction_on,
        middle_site_off,
        lower_site_off,
        arms_open,
@@ -482,6 +486,7 @@ with open(states_path / "adp_bound", 'w') as adp_bound_file:
 with open(states_path / "apo", 'w') as apo_file:
     options = [
         bridge_off,
+        hinge_attraction_off,
         middle_site_off,
         lower_site_on,
         arms_close,
@@ -504,6 +509,7 @@ with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
         bridge_soft_off,
         middle_site_soft_off,
         bridge_on,
+        hinge_attraction_on,
         middle_site_on,
         lower_site_on,
         arms_open,
