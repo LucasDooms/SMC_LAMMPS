@@ -320,7 +320,7 @@ gen = Generator()
 gen.set_system_size(boxWidth)
 
 # Molecule for each rigid body
-molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHinge = [MoleculeId.get_next() for _ in range(7)]
+molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL, molHingeR = [MoleculeId.get_next() for _ in range(8)]
 molSiteM = molATP
 molSiteD = molHK
 
@@ -351,7 +351,8 @@ smc_1 = SMC(
     molArmDR=molArmDR,
     molHK=molHK,
     molATP=molATP,
-    molHinge=molHinge,
+    molHingeL=molHingeL,
+    molHingeR=molHingeR,
     molSiteM=molSiteM,
     molSiteD=molSiteD,
 
@@ -376,6 +377,7 @@ gen.atom_groups += [
 
 # Pair coefficients
 pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
+pair_inter.add_interaction(hinge_type, hinge_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
 
 dnaConfig.add_interactions(pair_inter)
 
@@ -412,7 +414,7 @@ middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma *
 
 # Every joint is kept in place through bonds
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
-bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondSMC, maxLengthSMC))
+bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondSMC / 50.0, maxLengthSMC))
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3)
 gen.bais += [
@@ -437,8 +439,9 @@ arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", a
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 0 ) )
 imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 180 - par.foldingAngleAPO ) )
 imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, abs(90 - par.foldingAngleAPO) ) )
+imp_t4 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite / 5.0, 90 ) )
 
-gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3)
+gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3, imp_t4)
 
 
 # Improper interactions that change for different phases of SMC
@@ -623,7 +626,7 @@ with open(filepath_param, 'w') as parameterfile:
     parameterfile.write(
         get_string_def("SMC_mols",
             list_to_space_str(
-                [molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHinge, molSiteM, molSiteD]
+                [molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL, molHingeR, molSiteM, molSiteD]
             )
         )
     )

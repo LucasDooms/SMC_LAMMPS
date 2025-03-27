@@ -19,7 +19,8 @@ boundary f f f
 
 
 atom_style     molecular
-bond_style     hybrid fene/expand
+bond_style     hybrid fene/expand harmonic
+# bond_style     hybrid fene/expand
 angle_style    hybrid cosine harmonic
 improper_style harmonic
 

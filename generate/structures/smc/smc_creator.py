@@ -201,11 +201,21 @@ class SMC_Creator:
         radius = 2.0
 
         nRing = math.ceil(2 * np.pi * radius / self.SMCspacing)
+        # should be multiple of 2 but not of 4
+        if nRing % 2 == 1:
+            nRing += 1
+        if nRing % 4 == 0:
+            nRing += 2
 
         rHinge = get_circle_segment_unit_radius(nRing, end_inclusive=False, normal_direction=(0, 1, 0))
 
+        # rotate slightly
+        angle = np.linalg.norm(rHinge[1] - rHinge[0]) / 2.0
+        rotMat = Rotation.from_rotvec(angle * np.array([0.0, 1.0, 0.0])).as_matrix()
+
         rHinge *= radius
 
+        rHinge = self.transpose_rotate_transpose(rotMat, rHinge)
         return rHinge
 
     def get_smc(self, siteD_points_down: bool, extra_rotation = None):
@@ -249,17 +259,16 @@ class SMC_Creator:
         # Rotation matrix (clockwise about z axis)
         rotMat = Rotation.from_rotvec(-math.radians(self.foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
 
-        # Rotations
+        # Rotate upper segments only
         rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM, rHinge = \
             self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM, rHinge)
+
+        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge]
 
         # apply extra rotation to entire SMC
         if extra_rotation is not None:
             rotMat = Rotation.from_rotvec(extra_rotation).as_matrix()
-            rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge = \
-                self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge)
-
-        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge]
+            self.generated_positions = self.transpose_rotate_transpose(rotMat, *self.generated_positions)
 
         return tuple(self.generated_positions)
 
