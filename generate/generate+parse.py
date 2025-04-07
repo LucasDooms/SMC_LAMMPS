@@ -207,6 +207,7 @@ interaction_parameters = dna.InteractionParameters(
 # Relative bond fluctuations
 bondFlDNA = 1e-2
 bondFlSMC = 1e-2
+bondFlHinge = 0.5 # large fluctuations to allow tether passing
 
 # Maximum relative bond extension (units of rest length)
 bondMax = 1.
@@ -214,6 +215,7 @@ bondMax = 1.
 # Spring constant obeying equilibrium relative bond fluctuations
 kBondDNA = 3 * kBT / (DNAbondLength * bondFlDNA)**2
 kBondSMC = 3 * kBT / (SMCspacing * bondFlSMC)**2
+kBondHinge = 3 * kBT / (SMCspacing * bondFlHinge)**2
 kBondAlign1 = 10 * kBT / SMCspacing**2
 kBondAlign2 = 200 * kBT / SMCspacing**2
 
@@ -266,6 +268,7 @@ smc_creator = SMC_Creator(
 
     armLength=par.armLength,
     bridgeWidth=par.bridgeWidth,
+    hingeRadius=par.hingeRadius,
 
     HKradius=par.HKradius,
 
@@ -414,7 +417,7 @@ middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma *
 
 # Every joint is kept in place through bonds
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
-bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondSMC / 50.0, maxLengthSMC))
+bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondHinge, maxLengthSMC))
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3)
 gen.bais += [
@@ -432,7 +435,7 @@ gen.bais += angles
 # Angle interactions that change for different phases of SMC
 # angle3angleAPO1 = np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))
 # angle3angleAPO1 = np.rad2deg(np.arccos(2 * par.bridgeWidth / par.armLength))
-arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))}\n", angle_t3]
+arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {np.rad2deg(np.arccos((par.bridgeWidth / 2.0 - par.hingeRadius) / par.armLength))}\n", angle_t3]
 arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", angle_t3]
 
 # We impose zero improper angle

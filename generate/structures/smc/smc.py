@@ -144,7 +144,13 @@ class SMC:
 
             # fix hinge to a plane
             BAI(imp_t1, (self.hingeL_group, 0), (self.hingeL_group, -1), (self.hingeR_group, 0), (self.hingeR_group, -1)),
+            BAI(imp_t1, (self.hingeL_group, 0), (self.hingeL_group, left_attach_hinge), (self.hingeR_group, 0), (self.hingeR_group, right_attach_hinge)),
+
             # fix hinge perpendicular to arms plane
             BAI(imp_t4, (self.armUL_group, -2), (self.armUL_group, -1), (self.hingeL_group, left_attach_hinge - 1), (self.hingeL_group, left_attach_hinge + 1)),
             BAI(imp_t4, (self.armUR_group, 1), (self.armUR_group, 0), (self.hingeR_group, right_attach_hinge + 1), (self.hingeR_group, right_attach_hinge - 1)),
+
+            # # keep hinge aligned with bridge axis
+            # BAI(imp_t1, (self.hingeL_group, left_attach_hinge), (self.hingeR_group, right_attach_hinge), (self.atp_group, 0), (self.atp_group, -1)),
+            BAI(imp_t4, (self.siteU_group, 0), (self.siteU_group, len(self.siteU_group.positions) // 2), (self.atp_group, len(self.atp_group.positions) // 2), (self.atp_group, -1)),
         ]

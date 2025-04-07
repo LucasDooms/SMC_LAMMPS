@@ -180,6 +180,10 @@ class Tether:
             tether_type, smc.armHK_type,
             ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA
         )
+        pair_inter.add_interaction(
+            tether_type, smc.hinge_type,
+            ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA / 2.0, ip.rcutSMCvsDNA / 2.0
+        )
         # Optional: don't allow bridge to go through tether
         # pair_inter.add_interaction(
         #     tether_type, smc.atp_type,

@@ -22,6 +22,7 @@ class SMC_Creator:
 
     armLength: float
     bridgeWidth: float
+    hingeRadius: float
 
     HKradius: float
 
@@ -198,7 +199,7 @@ class SMC_Creator:
         return rSiteU, rSiteM, rSiteD
 
     def get_hinge(self):
-        radius = 2.0
+        radius = self.hingeRadius
 
         nRing = math.ceil(2 * np.pi * radius / self.SMCspacing)
         # should be multiple of 2 but not of 4
@@ -245,10 +246,10 @@ class SMC_Creator:
         rSiteU[:,1] -= self.SMCspacing
 
         # rotate upper arms away to attach to hinge properly
-        rotArm = Rotation.from_rotvec(math.radians(6.2) * np.array([1.0, 0.0, 0.0])).as_matrix()
-        rArmUR = self.transpose_rotate_transpose(rotArm, rArmUR - rArmUR[-1]) + rArmUR[-1]
-        rotArm = Rotation.from_rotvec(-math.radians(6.2) * np.array([1.0, 0.0, 0.0])).as_matrix()
-        rArmUL = self.transpose_rotate_transpose(rotArm, rArmUL - rArmUL[0]) + rArmUL[0]
+        left_attach_hinge = len(rHinge) // 4
+        rot = Rotation.align_vectors(rArmUL[-1] - rArmUL[0], rHinge[left_attach_hinge] - rArmUL[0])[0]
+        rArmUR = self.transpose_rotate_transpose(rot.as_matrix(), rArmUR - rArmUR[-1]) + rArmUR[-1]
+        rArmUL = self.transpose_rotate_transpose(rot.inv().as_matrix(), rArmUL - rArmUL[0]) + rArmUL[0]
 
         # move into the correct location
         rSiteM += rATP[len(rATP)//2]
