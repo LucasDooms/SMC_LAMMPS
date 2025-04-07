@@ -1,11 +1,19 @@
 # Radius of lower circular-arc compartment (nm)
-HKradius = 7.
-# HKradius = 4.5 # from original paper (used incorrect formula??)
+HKradius = 4.5
 
 # amount of DNA
 N = 350
 
 cycles = 20
+
+# Average number of steps for ATP binding
+stepsATP = 1000000
+
+# Average number of steps for ATP hydrolysis
+stepsADP = 4000000
+
+# Average number of steps for returning to APO
+stepsAPO = 1000000
 
 # bottom site
 # epsilon6 = 500.0
