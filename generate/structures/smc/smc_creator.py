@@ -217,6 +217,13 @@ class SMC_Creator:
         rHinge *= radius
 
         rHinge = self.transpose_rotate_transpose(rotMat, rHinge)
+
+        # separate pieces
+        half = len(rHinge) // 2
+
+        rHinge[:half,2] -= self.SMCspacing / 4.0
+        rHinge[half:,2] += self.SMCspacing / 4.0
+
         return rHinge
 
     def get_smc(self, siteD_points_down: bool, extra_rotation = None):

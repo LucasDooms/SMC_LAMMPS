@@ -209,6 +209,7 @@ interaction_parameters = dna.InteractionParameters(
 bondFlDNA = 1e-2
 bondFlSMC = 1e-2
 bondFlHinge = 0.5 # large fluctuations to allow tether passing
+# bondFlHinge = 1e-2 # no fluctuations
 
 # Maximum relative bond extension (units of rest length)
 bondMax = 1.
@@ -327,7 +328,12 @@ gen = Generator()
 gen.set_system_size(boxWidth)
 
 # Molecule for each rigid body
-molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL, molHingeR = [MoleculeId.get_next() for _ in range(8)]
+if True: # rigidHinge
+    molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL = [MoleculeId.get_next() for _ in range(7)]
+    molHingeR = molHingeL
+else:
+    molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL, molHingeR = [MoleculeId.get_next() for _ in range(8)]
+
 molSiteM = molATP
 molSiteD = molHK
 
@@ -421,7 +427,7 @@ middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma *
 
 # Every joint is kept in place through bonds
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
-bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondHinge, maxLengthSMC))
+bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondHinge, 1.5 * SMCspacing))
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3)
 gen.bais += [
