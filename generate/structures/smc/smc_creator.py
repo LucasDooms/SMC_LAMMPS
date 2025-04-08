@@ -221,8 +221,9 @@ class SMC_Creator:
         # separate pieces
         half = len(rHinge) // 2
 
-        rHinge[:half,2] -= self.SMCspacing / 4.0
-        rHinge[half:,2] += self.SMCspacing / 4.0
+        extraSpacing = self.SMCspacing * 0.8
+        rHinge[:half,2] -= extraSpacing / 2.0
+        rHinge[half:,2] += extraSpacing / 2.0
 
         return rHinge
 

@@ -427,7 +427,7 @@ middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma *
 
 # Every joint is kept in place through bonds
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
-bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondHinge, 1.5 * SMCspacing))
+bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondHinge, 1.8 * SMCspacing))
 
 bonds = smc_1.get_bonds(bond_t2, bond_t3)
 gen.bais += [
