@@ -100,6 +100,7 @@ intRadDNAvsDNA = 3.5
 
 # Bending stiffness (nm)
 DNAstiff = 50.
+ssDNAstiff = 5.
 
 # Base pair step (nm)
 bpStep = 0.34
@@ -226,6 +227,7 @@ maxLengthSMC = SMCspacing * bondMax
 
 # DNA bending rigidity
 kDNA = DNAstiff * kBT / DNAbondLength
+kssDNA = ssDNAstiff * kBT / DNAbondLength
 
 # Angular trap constants
 # kElbows: Bending of elbows (kinkable arms, hence soft)
@@ -297,6 +299,7 @@ def get_closest(array, position) -> int:
 molDNA = MoleculeId.get_next()
 dna_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondDNA, maxLengthDNA, 0, 0, DNAbondLength))
 dna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
+ssdna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kssDNA )
 dna_type = AtomType(mDNA)
 
 dna_parameters = dna.DnaParameters(
@@ -306,7 +309,8 @@ dna_parameters = dna.DnaParameters(
     type=dna_type,
     molDNA=molDNA,
     bond=dna_bond,
-    angle=dna_angle
+    angle=dna_angle,
+    ssangle=ssdna_angle,
 )
 dnaConfig = dnaConfigClass.get_dna_config(dna_parameters, rSiteD, par)
 
