@@ -64,6 +64,7 @@ bridgeWidth = 7.5
 
 # Hinge radius (nm)
 hingeRadius = 2.0
+rigidHinge = True
 
 # Radius of lower circular-arc compartment (nm)
 HKradius = 7.

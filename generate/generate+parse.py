@@ -208,8 +208,8 @@ interaction_parameters = dna.InteractionParameters(
 # Relative bond fluctuations
 bondFlDNA = 1e-2
 bondFlSMC = 1e-2
-bondFlHinge = 0.5 # large fluctuations to allow tether passing
-# bondFlHinge = 1e-2 # no fluctuations
+# bondFlHinge = 0.5 # large fluctuations to allow tether passing
+bondFlHinge = 3e-2 # small fluctuations
 
 # Maximum relative bond extension (units of rest length)
 bondMax = 1.
@@ -328,11 +328,13 @@ gen = Generator()
 gen.set_system_size(boxWidth)
 
 # Molecule for each rigid body
-if True: # rigidHinge
-    molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL = [MoleculeId.get_next() for _ in range(7)]
+molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP= [MoleculeId.get_next() for _ in range(6)]
+
+molHingeL = MoleculeId.get_next()
+if par.rigidHinge:
     molHingeR = molHingeL
 else:
-    molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL, molHingeR = [MoleculeId.get_next() for _ in range(8)]
+    molHingeR = MoleculeId.get_next()
 
 molSiteM = molATP
 molSiteD = molHK
