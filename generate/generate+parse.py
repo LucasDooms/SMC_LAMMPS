@@ -392,7 +392,10 @@ gen.atom_groups += [
 
 # Pair coefficients
 pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
+# prevent hinges from overlapping
 pair_inter.add_interaction(hinge_type, hinge_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
+# prevent upper site from overlapping with arms
+pair_inter.add_interaction(armHK_type, siteU_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
 
 dnaConfig.add_interactions(pair_inter)
 
