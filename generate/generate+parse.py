@@ -6,7 +6,7 @@ import math
 import numpy as np
 from numpy.random import default_rng
 from generator import AtomIdentifier, Generator, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
-from sys import argv
+from sys import argv, maxsize
 from pathlib import Path
 from typing import Any, List
 from structures.dna import dna
@@ -635,6 +635,30 @@ def get_times(apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Gener
 
     return [math.ceil(mult(x)) for x in (apo, atp1, atp2, adp)]
 
+def get_times_with_max_steps(rng_gen: np.random.Generator):
+    run_steps = []
+
+    def none_to_max(x):
+        if x is None:
+            return maxsize # very large number!
+        return x
+
+    cycles_left = none_to_max(par.cycles)
+    max_steps = none_to_max(par.max_steps)
+
+    cum_steps = 0
+    while True: # use do while loop since run_steps should not be empty
+        new_times = get_times(par.stepsAPO, 10000, par.stepsATP, par.stepsADP, rng_gen)
+        run_steps += new_times
+
+        cum_steps += sum(new_times)
+        cycles_left -= 1
+
+        if cycles_left <= 0 or cum_steps >= max_steps:
+            break
+
+    return run_steps
+
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 
@@ -722,9 +746,7 @@ with open(filepath_param, 'w') as parameterfile:
     # get run times for each SMC state
     # APO -> ATP1 -> ATP2 -> ADP -> ...
     rng = default_rng(par.seed)
-    runtimes = []
-    for _ in range(par.cycles):
-        runtimes += get_times(par.stepsAPO, 10000, par.stepsATP, par.stepsADP, rng)
+    runtimes = get_times_with_max_steps(rng)
 
     parameterfile.write(
         get_index_def("runtimes", [str(x) for x in runtimes])

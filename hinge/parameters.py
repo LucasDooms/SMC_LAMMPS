@@ -4,7 +4,9 @@ HKradius = 4.5
 # amount of DNA
 N = 350
 
-cycles = 20
+# cycles = 20
+cycles = None
+max_steps = 240000000 # average number of steps for 20 cycles
 
 rigidHinge = True
 

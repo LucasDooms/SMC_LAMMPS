@@ -40,8 +40,13 @@ force = 0.800
 # Number of independent runs
 runs = 10
 
-# Number of SMC cycles
+# Number of SMC cycles (if set to None, will find approximate value using max_steps)
+# Note: cycles are stochastic, so time per cycle is variable
 cycles = 2
+
+# Max steps for run (None -> no maximum, will complete every cycle)
+# Note: this is not a hard limit, some extra steps may be performed to complete a cycle
+max_steps = None
 
 # Average number of steps for ATP binding
 stepsATP = 2000000
