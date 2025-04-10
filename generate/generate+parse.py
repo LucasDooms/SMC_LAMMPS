@@ -4,6 +4,7 @@
 
 import math
 import numpy as np
+from numpy.random import default_rng
 from generator import AtomIdentifier, Generator, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
 from sys import argv
 from pathlib import Path
@@ -620,6 +621,19 @@ def get_universe_def(name: str, values: List[str]) -> str:
     values = ['"' + value + '"' for value in values]
     return f'variable {name} universe {list_to_space_str(values)}\n'
 
+def get_index_def(name: str, values: List[str]) -> str:
+    """define a LAMMPS universe"""
+    return f'variable {name} index {list_to_space_str(values)}\n'
+
+def get_times(apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Generator):
+    # get run times for each SMC state
+    # APO -> ATP1 -> ATP2 -> ADP -> ...
+
+    def mult(x):
+        # use 1.0 to get (0, 1] lower exclusive
+        return -x * np.log(1.0 - rng_gen.uniform())
+
+    return [math.ceil(mult(x)) for x in (apo, atp1, atp2, adp)]
 
 with open(filepath_param, 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
@@ -703,3 +717,15 @@ with open(filepath_param, 'w') as parameterfile:
             "variable obstacle_id equal {}\n".format(obstacle_lammps_id)
         )
 
+    parameterfile.write("\n")
+
+    # get run times for each SMC state
+    # APO -> ATP1 -> ATP2 -> ADP -> ...
+    rng = default_rng(par.seed)
+    runtimes = []
+    for _ in range(par.cycles):
+        runtimes += get_times(par.stepsAPO, 10000, par.stepsATP, par.stepsADP, rng)
+
+    parameterfile.write(
+        get_index_def("runtimes", [str(x) for x in runtimes])
+    )

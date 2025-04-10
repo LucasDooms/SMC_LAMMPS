@@ -141,26 +141,24 @@ if $(is_defined(variable,smc_force)) then &
 # Reference point in script (enter loop)
 label main_loop
 
-# Cycle index (looped over)
-variable cycle loop ${cycles}
-
-# Equilibrate in the APO-state
-run $(round(-(v_stepsATP/2)*ln(random(0,1,v_seed))))
+# APO state
+include states/apo
+run ${runtimes}
+next runtimes
 
 # ATP-bound state
 include states/atp_bound_1
-run $(round(-10000*ln(random(0,1,v_seed))))
+run ${runtimes}
+next runtimes
 
 include states/atp_bound_2
-run $(round(-(v_stepsADP-10000)*ln(random(0,1,v_seed))))
+run ${runtimes}
+next runtimes
 
 # ADP-bound state
 include states/adp_bound
-run $(round(-v_stepsAPO*ln(random(0,1,v_seed))))
-
-# APO state
-include states/apo
-run $(round(-(v_stepsATP/2)*ln(random(0,1,v_seed))))
+run ${runtimes}
+next runtimes
 
 #print "${stepCurrent}" append ${timesfile} screen no
 
@@ -169,11 +167,8 @@ run $(round(-(v_stepsATP/2)*ln(random(0,1,v_seed))))
 
 #run 0
 
-# Increment cycle index
-next cycle
-
 # Re-enter loop
-# LAMMPS will auto skip this when the cycle variable is exhausted
+# LAMMPS will auto skip this when the runtimes variable is exhausted
 jump SELF main_loop
 
 # The End
