@@ -385,6 +385,15 @@ dnaConfig.set_smc(smc_1)
 
 smc_1_groups = smc_1.get_groups()
 
+bead_type = AtomType(10.0 * mDNA)
+bead_size = 3 # half of 6 (since it binds to DNA of two sides) -> ~ 6 * 1.7 nm ~ 10 nm
+bead_bond = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondDNA, bead_size * DNAbondLength))
+try:
+    dna_id = dnaConfig.tether.dna_tether_id
+except AttributeError:
+    dna_id = (dnaConfig.dna_groups[0], len(dnaConfig.dna_groups[0].positions) // 2)
+dnaConfig.add_bead_to_dna(bead_type, molDNA, dna_id, bead_bond, bead_size)
+
 gen.atom_groups += [
     *dnaConfig.get_all_groups(),
     *smc_1_groups
@@ -403,6 +412,15 @@ dnaConfig.add_interactions(pair_inter)
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
 
+# bead
+for smc_grp in smc_1_groups:
+    pair_inter.add_interaction(
+        bead_type,
+        smc_grp.type,
+        epsilonSMCvsDNA * kBT,
+        bead_size * sigmaSMCvsDNA,
+        bead_size * rcutSMCvsDNA,
+    )
 
 gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
@@ -435,9 +453,8 @@ middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma *
 bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
 bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondHinge, 1.8 * SMCspacing))
 
-bonds = smc_1.get_bonds(bond_t2, bond_t3)
 gen.bais += [
-    *bonds,
+    *smc_1.get_bonds(bond_t2, bond_t3),
     *dnaConfig.get_bonds()
 ]
 

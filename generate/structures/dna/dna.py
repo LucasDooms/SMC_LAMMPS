@@ -272,9 +272,11 @@ class DnaConfiguration:
         self.dna_groups = dna_groups
         self.dna_parameters = dna_parameters
         self.kBT = self.par.kB * self.par.T
+        self.beads: List[AtomGroup] = []
+        self.bead_bonds: List[BAI] = []
 
     def get_all_groups(self) -> List[AtomGroup]:
-        return self.dna_groups
+        return self.dna_groups + self.beads
 
     @classmethod
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> DnaConfiguration:
@@ -287,7 +289,7 @@ class DnaConfiguration:
             stretching_forces_array=dict(),
             dna_indices_list=[]
         )
-    
+
     def dna_indices_list_get_all_dna(self) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
         return [
             (
@@ -314,9 +316,32 @@ class DnaConfiguration:
         pair_inter.add_interaction(dna_type, self.smc.armHK_type, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
         pair_inter.add_interaction(dna_type, self.smc.hinge_type, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
         pair_inter.add_interaction(dna_type, self.smc.siteD_type, ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA)
-    
+
     def get_bonds(self) -> List[BAI]:
-        return []
+        return self.bead_bonds
+
+    def add_bead_to_dna(
+        self,
+        bead_type: AtomType,
+        mol_index: int,
+        dna_atom: AtomIdentifier,
+        bond: BAI_Type,
+        offset: int
+    ) -> None:
+        # place on a DNA bead
+        location = dna_atom[0].positions[dna_atom[1]]
+
+        # create a bead
+        bead = AtomGroup([location], bead_type, mol_index)
+
+        # add interactions/exceptions
+        bais = [
+            BAI(bond, (dna_atom[0], dna_atom[1] - offset), (bead, 0)),
+            BAI(bond, (dna_atom[0], dna_atom[1] + offset), (bead, 0)),
+        ]
+
+        self.beads.append(bead)
+        self.bead_bonds += bais
 
     @staticmethod
     def str_to_config(string: str):
@@ -381,7 +406,7 @@ class Folded(DnaConfiguration):
     def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> Folded:
         # place your DNA here, inside the SMC
         default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
-        
+
         # 1.
         [rDNA], dnaCenter = dna_creator.get_dna_coordinates_twist(dna_parameters.nDNA, dna_parameters.DNAbondLength, 17)
 
