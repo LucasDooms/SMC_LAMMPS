@@ -25,9 +25,15 @@ class AtomType:
     __index = 1
 
     def __init__(self, mass: float = 1.0) -> None:
-        self.index = self.__class__.__index
-        self.__class__.__index += 1
+        self._index = None
         self.mass = mass
+
+    @property
+    def index(self) -> int:
+        if self._index is None:
+            self._index = self.__class__.__index
+            self.__class__.__index += 1
+        return self._index
 
 
 class MoleculeId:
@@ -62,10 +68,16 @@ class BAI_Type:
         """coefficients will be printed after the index in a datafile
         e.g. 3 harmonic 2 5
         (where 3 is the index and the rest is the coefficients string)"""
-        self.index = self.indices[kind]
-        self.indices[kind] += 1
+        self._index = None
         self.kind = kind
         self.coefficients = coefficients
+
+    @property
+    def index(self) -> int:
+        if self._index is None:
+            self._index = self.indices[self.kind]
+            self.indices[self.kind] += 1
+        return self._index
 
 
 class AtomGroup:
