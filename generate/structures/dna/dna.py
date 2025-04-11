@@ -273,6 +273,7 @@ class DnaConfiguration:
         self.dna_parameters = dna_parameters
         self.kBT = self.par.kB * self.par.T
         self.beads: List[AtomGroup] = []
+        self.bead_sizes: List[int] = []
         self.bead_bonds: List[BAI] = []
 
     def get_all_groups(self) -> List[AtomGroup]:
@@ -317,6 +318,16 @@ class DnaConfiguration:
         pair_inter.add_interaction(dna_type, self.smc.hinge_type, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
         pair_inter.add_interaction(dna_type, self.smc.siteD_type, ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA)
 
+        # every bead should repel every SMC group
+        for bead, bead_size, smc_grp in zip(self.beads, self.bead_sizes, self.smc.get_groups()):
+            pair_inter.add_interaction(
+                bead.type,
+                smc_grp.type,
+                ip.epsilonSMCvsDNA * kBT,
+                bead_size * ip.sigmaSMCvsDNA,
+                bead_size * ip.rcutSMCvsDNA
+            )
+
     def get_bonds(self) -> List[BAI]:
         return self.bead_bonds
 
@@ -341,6 +352,7 @@ class DnaConfiguration:
         ]
 
         self.beads.append(bead)
+        self.bead_sizes.append(offset)
         self.bead_bonds += bais
 
     @staticmethod

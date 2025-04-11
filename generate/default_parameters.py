@@ -57,6 +57,14 @@ stepsADP = 8000000
 # Average number of steps for returning to APO
 stepsAPO = 2000000
 
+##################### DNA #######################
+
+# configuration to generate
+dnaConfig = "folded"
+
+# adds 10 nm bead at DNA-tether site
+# only relevant if dnaConfig includes tether!
+addRNAPolymerase = True
 
 ##################### Geometry #####################
 
@@ -84,9 +92,6 @@ foldingAngleATP = 160.
 
 # Opening angle of arms in ATP-bound state (degrees)
 armsAngleATP = 130.
-
-# configuration to generate
-dnaConfig = "folded"
 
 #################### LJ energies ###################
 
