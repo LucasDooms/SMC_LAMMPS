@@ -1,7 +1,7 @@
 import argparse
+import subprocess
 from functools import partial
 from pathlib import Path
-import subprocess
 from warnings import warn
 
 
@@ -133,4 +133,5 @@ def main():
 
 
 if __name__ == "__main__":
+    # set PYTHONUNBUFFERED=1 if python is not printing correctly
     main()
