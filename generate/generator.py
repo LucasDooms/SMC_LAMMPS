@@ -385,7 +385,24 @@ class Generator:
 
             file.write("\n")
 
-    def write(self, file) -> None:
+    def write_coeffs(self, file) -> None:
+        self.write_header(file)
+        self.write_types(file)
+        file.write("\n")
+        self.write_masses(file)
+        self.write_BAI_coeffs(file)
+        self.write_pair_interactions(file)
+
+    def write_positions_and_bonds(self, file) -> None:
+        self.write_header(file)
+        self.write_amounts(file)
+        self.write_types(file)
+        self.write_system_size(file)
+        file.write("\n")
+        self.write_atoms(file)
+        self.write_bai(file)
+
+    def write_full(self, file) -> None:
         self.write_header(file)
         self.write_amounts(file)
         self.write_types(file)
@@ -424,7 +441,7 @@ def test_simple_atoms():
     gen.atom_groups.append(AtomGroup(positions, AtomType(), 1))
     gen.set_system_size(10)
     with open("test.gen", 'w') as file:
-        gen.write(file)
+        gen.write_full(file)
 
 
 def test_simple_atoms_polymer():
@@ -433,7 +450,7 @@ def test_simple_atoms_polymer():
     gen.atom_groups.append(AtomGroup(positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND)))
     gen.set_system_size(10)
     with open("test.gen", 'w') as file:
-        gen.write(file)
+        gen.write_full(file)
 
 
 def test_with_bonds():
@@ -476,7 +493,7 @@ def test_with_bonds():
     )
 
     with open("test.gen", 'w') as file:
-        gen.write(file)
+        gen.write_full(file)
 
 
 def test_with_pairs():
@@ -498,7 +515,7 @@ def test_with_pairs():
     gen.pair_interactions.append(pairwise)
 
     with open("test.gen", 'w') as file:
-        gen.write(file)
+        gen.write_full(file)
 
 
 def all_tests():

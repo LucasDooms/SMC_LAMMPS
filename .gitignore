@@ -1,5 +1,8 @@
 # automatically generated files
 datafile
+datafile_coeffs
+datafile_positions
+restartfile
 parameterfile
 */states/*
 post_processing_parameters.py

@@ -1,0 +1,8 @@
+group frozen ${indices}
+
+fix frz frozen setforce 0 0 0
+
+# Equilibrate in the APO-state
+run 30000
+
+unfix frz

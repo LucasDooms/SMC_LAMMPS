@@ -36,14 +36,6 @@ class Parameters:
 par = Parameters()
 
 
-# Name of generated data file
-filename_data = 'datafile'
-filepath_data = path / filename_data
-
-# Name of generated parameter file
-filename_param = 'parameterfile'
-filepath_param = path / filename_param
-
 nDNA = par.N
 DNAdiscr = par.n
 
@@ -485,8 +477,14 @@ if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)): #TOD
     # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = molSiteD
 
 # Create datafile
-with open(filepath_data, 'w') as datafile:
-    gen.write(datafile)
+with open(path / 'datafile_coeffs', 'w') as datafile:
+    # gen.write_full(datafile)
+    gen.write_coeffs(datafile)
+
+
+# Create datafile
+with open(path / 'datafile_positions', 'w') as datafile:
+    gen.write_positions_and_bonds(datafile)
 
 
 #################################################################################
@@ -664,7 +662,8 @@ def get_times_with_max_steps(rng_gen: np.random.Generator):
 
     return run_steps
 
-with open(filepath_param, 'w') as parameterfile:
+
+with open(path / 'parameterfile', 'w') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 
     # change seed if arg 2 provided
