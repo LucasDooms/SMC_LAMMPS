@@ -77,7 +77,7 @@ armLength = 50.
 bridgeWidth = 7.5
 
 # Hinge radius (nm)
-hingeRadius = 2.0
+hingeRadius = 1.5
 rigidHinge = True
 
 # Radius of lower circular-arc compartment (nm)

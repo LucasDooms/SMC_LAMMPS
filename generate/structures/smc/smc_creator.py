@@ -201,10 +201,12 @@ class SMC_Creator:
     def get_hinge(self):
         radius = self.hingeRadius
 
-        nRing = math.ceil(2 * np.pi * radius / self.SMCspacing)
+        spacing = self.SMCspacing * 0.8
+
+        nRing = math.ceil(2 * np.pi * radius / spacing)
         # should be multiple of 2 but not of 4
         if nRing % 2 == 1:
-            nRing += 1
+            nRing -= 1
         if nRing % 4 == 0:
             nRing += 2
 
@@ -243,7 +245,7 @@ class SMC_Creator:
             rSiteD[:,1] += self.siteDvDist
 
         # scale properly
-        rHinge *= self.SMCspacing
+        rSiteU *= self.SMCspacing
         rSiteM *= self.SMCspacing
         rSiteD *= self.SMCspacing
 
