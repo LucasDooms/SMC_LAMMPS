@@ -324,8 +324,8 @@ class DnaConfiguration:
                 bead.type,
                 smc_grp.type,
                 ip.epsilonSMCvsDNA * kBT,
-                bead_size * ip.sigmaSMCvsDNA,
-                bead_size * ip.rcutSMCvsDNA
+                bead_size * self.dna_parameters.DNAbondLength,
+                bead_size * self.dna_parameters.DNAbondLength * (2 ** (1/6))
             )
 
     def get_bonds(self) -> List[BAI]:
