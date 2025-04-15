@@ -336,7 +336,7 @@ class DnaConfiguration:
         bead_type: AtomType,
         mol_index: int,
         dna_atom: AtomIdentifier,
-        bond: BAI_Type,
+        bond: None | BAI_Type, # if None -> rigid attachment to dna_atom
         offset: int
     ) -> None:
         # place on a DNA bead
@@ -345,11 +345,17 @@ class DnaConfiguration:
         # create a bead
         bead = AtomGroup([location], bead_type, mol_index)
 
-        # add interactions/exceptions
-        bais = [
-            BAI(bond, (dna_atom[0], dna_atom[1] - offset), (bead, 0)),
-            BAI(bond, (dna_atom[0], dna_atom[1] + offset), (bead, 0)),
-        ]
+        bais = []
+        if bond is None:
+            # TODO:
+            # gen.molecule_override[dna_atom] = mol_index
+            pass
+        else:
+            # add interactions/exceptions
+            bais += [
+                BAI(bond, (dna_atom[0], dna_atom[1] - offset), (bead, 0)),
+                BAI(bond, (dna_atom[0], dna_atom[1] + offset), (bead, 0)),
+            ]
 
         self.beads.append(bead)
         self.bead_sizes.append(offset)

@@ -378,11 +378,20 @@ dnaConfig.set_smc(smc_1)
 smc_1_groups = smc_1.get_groups()
 
 if hasattr(dnaConfig, 'tether') and par.addRNAPolymerase:
+    molBead = MoleculeId.get_next()
     bead_type = AtomType(10.0 * mDNA)
     bead_size = 3 # half of 6 (since it binds to DNA of two sides) -> ~ 6 * 1.7 nm ~ 10 nm
-    bead_bond = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondDNA, bead_size * DNAbondLength))
+    if par.RNAPolymeraseType == 0:
+        bead_bond = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondDNA, bead_size * DNAbondLength))
+    elif par.RNAPolymeraseType == 1:
+        bead_bond = None
+    else:
+        raise ValueError(f"unknown RNAPolymeraseType, {par.RNAPolymeraseType}")
     dna_id = dnaConfig.tether.dna_tether_id
-    dnaConfig.add_bead_to_dna(bead_type, molDNA, dna_id, bead_bond, bead_size)
+    dnaConfig.add_bead_to_dna(bead_type, molBead, dna_id, bead_bond, bead_size)
+
+    if bead_bond is None:
+        gen.molecule_override[dna_id] = molBead
 
 gen.atom_groups += [
     *dnaConfig.get_all_groups(),
@@ -686,7 +695,8 @@ with open(path / 'parameterfile', 'w') as parameterfile:
     parameterfile.write(
         get_string_def("SMC_mols",
             list_to_space_str(
-                [molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL, molHingeR, molSiteM, molSiteD]
+                [molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL, molHingeR, molSiteM, molSiteD] \
+                        + list(filter(lambda xyz: xyz is not None, [molBead if 'molBead' in globals() else None]))
             )
         )
     )

@@ -65,6 +65,7 @@ dnaConfig = "folded"
 # adds 10 nm bead at DNA-tether site
 # only relevant if dnaConfig includes tether!
 addRNAPolymerase = True
+RNAPolymeraseType = 1
 
 ##################### Geometry #####################
 
