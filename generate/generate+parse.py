@@ -259,11 +259,6 @@ rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge = \
 #                                     DNA                                       #
 #################################################################################
 
-def get_closest(array, position) -> int:
-    """returns the index of the array that is closest to the given position"""
-    distances = np.linalg.norm(array - position, axis=1)
-    return int(np.argmin(distances))
-
 # set DNA bonds, angles, and mass
 molDNA = MoleculeId.get_next()
 dna_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondDNA, maxLengthDNA, 0, 0, DNAbondLength))
