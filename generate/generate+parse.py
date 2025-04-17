@@ -290,18 +290,6 @@ mSMC = smc_creator.get_mass_per_atom(mSMCtotal)
 gen = Generator()
 gen.set_system_size(boxWidth)
 
-# Molecule for each rigid body
-molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP= [MoleculeId.get_next() for _ in range(6)]
-
-molHingeL = MoleculeId.get_next()
-if par.rigidHinge:
-    molHingeR = molHingeL
-else:
-    molHingeR = MoleculeId.get_next()
-
-molSiteM = molATP
-molSiteD = molHK
-
 armHK_type = AtomType(mSMC)
 hinge_type = AtomType(mSMC)
 atp_type = AtomType(mSMC)
@@ -312,6 +300,8 @@ refSite_type = AtomType(mSMC)
 
 
 smc_1 = SMC(
+    use_rigid_hinge=par.rigidHinge,
+
     rArmDL=rArmDL,
     rArmUL=rArmUL,
     rArmUR=rArmUR,
@@ -322,17 +312,6 @@ smc_1 = SMC(
     rSiteM=rSiteM,
     rSiteD=rSiteD,
     rHinge=rHinge,
-
-    molArmDL=molArmDL,
-    molArmUL=molArmUL,
-    molArmUR=molArmUR,
-    molArmDR=molArmDR,
-    molHK=molHK,
-    molATP=molATP,
-    molHingeL=molHingeL,
-    molHingeR=molHingeR,
-    molSiteM=molSiteM,
-    molSiteD=molSiteD,
 
     armHK_type=armHK_type,
     hinge_type=hinge_type,
@@ -450,10 +429,10 @@ lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 
 # Override molecule ids to form rigid safety-belt bond
 if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)): #TODO
     safety_index = dnaConfig.dna_safety_belt_index
-    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index)] = molSiteD
+    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index)] = smc_1.mol_lower_site
     # add neighbors to prevent rotation
-    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = molSiteD
-    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = molSiteD
+    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = smc_1.mol_lower_site
+    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = smc_1.mol_lower_site
 
 # Create datafile
 with open(path / 'datafile_coeffs', 'w') as datafile:
@@ -540,11 +519,11 @@ with open(path / "post_processing_parameters.py", 'w') as file:
         "right_bead_id = {}\n"
         "middle_left_bead_id = {}\n"
         "middle_right_bead_id = {}\n".format(
-            gen.get_atom_index((smc_1.armUL_group, -1)),
-            gen.get_atom_index((smc_1.armUL_group, 0)),
-            gen.get_atom_index((smc_1.armUR_group, -1)),
-            gen.get_atom_index((smc_1.atp_group, 0)),
-            gen.get_atom_index((smc_1.atp_group, -1))
+            gen.get_atom_index((smc_1.arm_ul_grp, -1)),
+            gen.get_atom_index((smc_1.arm_ul_grp, 0)),
+            gen.get_atom_index((smc_1.arm_ur_grp, -1)),
+            gen.get_atom_index((smc_1.atp_grp, 0)),
+            gen.get_atom_index((smc_1.atp_grp, -1))
         )
     )
     file.write("\n")
@@ -558,8 +537,8 @@ with open(path / "post_processing_parameters.py", 'w') as file:
     )
     file.write("\n")
     kleisin_ids_list = [
-        gen.get_atom_index((smc_1.hk_group, i))
-         for i in range(len(smc_1.hk_group.positions))
+        gen.get_atom_index((smc_1.hk_grp, i))
+         for i in range(len(smc_1.hk_grp.positions))
     ]
     file.write(
         "# use to form plane of SMC kleisin\n"
@@ -665,7 +644,7 @@ with open(path / 'parameterfile', 'w') as parameterfile:
     parameterfile.write(
         get_string_def("SMC_mols",
             list_to_space_str(
-                [molArmDL, molArmUL, molArmUR, molArmDR, molHK, molATP, molHingeL, molHingeR, molSiteM, molSiteD] \
+                smc_1.get_molecule_ids() \
                         + list(filter(lambda xyz: xyz is not None, [molBead if 'molBead' in globals() else None]))
             )
         )
