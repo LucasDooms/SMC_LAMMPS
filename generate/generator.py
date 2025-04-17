@@ -440,7 +440,7 @@ def test_simple_atoms():
     gen = Generator()
     gen.atom_groups.append(AtomGroup(positions, AtomType(), 1))
     gen.set_system_size(10)
-    with open("test.gen", 'w') as file:
+    with open("test.gen", 'w', encoding='utf-8') as file:
         gen.write_full(file)
 
 
@@ -449,7 +449,7 @@ def test_simple_atoms_polymer():
     gen = Generator()
     gen.atom_groups.append(AtomGroup(positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND)))
     gen.set_system_size(10)
-    with open("test.gen", 'w') as file:
+    with open("test.gen", 'w', encoding='utf-8') as file:
         gen.write_full(file)
 
 
@@ -492,7 +492,7 @@ def test_with_bonds():
         )
     )
 
-    with open("test.gen", 'w') as file:
+    with open("test.gen", 'w', encoding='utf-8') as file:
         gen.write_full(file)
 
 
@@ -514,7 +514,7 @@ def test_with_pairs():
 
     gen.pair_interactions.append(pairwise)
 
-    with open("test.gen", 'w') as file:
+    with open("test.gen", 'w', encoding='utf-8') as file:
         gen.write_full(file)
 
 

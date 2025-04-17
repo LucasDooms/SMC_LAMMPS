@@ -324,8 +324,6 @@ smc_1 = SMC(
 
 dnaConfig.set_smc(smc_1)
 
-smc_1_groups = smc_1.get_groups()
-
 if hasattr(dnaConfig, 'tether') and par.addRNAPolymerase:
     molBead = MoleculeId.get_next()
     bead_type = AtomType(10.0 * mDNA)
@@ -344,7 +342,7 @@ if hasattr(dnaConfig, 'tether') and par.addRNAPolymerase:
 
 gen.atom_groups += [
     *dnaConfig.get_all_groups(),
-    *smc_1_groups
+    *smc_1.get_groups(),
 ]
 
 
@@ -435,13 +433,13 @@ if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)): #TOD
     # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = smc_1.mol_lower_site
 
 # Create datafile
-with open(path / 'datafile_coeffs', 'w') as datafile:
+with open(path / 'datafile_coeffs', 'w', encoding='utf-8') as datafile:
     # gen.write_full(datafile)
     gen.write_coeffs(datafile)
 
 
 # Create datafile
-with open(path / 'datafile_positions', 'w') as datafile:
+with open(path / 'datafile_positions', 'w', encoding='utf-8') as datafile:
     gen.write_positions_and_bonds(datafile)
 
 
@@ -457,7 +455,7 @@ def apply(function, file, list_of_args):
     for args in list_of_args:
         function(file, *args)
 
-with open(states_path / "adp_bound", 'w') as adp_bound_file:
+with open(states_path / "adp_bound", 'w', encoding='utf-8') as adp_bound_file:
     options = [
        bridge_off,
        hinge_attraction_on,
@@ -469,7 +467,7 @@ with open(states_path / "adp_bound", 'w') as adp_bound_file:
     ]
     apply(gen.write_script_bai_coeffs, adp_bound_file, options)
 
-with open(states_path / "apo", 'w') as apo_file:
+with open(states_path / "apo", 'w', encoding='utf-8') as apo_file:
     options = [
         bridge_off,
         hinge_attraction_off,
@@ -483,14 +481,14 @@ with open(states_path / "apo", 'w') as apo_file:
 
     # gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
 
-with open(states_path / "atp_bound_1", 'w') as atp_bound_1_file:
+with open(states_path / "atp_bound_1", 'w', encoding='utf-8') as atp_bound_1_file:
     options = [
         bridge_soft_on,
         middle_site_soft_on
     ]
     apply(gen.write_script_bai_coeffs, atp_bound_1_file, options)
 
-with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
+with open(states_path / "atp_bound_2", 'w', encoding='utf-8') as atp_bound_2_file:
     options = [
         bridge_soft_off,
         middle_site_soft_off,
@@ -511,7 +509,7 @@ with open(states_path / "atp_bound_2", 'w') as atp_bound_2_file:
 
 ppp = dnaConfig.get_post_process_parameters()
 
-with open(path / "post_processing_parameters.py", 'w') as file:
+with open(path / "post_processing_parameters.py", 'w', encoding='utf-8') as file:
     file.write(
         "# use to form plane of SMC arms\n"
         "top_bead_id = {}\n"
@@ -621,7 +619,7 @@ def get_times_with_max_steps(rng_gen: np.random.Generator):
     return run_steps
 
 
-with open(path / 'parameterfile', 'w') as parameterfile:
+with open(path / 'parameterfile', 'w', encoding='utf-8') as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 
     # change seed if arg 2 provided

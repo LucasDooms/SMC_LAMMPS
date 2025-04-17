@@ -37,7 +37,7 @@ class Molecules:
         self.color_index = 0
         self.path = path_to_vmd_init / "vmd.init"
         # clear the file
-        with open(self.path, 'w'):
+        with open(self.path, 'w', encoding='utf-8'):
             pass
 
     def get_color_id(self) -> int:

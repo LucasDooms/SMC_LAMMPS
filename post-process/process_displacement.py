@@ -166,7 +166,7 @@ class Parser:
         pass
 
     def __init__(self, file_name: str) -> None:
-        self.file = open(file_name, 'r')
+        self.file = open(file_name, 'r', encoding='utf-8')
 
     def skip_to_atoms(self) -> Dict[str, str]:
         saved = dict()
@@ -420,7 +420,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
         p.unlink()
 
     for i, positions in enumerate(positions_array):
-        with open(folder_path / f"marked_bead{i}.lammpstrj", 'w') as file:
+        with open(folder_path / f"marked_bead{i}.lammpstrj", 'w', encoding='utf-8') as file:
             write(file, steps, positions)
 
     print(cached)
