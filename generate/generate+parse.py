@@ -227,6 +227,7 @@ dnaConfigClass = dna.DnaConfiguration.str_to_config(par.dnaConfig)
 #                                 SMC complex                                   #
 #################################################################################
 
+
 smc_creator = SMC_Creator(
     SMCspacing=SMCspacing,
 
@@ -240,6 +241,10 @@ smc_creator = SMC_Creator(
     armLength=par.armLength,
     bridgeWidth=par.bridgeWidth,
     hingeRadius=par.hingeRadius,
+    # SMCspacing half of the minimal required spacing of ssDNA
+    # so between 2*SMCspacing and 4*SMCspacing should
+    # allow ssDNA passage but not dsDNA
+    hinge_opening=2.2 * SMCspacing,
 
     HKradius=par.HKradius,
 
@@ -320,6 +325,9 @@ smc_1 = SMC(
     siteM_type=siteM_type,
     siteD_type=siteD_type,
     refSite_type=refSite_type,
+
+    k_bond = kBondSMC,
+    max_bond_length = maxLengthSMC,
 )
 
 dnaConfig.set_smc(smc_1)
@@ -384,13 +392,8 @@ middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {pa
 middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
 middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
 
-
-# Every joint is kept in place through bonds
-bond_t2 = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondSMC, maxLengthSMC, 0, 0, 0))
-bond_t3 = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondHinge, 1.8 * SMCspacing))
-
 gen.bais += [
-    *smc_1.get_bonds(bond_t2, bond_t3),
+    *smc_1.get_bonds(smc_creator.hinge_opening),
     *dnaConfig.get_bonds()
 ]
 

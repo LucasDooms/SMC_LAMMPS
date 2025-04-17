@@ -1,6 +1,6 @@
 # Copyright (c) 2024 Lucas Dooms
 
-from generator import AtomType, AtomGroup, BAI_Type, BAI, MoleculeId
+from generator import AtomType, AtomGroup, BAI_Kind, BAI_Type, BAI, MoleculeId
 from dataclasses import dataclass
 from typing import List
 
@@ -28,6 +28,9 @@ class SMC:
     siteM_type : AtomType
     siteD_type : AtomType
     refSite_type : AtomType
+
+    k_bond: float
+    max_bond_length: float
 
     def set_molecule_ids(self, use_rigid_hinge: bool) -> None:
         # Molecule for each rigid body
@@ -108,26 +111,39 @@ class SMC:
             self.hinge_r_grp,
         ]
 
-    def get_bonds(self, bond_t2: BAI_Type, bond_t3: BAI_Type) -> List[BAI]:
+    def get_bonds(self, hinge_opening: float | None = None) -> List[BAI]:
+        # Every joint is kept in place through bonds
+        attach = BAI_Type(BAI_Kind.BOND, f"fene/expand {self.k_bond} {self.max_bond_length} {0.0} {0.0} {0.0}\n")
+
         left_attach_hinge = len(self.hinge_l_grp.positions) // 2
         right_attach_hinge = len(self.hinge_r_grp.positions) // 2
-        return [
+        bonds = [
             # attach arms together
-            BAI(bond_t2, (self.arm_dl_grp, -1), (self.arm_ul_grp, 0)),
-            BAI(bond_t2, (self.arm_ur_grp, -1), (self.arm_dr_grp, 0)),
-            # connect hinge and arms
-            BAI(bond_t2, (self.arm_ul_grp, -1), (self.hinge_l_grp, left_attach_hinge)),
-            BAI(bond_t2, (self.arm_ur_grp, 0), (self.hinge_r_grp, right_attach_hinge)),
-            # connect Left and Right hinge pieces together
-            BAI(bond_t3, (self.hinge_l_grp, -1), (self.hinge_r_grp, 0)),
-            BAI(bond_t3, (self.hinge_l_grp, 0), (self.hinge_r_grp, -1)),
-            # connect atp bridge to arms
-            BAI(bond_t2, (self.arm_dr_grp, -1), (self.atp_grp, -1)),
-            BAI(bond_t2, (self.atp_grp,  0), (self.arm_dl_grp, 0)),
-            # connect bridge to hk
-            BAI(bond_t2, (self.atp_grp, -1), (self.hk_grp, 0)),
-            BAI(bond_t2, (self.hk_grp, -1), (self.atp_grp, 0)),
+            BAI(attach, (self.arm_dl_grp, -1), (self.arm_ul_grp, 0)),
+            BAI(attach, (self.arm_ur_grp, -1), (self.arm_dr_grp, 0)),
+            # attach hinge and arms
+            BAI(attach, (self.arm_ul_grp, -1), (self.hinge_l_grp, left_attach_hinge)),
+            BAI(attach, (self.arm_ur_grp, 0), (self.hinge_r_grp, right_attach_hinge)),
+            # attach atp bridge to arms
+            BAI(attach, (self.arm_dr_grp, -1), (self.atp_grp, -1)),
+            BAI(attach, (self.atp_grp,  0), (self.arm_dl_grp, 0)),
+            # attach bridge to hk
+            BAI(attach, (self.atp_grp, -1), (self.hk_grp, 0)),
+            BAI(attach, (self.hk_grp, -1), (self.atp_grp, 0)),
         ]
+        # work-around for crash caused by
+        # `bond_style     hybrid fene/expand harmonic`
+        # in input.lmp
+        # always add bond for now, even if it is rigid
+        if not self.use_rigid_hinge or True:
+            assert hinge_opening is not None
+            hinge_bond = BAI_Type(BAI_Kind.BOND, f"harmonic {self.k_bond} {hinge_opening}\n")
+            bonds += [
+                # connect Left and Right hinge pieces together
+                BAI(hinge_bond, (self.hinge_l_grp, -1), (self.hinge_r_grp, 0)),
+                BAI(hinge_bond, (self.hinge_l_grp, 0), (self.hinge_r_grp, -1)),
+            ]
+        return bonds
 
     def get_angles(self, angle_t2: BAI_Type, angle_t3: BAI_Type, angle_t4: BAI_Type) -> List[BAI]:
         left_attach_hinge = len(self.hinge_l_grp.positions) // 2

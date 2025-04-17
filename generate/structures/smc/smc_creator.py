@@ -29,6 +29,7 @@ class SMC_Creator:
     armLength: float
     bridgeWidth: float
     hingeRadius: float
+    hinge_opening: float
 
     HKradius: float
 
@@ -232,12 +233,8 @@ class SMC_Creator:
         rHinge[:half,2] -= rHinge[0,2]
         rHinge[half:,2] -= rHinge[-1,2]
 
-        # SMCspacing half of the minimal required spacing of ssDNA
-        # so between 2*SMCspacing and 4*SMCspacing should
-        # allow ssDNA passage but not dsDNA
-        openingSize = 2.2 * self.SMCspacing
-        rHinge[:half,2] -= openingSize / 2.0
-        rHinge[half:,2] += openingSize / 2.0
+        rHinge[:half,2] -= self.hinge_opening / 2.0
+        rHinge[half:,2] += self.hinge_opening / 2.0
 
         return rHinge
 
