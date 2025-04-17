@@ -13,11 +13,17 @@ class SMC_Creator:
 
     SMCspacing: float
 
+    # Vertical distance of top binding sites from hinge (units of bead spacing)
     siteUhDist: float
+    # Horizontal distance between top binding sites (units bead spacing)
     siteUvDist: float
+    # Vertical distance of middle binding sites from bridge (units of bead spacing)
     siteMhDist: float
+    # Horizontal distance between middle binding sites (units bead spacing)
     siteMvDist: float
+    # Distance of bottom binding sites from kleisin (units of bead spacing)
     siteDhDist: float
+    # Horizontal distance between bottom binding sites (units bead spacing)
     siteDvDist: float
 
     armLength: float

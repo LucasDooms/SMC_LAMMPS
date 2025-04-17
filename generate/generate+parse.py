@@ -115,31 +115,6 @@ DNAcontourLength = DNAbondLength * nDNA
 SMCspacing = par.intRadSMCvsDNA/2
 
 
-#################
-# Binding sites #
-#################
-
-# Vertical distance of top binding sites from hinge (units of bead spacing)
-siteUvDist = 4
-
-# Horizontal distance between top binding sites (units bead spacing)
-siteUhDist = 2
-
-
-# Vertical distance of middle binding sites from bridge (units of bead spacing)
-siteMvDist = 1
-
-# Horizontal distance between middle binding sites (units bead spacing)
-siteMhDist = 2
-
-
-# Distance of bottom binding sites from kleisin (units of bead spacing)
-siteDvDist = 0.5
-
-# Horizontal distance between bottom binding sites (units bead spacing)
-siteDhDist = 2
-
-
 ##################
 # Simulation box #
 ##################
@@ -255,12 +230,12 @@ dnaConfigClass = dna.DnaConfiguration.str_to_config(par.dnaConfig)
 smc_creator = SMC_Creator(
     SMCspacing=SMCspacing,
 
-    siteUhDist=siteUhDist,
-    siteUvDist=siteUvDist,
-    siteMhDist=siteMhDist,
-    siteMvDist=siteMvDist,
-    siteDhDist=siteDhDist,
-    siteDvDist=siteDvDist,
+    siteUvDist=4.0,
+    siteUhDist=2.0,
+    siteMvDist=1.0,
+    siteMhDist=2.0,
+    siteDvDist=0.5,
+    siteDhDist=2.0,
 
     armLength=par.armLength,
     bridgeWidth=par.bridgeWidth,
