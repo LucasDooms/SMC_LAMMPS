@@ -198,12 +198,6 @@ maxLengthSMC = SMCspacing * bondMax
 kDNA = DNAstiff * kBT / DNAbondLength
 kssDNA = ssDNAstiff * kBT / DNAbondLength
 
-# Angular trap constants
-# kElbows: Bending of elbows (kinkable arms, hence soft)
-# kArms:   Arms opening angle wrt ATP bridge (should be stiff)
-kElbows = par.elbowsStiffness * kBT
-kArms = par.armsStiffness * kBT
-
 # Fixes site orientation (prevents free rotation, should be stiff)
 kAlignSite = par.siteStiffness * kBT
 
@@ -328,6 +322,14 @@ smc_1 = SMC(
 
     k_bond = kBondSMC,
     max_bond_length = maxLengthSMC,
+
+    k_elbow = par.elbowsStiffness * kBT,
+    k_arm = par.armsStiffness * kBT,
+
+    bridge_width = par.bridgeWidth,
+    arm_length = par.armLength,
+    hinge_radius = par.hingeRadius,
+    arms_angle_ATP = par.armsAngleATP,
 )
 
 dnaConfig.set_smc(smc_1)
@@ -397,18 +399,7 @@ gen.bais += [
     *dnaConfig.get_bonds()
 ]
 
-angle_t2 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kElbows, 180 ) )
-angle_t3 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms,  np.rad2deg( math.acos( par.bridgeWidth / par.armLength / 4.0 ) ) ) )
-angle_t4 = BAI_Type(BAI_Kind.ANGLE, "harmonic %s %s\n" %( kArms, 90 ) )
-
-angles = smc_1.get_angles(angle_t2, angle_t3, angle_t4)
-gen.bais += angles
-
-# Angle interactions that change for different phases of SMC
-# angle3angleAPO1 = np.rad2deg(np.arccos(par.bridgeWidth / par.armLength))
-# angle3angleAPO1 = np.rad2deg(np.arccos(2 * par.bridgeWidth / par.armLength))
-arms_close = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {np.rad2deg(np.arccos((par.bridgeWidth / 2.0 - par.hingeRadius) / par.armLength))}\n", angle_t3]
-arms_open = [BAI_Kind.ANGLE, "{} harmonic " + f"{kArms} {par.armsAngleATP}\n", angle_t3]
+gen.bais += smc_1.get_angles()
 
 # We impose zero improper angle
 imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 0 ) )
@@ -464,7 +455,7 @@ with open(states_path / "adp_bound", 'w', encoding='utf-8') as adp_bound_file:
        hinge_attraction_on,
        middle_site_off,
        lower_site_off,
-       arms_open,
+       smc_1.arms_open,
        lower_compartment_unfolds1,
        lower_compartment_unfolds2
     ]
@@ -476,7 +467,7 @@ with open(states_path / "apo", 'w', encoding='utf-8') as apo_file:
         hinge_attraction_off,
         middle_site_off,
         lower_site_on,
-        arms_close,
+        smc_1.arms_close,
         lower_compartment_unfolds1,
         lower_compartment_unfolds2
     ]
@@ -499,7 +490,7 @@ with open(states_path / "atp_bound_2", 'w', encoding='utf-8') as atp_bound_2_fil
         hinge_attraction_on,
         middle_site_on,
         lower_site_on,
-        arms_open,
+        smc_1.arms_open,
         lower_compartment_folds1,
         lower_compartment_folds2
     ]
