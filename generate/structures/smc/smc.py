@@ -1,9 +1,20 @@
 # Copyright (c) 2024 Lucas Dooms
 
-import numpy as np
-from generator import AtomType, AtomGroup, BAI_Kind, BAI_Type, BAI, MoleculeId, Generator, PairWise
 from dataclasses import dataclass
 from typing import List
+
+import numpy as np
+
+from generate.generator import (
+    BAI,
+    AtomGroup,
+    AtomType,
+    BAI_Kind,
+    BAI_Type,
+    Generator,
+    MoleculeId,
+    PairWise,
+)
 
 
 @dataclass

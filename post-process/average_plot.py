@@ -1,9 +1,10 @@
 # Copyright (c) 2024 Lucas Dooms
 
-from sys import argv
 from glob import glob
-from typing import List
 from pathlib import Path
+from sys import argv
+from typing import List
+
 import numpy as np
 
 

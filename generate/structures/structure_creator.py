@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.spatial.transform import Rotation
 from scipy import interpolate
+from scipy.spatial.transform import Rotation
 
 
 def get_interpolated(spacing: float, values):

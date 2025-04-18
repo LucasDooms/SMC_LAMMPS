@@ -3,19 +3,26 @@
 # File containing different initial DNA configurations
 
 from __future__ import annotations
-from typing import List, Tuple, Dict
+
 from dataclasses import dataclass
-from generator import BAI, BAI_Kind, BAI_Type, AtomGroup, AtomType, MoleculeId, AtomIdentifier, PairWise
-from structures.dna import dna_creator
-from structures import structure_creator
-from structures.smc.smc import SMC
+from typing import Dict, List, Tuple
+
 import numpy as np
 
-
-def get_closest(array, position) -> int:
-    """returns the index of the array that is closest to the given position"""
-    distances = np.linalg.norm(array - position, axis=1)
-    return int(np.argmin(distances))
+from generate.generator import (
+    BAI,
+    AtomGroup,
+    AtomIdentifier,
+    AtomType,
+    BAI_Kind,
+    BAI_Type,
+    MoleculeId,
+    PairWise,
+)
+from generate.structures import structure_creator
+from generate.structures.dna import dna_creator
+from generate.structures.smc.smc import SMC
+from generate.util import get_closest
 
 
 @dataclass

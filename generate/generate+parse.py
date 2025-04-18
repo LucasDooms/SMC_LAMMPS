@@ -3,18 +3,28 @@
 # Copyright (c) 2024 Lucas Dooms
 
 import math
+from pathlib import Path
+from runpy import run_path
+from sys import argv, maxsize
+from typing import Any, List
+
 import numpy as np
 from numpy.random import default_rng
-from util import create_phase
-from generator import AtomIdentifier, Generator, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
-from sys import argv, maxsize
-from pathlib import Path
-from typing import Any, List
-from structures.dna import dna
-from structures.smc.smc_creator import SMC_Creator
-from structures.smc.smc import SMC
-from runpy import run_path
-import default_parameters
+
+from generate import default_parameters
+from generate.generator import (
+    AtomIdentifier,
+    AtomType,
+    BAI_Kind,
+    BAI_Type,
+    Generator,
+    MoleculeId,
+    PairWise,
+)
+from generate.structures.dna import dna
+from generate.structures.smc.smc import SMC
+from generate.structures.smc.smc_creator import SMC_Creator
+from generate.util import create_phase
 
 
 if len(argv) < 2:

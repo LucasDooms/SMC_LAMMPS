@@ -1,11 +1,17 @@
 # Copyright (c) 2024 Lucas Dooms
 
-from ..structure_creator import get_circle_segment_unit_radius, get_straight_segment, attach_chain
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
+
 import numpy as np
 from numpy.random import default_rng
 from scipy.spatial.transform import Rotation
+
+from generate.structures.structure_creator import (
+    attach_chain,
+    get_circle_segment_unit_radius,
+    get_straight_segment,
+)
 
 
 @dataclass

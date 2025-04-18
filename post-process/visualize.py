@@ -1,10 +1,10 @@
 # Copyright (c) 2024 Lucas Dooms
 
 import argparse
-from pathlib import Path
-from typing import List, Tuple
-from runpy import run_path
 import subprocess
+from pathlib import Path
+from runpy import run_path
+from typing import List, Tuple
 
 # TODO: VMD uses zero-indexed arrays!
 

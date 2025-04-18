@@ -1,14 +1,17 @@
 # Copyright (c) 2024 Lucas Dooms
 
-from ..structure_creator import get_straight_segment, get_circle_segment, attach, attach_chain, get_interpolated
-import numpy as np
 import math
 
+import numpy as np
 
-def get_closest(array, position) -> int:
-    """returns the index of the array that is closest to the given position"""
-    distances = np.linalg.norm(array - position, axis=1)
-    return int(np.argmin(distances))
+from generate.structures.structure_creator import (
+    attach,
+    attach_chain,
+    get_circle_segment,
+    get_interpolated,
+    get_straight_segment,
+)
+from generate.util import get_closest
 
 
 def get_dna_coordinates_straight(nDNA: int, DNAbondLength: float):

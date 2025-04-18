@@ -3,17 +3,19 @@
 # post-processing to find the movement of the SMC relative to the DNA
 
 from __future__ import annotations
-from runpy import run_path
-from sys import argv
-from pathlib import Path
-from itertools import islice
+
 from copy import deepcopy
-from typing import Tuple, List, Dict
-from io import StringIO
 from dataclasses import dataclass
 from enum import Enum
-import numpy as np
+from io import StringIO
+from itertools import islice
+from pathlib import Path
+from runpy import run_path
+from sys import argv
 from time import time
+from typing import Dict, List, Tuple
+
+import numpy as np
 
 
 def timer(func):
