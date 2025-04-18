@@ -32,6 +32,7 @@ class SMC:
 
     # bonds
     k_bond: float
+    k_hinge: float
     max_bond_length: float
 
     # angles
@@ -40,11 +41,21 @@ class SMC:
     # Arms opening angle wrt ATP bridge (should be stiff)
     k_arm: float
 
+    # impropers
+    # Fixes site orientation (prevents free rotation, should be stiff)
+    k_align_site: float
+    # Folding stiffness of lower compartment (should be stiff)
+    k_fold: float
+    # Makes folding asymmetric (should be stiff)
+    k_asymmetry: float
+
     # other
     bridge_width: float
     arm_length: float
     hinge_radius: float
     arms_angle_ATP: float
+    folding_angle_ATP: float
+    folding_angle_APO: float
 
     def _set_molecule_ids(self, use_rigid_hinge: bool) -> None:
         # Molecule for each rigid body
@@ -83,6 +94,7 @@ class SMC:
         arms_bridge_angle = np.rad2deg(np.arccos(self.bridge_width / self.arm_length / 4.0))
         self.arms_bridge = BAI_Type(BAI_Kind.ANGLE, f"harmonic {self.k_arm} {arms_bridge_angle}\n")
         self.hinge_arms = BAI_Type(BAI_Kind.ANGLE, f"harmonic {self.k_arm} {90.0}\n")
+
         self.arms_close = [
             BAI_Kind.ANGLE,
             "{} harmonic "
@@ -95,9 +107,22 @@ class SMC:
             self.arms_bridge,
         ]
 
-    def __post_init__(self):
+    def _set_impropers(self) -> None:
+        self.imp_t1 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_align_site} {0.0}\n")
+        self.imp_t2 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_fold} {180.0 - self.folding_angle_APO}\n")
+        self.imp_t3 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n")
+        self.imp_t4 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_align_site / 5.0} {90.0}\n")
+
+        self.kleisin_folds1 = [BAI_Kind.IMPROPER, "{} " + f"{self.k_fold} {180.0 - self.folding_angle_ATP}\n", self.imp_t2]
+        self.kleisin_unfolds1 = [BAI_Kind.IMPROPER, "{} " + f"{self.k_fold} {180.0 - self.folding_angle_APO}\n", self.imp_t2]
+
+        self.kleisin_folds2 = [BAI_Kind.IMPROPER, "{} " + f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_ATP)}\n", self.imp_t3]
+        self.kleisin_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n", self.imp_t3]
+
+    def __post_init__(self) -> None:
         self._set_molecule_ids(self.use_rigid_hinge)
         self._set_angles()
+        self._set_impropers()
         # create groups
         self.arm_dl_grp = AtomGroup(self.rArmDL, self.armHK_type, self.mol_arm_dl)
         self.arm_ul_grp = AtomGroup(self.rArmUL, self.armHK_type, self.mol_arm_ul)
@@ -170,7 +195,7 @@ class SMC:
         # always add bond for now, even if it is rigid
         if not self.use_rigid_hinge or True:
             assert hinge_opening is not None
-            hinge_bond = BAI_Type(BAI_Kind.BOND, f"harmonic {self.k_bond} {hinge_opening}\n")
+            hinge_bond = BAI_Type(BAI_Kind.BOND, f"harmonic {self.k_hinge} {hinge_opening}\n")
             bonds += [
                 # connect Left and Right hinge pieces together
                 BAI(hinge_bond, (self.hinge_l_grp, -1), (self.hinge_r_grp, 0)),
@@ -197,29 +222,29 @@ class SMC:
             BAI(self.arms_bridge, (self.arm_dr_grp, 0), (self.arm_dr_grp, -1), (self.atp_grp, 0))
         ]
 
-    def get_impropers(self, imp_t1: BAI_Type, imp_t2: BAI_Type, imp_t3: BAI_Type, imp_t4: BAI_Type) -> List[BAI]:
+    def get_impropers(self) -> List[BAI]:
         kleisin_center = len(self.rHK) // 2
         return [
             # Fix orientation of ATP/kleisin bridge
             # WARNING: siteM is split into groups, be careful with index
-            BAI(imp_t1, (self.arm_dl_grp, -1), (self.arm_dl_grp, 0), (self.atp_grp, -1), (self.middle_site_grp, 1)),
-            BAI(imp_t1, (self.arm_dr_grp, 0), (self.arm_dr_grp, -1), (self.atp_grp, 0), (self.middle_site_grp, 1)),
+            BAI(self.imp_t1, (self.arm_dl_grp, -1), (self.arm_dl_grp, 0), (self.atp_grp, -1), (self.middle_site_grp, 1)),
+            BAI(self.imp_t1, (self.arm_dr_grp, 0), (self.arm_dr_grp, -1), (self.atp_grp, 0), (self.middle_site_grp, 1)),
 
-            BAI(imp_t2, (self.arm_dl_grp, -1), (self.arm_dl_grp, 0), (self.atp_grp, -1), (self.hk_grp, kleisin_center)),
-            BAI(imp_t2, (self.arm_dr_grp, 0), (self.arm_dr_grp, -1), (self.atp_grp, 0), (self.hk_grp, kleisin_center)),
+            BAI(self.imp_t2, (self.arm_dl_grp, -1), (self.arm_dl_grp, 0), (self.atp_grp, -1), (self.hk_grp, kleisin_center)),
+            BAI(self.imp_t2, (self.arm_dr_grp, 0), (self.arm_dr_grp, -1), (self.atp_grp, 0), (self.hk_grp, kleisin_center)),
 
             # prevent kleisin ring from swaying too far relative to the bridge
-            BAI(imp_t3, (self.middle_site_ref_grp, 0), (self.arm_dl_grp, 0), (self.arm_dr_grp, -1), (self.hk_grp, kleisin_center)),
+            BAI(self.imp_t3, (self.middle_site_ref_grp, 0), (self.arm_dl_grp, 0), (self.arm_dr_grp, -1), (self.hk_grp, kleisin_center)),
 
             # fix hinge to a plane
-            BAI(imp_t1, (self.hinge_l_grp, 0), (self.hinge_l_grp, -1), (self.hinge_r_grp, 0), (self.hinge_r_grp, -1)),
-            BAI(imp_t1, (self.hinge_l_grp, 0), (self.hinge_l_grp, self.left_attach_hinge), (self.hinge_r_grp, 0), (self.hinge_r_grp, self.right_attach_hinge)),
+            BAI(self.imp_t1, (self.hinge_l_grp, 0), (self.hinge_l_grp, -1), (self.hinge_r_grp, 0), (self.hinge_r_grp, -1)),
+            BAI(self.imp_t1, (self.hinge_l_grp, 0), (self.hinge_l_grp, self.left_attach_hinge), (self.hinge_r_grp, 0), (self.hinge_r_grp, self.right_attach_hinge)),
 
             # fix hinge perpendicular to arms plane
-            BAI(imp_t4, (self.arm_ul_grp, -2), (self.arm_ul_grp, -1), (self.hinge_l_grp, self.left_attach_hinge - 1), (self.hinge_l_grp, self.left_attach_hinge + 1)),
-            BAI(imp_t4, (self.arm_ur_grp, 1), (self.arm_ur_grp, 0), (self.hinge_r_grp, self.right_attach_hinge + 1), (self.hinge_r_grp, self.right_attach_hinge - 1)),
+            BAI(self.imp_t4, (self.arm_ul_grp, -2), (self.arm_ul_grp, -1), (self.hinge_l_grp, self.left_attach_hinge - 1), (self.hinge_l_grp, self.left_attach_hinge + 1)),
+            BAI(self.imp_t4, (self.arm_ur_grp, 1), (self.arm_ur_grp, 0), (self.hinge_r_grp, self.right_attach_hinge + 1), (self.hinge_r_grp, self.right_attach_hinge - 1)),
 
             # # keep hinge aligned with bridge axis
             # BAI(imp_t1, (self.hingeL_group, self.left_attach_hinge), (self.hingeR_group, self.right_attach_hinge), (self.atp_group, 0), (self.atp_group, -1)),
-            BAI(imp_t4, (self.upper_site_grp, 0), (self.upper_site_grp, len(self.upper_site_grp.positions) // 2), (self.atp_grp, len(self.atp_grp.positions) // 2), (self.atp_grp, -1)),
+            BAI(self.imp_t4, (self.upper_site_grp, 0), (self.upper_site_grp, len(self.upper_site_grp.positions) // 2), (self.atp_grp, len(self.atp_grp.positions) // 2), (self.atp_grp, -1)),
         ]

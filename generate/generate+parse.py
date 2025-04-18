@@ -198,15 +198,6 @@ maxLengthSMC = SMCspacing * bondMax
 kDNA = DNAstiff * kBT / DNAbondLength
 kssDNA = ssDNAstiff * kBT / DNAbondLength
 
-# Fixes site orientation (prevents free rotation, should be stiff)
-kAlignSite = par.siteStiffness * kBT
-
-# Folding stiffness of lower compartment (should be stiff)
-kFolding = par.foldingStiffness * kBT
-
-# Makes folding asymmetric (should be stiff)
-kAsymmetry = par.asymmetryStiffness * kBT
-
 
 #################################################################################
 #                                 Start Setup                                   #
@@ -321,15 +312,22 @@ smc_1 = SMC(
     refSite_type=refSite_type,
 
     k_bond = kBondSMC,
+    k_hinge = kBondHinge,
     max_bond_length = maxLengthSMC,
 
     k_elbow = par.elbowsStiffness * kBT,
     k_arm = par.armsStiffness * kBT,
 
+    k_align_site = par.siteStiffness * kBT,
+    k_fold = par.foldingStiffness * kBT,
+    k_asymmetry = par.asymmetryStiffness * kBT,
+
     bridge_width = par.bridgeWidth,
     arm_length = par.armLength,
     hinge_radius = par.hingeRadius,
     arms_angle_ATP = par.armsAngleATP,
+    folding_angle_ATP = par.foldingAngleATP,
+    folding_angle_APO = par.foldingAngleAPO,
 )
 
 dnaConfig.set_smc(smc_1)
@@ -401,22 +399,7 @@ gen.bais += [
 
 gen.bais += smc_1.get_angles()
 
-# We impose zero improper angle
-imp_t1 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite, 0 ) )
-imp_t2 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kFolding, 180 - par.foldingAngleAPO ) )
-imp_t3 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAsymmetry, abs(90 - par.foldingAngleAPO) ) )
-imp_t4 = BAI_Type(BAI_Kind.IMPROPER, "%s %s\n" %( kAlignSite / 5.0, 90 ) )
-
-gen.bais += smc_1.get_impropers(imp_t1, imp_t2, imp_t3, imp_t4)
-
-
-# Improper interactions that change for different phases of SMC
-lower_compartment_folds1 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} {180 - par.foldingAngleATP}\n", imp_t2]
-lower_compartment_unfolds1 = [BAI_Kind.IMPROPER, "{} " + f"{kFolding} {180 - par.foldingAngleAPO}\n", imp_t2]
-
-lower_compartment_folds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 - par.foldingAngleATP)}\n", imp_t3]
-lower_compartment_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{kAsymmetry} {abs(90 - par.foldingAngleAPO)}\n", imp_t3]
-
+gen.bais += smc_1.get_impropers()
 
 # Override molecule ids to form rigid safety-belt bond
 if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)): #TODO
@@ -451,13 +434,13 @@ def apply(function, file, list_of_args):
 
 with open(states_path / "adp_bound", 'w', encoding='utf-8') as adp_bound_file:
     options = [
-       bridge_off,
-       hinge_attraction_on,
-       middle_site_off,
-       lower_site_off,
-       smc_1.arms_open,
-       lower_compartment_unfolds1,
-       lower_compartment_unfolds2
+        bridge_off,
+        hinge_attraction_on,
+        middle_site_off,
+        lower_site_off,
+        smc_1.arms_open,
+        smc_1.kleisin_unfolds1,
+        smc_1.kleisin_unfolds2,
     ]
     apply(gen.write_script_bai_coeffs, adp_bound_file, options)
 
@@ -468,8 +451,8 @@ with open(states_path / "apo", 'w', encoding='utf-8') as apo_file:
         middle_site_off,
         lower_site_on,
         smc_1.arms_close,
-        lower_compartment_unfolds1,
-        lower_compartment_unfolds2
+        smc_1.kleisin_unfolds1,
+        smc_1.kleisin_unfolds2,
     ]
     apply(gen.write_script_bai_coeffs, apo_file, options)
 
@@ -478,7 +461,7 @@ with open(states_path / "apo", 'w', encoding='utf-8') as apo_file:
 with open(states_path / "atp_bound_1", 'w', encoding='utf-8') as atp_bound_1_file:
     options = [
         bridge_soft_on,
-        middle_site_soft_on
+        middle_site_soft_on,
     ]
     apply(gen.write_script_bai_coeffs, atp_bound_1_file, options)
 
@@ -491,8 +474,8 @@ with open(states_path / "atp_bound_2", 'w', encoding='utf-8') as atp_bound_2_fil
         middle_site_on,
         lower_site_on,
         smc_1.arms_open,
-        lower_compartment_folds1,
-        lower_compartment_folds2
+        smc_1.kleisin_folds1,
+        smc_1.kleisin_folds2,
     ]
     apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
 
