@@ -1,6 +1,7 @@
 # Copyright (c) 2024 Lucas Dooms
 
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import List, Tuple, Set, Dict, Any
 from enum import Enum
 import numpy as np
@@ -424,14 +425,20 @@ class Generator:
         }
         return name_dict[pair_or_BAI]
 
-    def write_script_bai_coeffs(self, file, pair_or_BAI: BAI_Kind | None, format_string: str, *args) -> None:
-        cmd_name = self.get_script_bai_command_name(pair_or_BAI)
+    @dataclass
+    class DynamicCoeffs:
+        pair_or_BAI: None | BAI_Kind
+        format_string: str
+        args: List[Any]
+
+    def write_script_bai_coeffs(self, file, coeffs: DynamicCoeffs) -> None:
+        cmd_name = self.get_script_bai_command_name(coeffs.pair_or_BAI)
         # parse args:
         # if pair type -> get atom indices (two AtomType instances)
         # else (bai) -> get BAI_Type index
         # in both cases -> assume arguments have .index field
-        format_args = [arg.index for arg in args]
-        formatted_string = format_string.format(*format_args)
+        format_args = [arg.index for arg in coeffs.args]
+        formatted_string = coeffs.format_string.format(*format_args)
         file.write(cmd_name + " " + formatted_string)
 
 

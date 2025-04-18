@@ -8,7 +8,7 @@ from numpy.random import default_rng
 from generator import AtomIdentifier, Generator, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
 from sys import argv, maxsize
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Tuple
 from structures.dna import dna
 from structures.smc.smc_creator import SMC_Creator
 from structures.smc.smc import SMC
@@ -370,27 +370,27 @@ gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
 
 # Interactions that change for different phases of SMC
-bridge_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, atp_type]
-bridge_on = [None, "{} {} " + f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
+bridge_off = Generator.DynamicCoeffs(None, "{} {} lj/cut 0 0 0\n", [dna_type, atp_type])
+bridge_on = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n", [dna_type, atp_type])
 
-bridge_soft_off = [None, "{} {} soft 0 0\n", dna_type, atp_type]
-bridge_soft_on = [None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n", dna_type, atp_type]
+bridge_soft_off = Generator.DynamicCoeffs(None, "{} {} soft 0 0\n", [dna_type, atp_type])
+bridge_soft_on = Generator.DynamicCoeffs(None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n", [dna_type, atp_type])
 
-hinge_attraction_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteU_type]
-hinge_attraction_on = [None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", dna_type, siteU_type]
+hinge_attraction_off = Generator.DynamicCoeffs(None, "{} {} lj/cut 0 0 0\n", [dna_type, siteU_type])
+hinge_attraction_on = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", [dna_type, siteU_type])
 
 if False: #isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
     # always keep site on
-    lower_site_off = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
+    lower_site_off = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", [dna_type, siteD_type])
 else:
-    lower_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteD_type]
-lower_site_on = [None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", dna_type, siteD_type]
+    lower_site_off = Generator.DynamicCoeffs(None, "{} {} lj/cut 0 0 0\n", [dna_type, siteD_type])
+lower_site_on = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", [dna_type, siteD_type])
 
-middle_site_off = [None, "{} {} lj/cut 0 0 0\n", dna_type, siteM_type]
-middle_site_on = [None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n", dna_type, siteM_type]
+middle_site_off = Generator.DynamicCoeffs(None, "{} {} lj/cut 0 0 0\n", [dna_type, siteM_type])
+middle_site_on = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n", [dna_type, siteM_type])
 
-middle_site_soft_off = [None, "{} {} soft 0 0\n", dna_type, siteM_type]
-middle_site_soft_on = [None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma * 2**(1/6)}\n", dna_type, siteM_type]
+middle_site_soft_off = Generator.DynamicCoeffs(None, "{} {} soft 0 0\n", [dna_type, siteM_type])
+middle_site_soft_on = Generator.DynamicCoeffs(None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma * 2**(1/6)}\n", [dna_type, siteM_type])
 
 gen.bais += [
     *smc_1.get_bonds(smc_creator.hinge_opening),
@@ -409,13 +409,10 @@ if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)): #TOD
     # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = smc_1.mol_lower_site
     # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = smc_1.mol_lower_site
 
-# Create datafile
 with open(path / 'datafile_coeffs', 'w', encoding='utf-8') as datafile:
     # gen.write_full(datafile)
     gen.write_coeffs(datafile)
 
-
-# Create datafile
 with open(path / 'datafile_positions', 'w', encoding='utf-8') as datafile:
     gen.write_positions_and_bonds(datafile)
 
@@ -428,12 +425,17 @@ with open(path / 'datafile_positions', 'w', encoding='utf-8') as datafile:
 states_path = path / "states"
 states_path.mkdir(exist_ok=True)
 
-def apply(function, file, list_of_args):
-    for args in list_of_args:
-        function(file, *args)
+def create_phase(phase_path: Path, options: List[Generator.DynamicCoeffs]):
+    def apply(function, file, list_of_args: List[Any]):
+        for args in list_of_args:
+            function(file, args)
 
-with open(states_path / "adp_bound", 'w', encoding='utf-8') as adp_bound_file:
-    options = [
+    with open(phase_path, 'w', encoding='utf-8') as phase_file:
+        apply(gen.write_script_bai_coeffs, phase_file, options)
+
+create_phase(
+    states_path / "adp_bound",
+    [
         bridge_off,
         hinge_attraction_on,
         middle_site_off,
@@ -442,10 +444,11 @@ with open(states_path / "adp_bound", 'w', encoding='utf-8') as adp_bound_file:
         smc_1.kleisin_unfolds1,
         smc_1.kleisin_unfolds2,
     ]
-    apply(gen.write_script_bai_coeffs, adp_bound_file, options)
+)
 
-with open(states_path / "apo", 'w', encoding='utf-8') as apo_file:
-    options = [
+create_phase(
+    states_path / "apo",
+    [
         bridge_off,
         hinge_attraction_off,
         middle_site_off,
@@ -454,19 +457,20 @@ with open(states_path / "apo", 'w', encoding='utf-8') as apo_file:
         smc_1.kleisin_unfolds1,
         smc_1.kleisin_unfolds2,
     ]
-    apply(gen.write_script_bai_coeffs, apo_file, options)
+)
+# gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
 
-    # gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
-
-with open(states_path / "atp_bound_1", 'w', encoding='utf-8') as atp_bound_1_file:
-    options = [
+create_phase(
+    states_path / "atp_bound_1",
+    [
         bridge_soft_on,
         middle_site_soft_on,
     ]
-    apply(gen.write_script_bai_coeffs, atp_bound_1_file, options)
+)
 
-with open(states_path / "atp_bound_2", 'w', encoding='utf-8') as atp_bound_2_file:
-    options = [
+create_phase(
+    states_path / "atp_bound_2",
+    [
         bridge_soft_off,
         middle_site_soft_off,
         bridge_on,
@@ -477,7 +481,7 @@ with open(states_path / "atp_bound_2", 'w', encoding='utf-8') as atp_bound_2_fil
         smc_1.kleisin_folds1,
         smc_1.kleisin_folds2,
     ]
-    apply(gen.write_script_bai_coeffs, atp_bound_2_file, options)
+)
 
 
 #################################################################################

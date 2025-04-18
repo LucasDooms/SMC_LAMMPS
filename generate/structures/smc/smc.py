@@ -1,7 +1,7 @@
 # Copyright (c) 2024 Lucas Dooms
 
 import numpy as np
-from generator import AtomType, AtomGroup, BAI_Kind, BAI_Type, BAI, MoleculeId
+from generator import AtomType, AtomGroup, BAI_Kind, BAI_Type, BAI, MoleculeId, Generator
 from dataclasses import dataclass
 from typing import List
 
@@ -95,17 +95,17 @@ class SMC:
         self.arms_bridge = BAI_Type(BAI_Kind.ANGLE, f"harmonic {self.k_arm} {arms_bridge_angle}\n")
         self.hinge_arms = BAI_Type(BAI_Kind.ANGLE, f"harmonic {self.k_arm} {90.0}\n")
 
-        self.arms_close = [
+        self.arms_close = Generator.DynamicCoeffs(
             BAI_Kind.ANGLE,
             "{} harmonic "
             + f"{self.k_arm} {np.rad2deg(np.arccos((self.bridge_width / 2.0 - self.hinge_radius) / self.arm_length))}\n",
-            self.arms_bridge,
-        ]
-        self.arms_open = [
+            [self.arms_bridge]
+        )
+        self.arms_open = Generator.DynamicCoeffs(
             BAI_Kind.ANGLE,
             "{} harmonic " + f"{self.k_arm} {self.arms_angle_ATP}\n",
-            self.arms_bridge,
-        ]
+            [self.arms_bridge]
+        )
 
     def _set_impropers(self) -> None:
         self.imp_t1 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_align_site} {0.0}\n")
@@ -113,11 +113,27 @@ class SMC:
         self.imp_t3 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n")
         self.imp_t4 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_align_site / 5.0} {90.0}\n")
 
-        self.kleisin_folds1 = [BAI_Kind.IMPROPER, "{} " + f"{self.k_fold} {180.0 - self.folding_angle_ATP}\n", self.imp_t2]
-        self.kleisin_unfolds1 = [BAI_Kind.IMPROPER, "{} " + f"{self.k_fold} {180.0 - self.folding_angle_APO}\n", self.imp_t2]
+        self.kleisin_folds1 = Generator.DynamicCoeffs(
+            BAI_Kind.IMPROPER,
+            "{} " + f"{self.k_fold} {180.0 - self.folding_angle_ATP}\n",
+            [self.imp_t2]
+        )
+        self.kleisin_unfolds1 = Generator.DynamicCoeffs(
+            BAI_Kind.IMPROPER,
+            "{} " + f"{self.k_fold} {180.0 - self.folding_angle_APO}\n",
+            [self.imp_t2]
+        )
 
-        self.kleisin_folds2 = [BAI_Kind.IMPROPER, "{} " + f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_ATP)}\n", self.imp_t3]
-        self.kleisin_unfolds2 = [BAI_Kind.IMPROPER, "{} " + f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n", self.imp_t3]
+        self.kleisin_folds2 = Generator.DynamicCoeffs(
+            BAI_Kind.IMPROPER,
+            "{} " + f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_ATP)}\n",
+            [self.imp_t3]
+        )
+        self.kleisin_unfolds2 = Generator.DynamicCoeffs(
+            BAI_Kind.IMPROPER,
+            "{} " + f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n",
+            [self.imp_t3]
+        )
 
     def __post_init__(self) -> None:
         self._set_molecule_ids(self.use_rigid_hinge)
