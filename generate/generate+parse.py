@@ -5,10 +5,11 @@
 import math
 import numpy as np
 from numpy.random import default_rng
+from util import create_phase
 from generator import AtomIdentifier, Generator, BAI_Type, BAI_Kind, AtomType, PairWise, MoleculeId
 from sys import argv, maxsize
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, List
 from structures.dna import dna
 from structures.smc.smc_creator import SMC_Creator
 from structures.smc.smc import SMC
@@ -449,15 +450,8 @@ with open(path / 'datafile_positions', 'w', encoding='utf-8') as datafile:
 states_path = path / "states"
 states_path.mkdir(exist_ok=True)
 
-def create_phase(phase_path: Path, options: List[Generator.DynamicCoeffs]):
-    def apply(function, file, list_of_args: List[Any]):
-        for args in list_of_args:
-            function(file, args)
-
-    with open(phase_path, 'w', encoding='utf-8') as phase_file:
-        apply(gen.write_script_bai_coeffs, phase_file, options)
-
 create_phase(
+    gen,
     states_path / "adp_bound",
     [
         bridge_off,
@@ -471,6 +465,7 @@ create_phase(
 )
 
 create_phase(
+    gen,
     states_path / "apo",
     [
         bridge_off,
@@ -485,6 +480,7 @@ create_phase(
 # gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
 
 create_phase(
+    gen,
     states_path / "atp_bound_1",
     [
         bridge_soft_on,
@@ -493,6 +489,7 @@ create_phase(
 )
 
 create_phase(
+    gen,
     states_path / "atp_bound_2",
     [
         bridge_soft_off,
