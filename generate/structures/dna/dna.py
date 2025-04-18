@@ -178,11 +178,11 @@ class Tether:
             ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA
         )
         pair_inter.add_interaction(
-            tether_type, smc.armHK_type,
+            tether_type, smc.t_arms_heads_kleisin,
             ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA
         )
         pair_inter.add_interaction(
-            tether_type, smc.hinge_type,
+            tether_type, smc.t_hinge,
             ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA / 2.0, ip.rcutSMCvsDNA / 2.0
         )
         # Optional: don't allow bridge to go through tether
@@ -197,8 +197,8 @@ class Tether:
         # )
         if isinstance(self.obstacle, Tether.Gold):
             pair_inter.add_interaction(self.obstacle.group.type, dna_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
-            pair_inter.add_interaction(self.obstacle.group.type, smc.armHK_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
-            pair_inter.add_interaction(self.obstacle.group.type, smc.hinge_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
+            pair_inter.add_interaction(self.obstacle.group.type, smc.t_arms_heads_kleisin, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
+            pair_inter.add_interaction(self.obstacle.group.type, smc.t_hinge, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
             pair_inter.add_interaction(self.obstacle.group.type, tether_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
 
     def get_bonds(self, bond_type: BAI_Type) -> List[BAI]:
@@ -314,9 +314,9 @@ class DnaConfiguration:
         ip = self.inter_par
         kBT = self.par.kB * self.par.T
         pair_inter.add_interaction(dna_type, dna_type, ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA)
-        pair_inter.add_interaction(dna_type, self.smc.armHK_type, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
-        pair_inter.add_interaction(dna_type, self.smc.hinge_type, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
-        pair_inter.add_interaction(dna_type, self.smc.siteD_type, ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA)
+        pair_inter.add_interaction(dna_type, self.smc.t_arms_heads_kleisin, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
+        pair_inter.add_interaction(dna_type, self.smc.t_hinge, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
+        pair_inter.add_interaction(dna_type, self.smc.t_lower_site, ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA)
 
         # every bead should repel every SMC group
         for bead, bead_size, smc_grp in zip(self.beads, self.bead_sizes, self.smc.get_groups()):
@@ -406,8 +406,8 @@ class Line(DnaConfiguration):
             ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
 
         ppp.freeze_indices += [
-            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteD[1])), # closest to bottom -> rSiteD[1]
-            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteM[1])), # closest to middle -> rSiteM[1]
+            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.r_lower_site[1])), # closest to bottom -> rSiteD[1]
+            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.r_middle_site[1])), # closest to middle -> rSiteM[1]
         ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
@@ -447,8 +447,8 @@ class Folded(DnaConfiguration):
             ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
 
         ppp.freeze_indices += [
-            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteD[1])), # closest to bottom -> rSiteD[1]
-            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteM[1])), # closest to middle -> rSiteM[1]
+            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.r_lower_site[1])), # closest to bottom -> rSiteD[1]
+            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.r_middle_site[1])), # closest to middle -> rSiteM[1]
         ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
@@ -530,8 +530,8 @@ class Doubled(DnaConfiguration):
                 ppp.end_points += [(dna_grp, 0), (dna_grp, -1)]
             # TODO: fix for DOUBLED DNA, gives same bead twice
             ppp.freeze_indices += [
-                (dna_grp, get_closest(dna_grp.positions, self.smc.rSiteD[1])), # closest to bottom
-                (dna_grp, get_closest(dna_grp.positions, self.smc.rSiteM[1])), # closest to middle
+                (dna_grp, get_closest(dna_grp.positions, self.smc.r_lower_site[1])), # closest to bottom
+                (dna_grp, get_closest(dna_grp.positions, self.smc.r_middle_site[1])), # closest to middle
             ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)

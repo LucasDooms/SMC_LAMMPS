@@ -1,7 +1,7 @@
 # Copyright (c) 2024 Lucas Dooms
 
 import numpy as np
-from generator import AtomType, AtomGroup, BAI_Kind, BAI_Type, BAI, MoleculeId, Generator
+from generator import AtomType, AtomGroup, BAI_Kind, BAI_Type, BAI, MoleculeId, Generator, PairWise
 from dataclasses import dataclass
 from typing import List
 
@@ -11,24 +11,24 @@ class SMC:
 
     use_rigid_hinge: bool
 
-    rArmDL : ...
-    rArmUL : ...
-    rArmUR : ...
-    rArmDR : ...
-    rATP : ...
-    rHK  : ...
-    rSiteU : ...
-    rSiteM : ...
-    rSiteD : ...
-    rHinge : ...
+    r_arm_dl : ...
+    r_arm_ul : ...
+    r_arm_ur : ...
+    r_arm_dr : ...
+    r_ATP : ...
+    r_heads_kleisin  : ...
+    r_upper_site : ...
+    r_middle_site : ...
+    r_lower_site : ...
+    r_hinge : ...
 
-    armHK_type : AtomType
-    hinge_type: AtomType
-    atp_type : AtomType
-    siteU_type : AtomType
-    siteM_type : AtomType
-    siteD_type : AtomType
-    refSite_type : AtomType
+    t_arms_heads_kleisin : AtomType
+    t_hinge: AtomType
+    t_atp : AtomType
+    t_upper_site : AtomType
+    t_middle_site : AtomType
+    t_lower_site : AtomType
+    t_ref_site : AtomType
 
     # bonds
     k_bond: float
@@ -139,31 +139,31 @@ class SMC:
         self._set_angles()
         self._set_impropers()
         # create groups
-        self.arm_dl_grp = AtomGroup(self.rArmDL, self.armHK_type, self.mol_arm_dl)
-        self.arm_ul_grp = AtomGroup(self.rArmUL, self.armHK_type, self.mol_arm_ul)
-        self.arm_ur_grp = AtomGroup(self.rArmUR, self.armHK_type, self.mol_arm_ur)
-        self.arm_dr_grp = AtomGroup(self.rArmDR, self.armHK_type, self.mol_arm_dr)
-        self.hk_grp = AtomGroup(self.rHK, self.armHK_type, self.mol_heads_kleisin)
+        self.arm_dl_grp = AtomGroup(self.r_arm_dl, self.t_arms_heads_kleisin, self.mol_arm_dl)
+        self.arm_ul_grp = AtomGroup(self.r_arm_ul, self.t_arms_heads_kleisin, self.mol_arm_ul)
+        self.arm_ur_grp = AtomGroup(self.r_arm_ur, self.t_arms_heads_kleisin, self.mol_arm_ur)
+        self.arm_dr_grp = AtomGroup(self.r_arm_dr, self.t_arms_heads_kleisin, self.mol_arm_dr)
+        self.hk_grp = AtomGroup(self.r_heads_kleisin, self.t_arms_heads_kleisin, self.mol_heads_kleisin)
 
-        self.atp_grp = AtomGroup(self.rATP, self.atp_type, self.mol_ATP)
+        self.atp_grp = AtomGroup(self.r_ATP, self.t_atp, self.mol_ATP)
 
-        self.hinge_l_grp = AtomGroup(self.rHinge[:len(self.rHinge) // 2], self.hinge_type, self.mol_hinge_l)
-        self.hinge_r_grp = AtomGroup(self.rHinge[len(self.rHinge) // 2:], self.hinge_type, self.mol_hinge_r)
-        self.upper_site_grp = AtomGroup(self.rSiteU, self.siteU_type, self.mol_hinge_l)
+        self.hinge_l_grp = AtomGroup(self.r_hinge[:len(self.r_hinge) // 2], self.t_hinge, self.mol_hinge_l)
+        self.hinge_r_grp = AtomGroup(self.r_hinge[len(self.r_hinge) // 2:], self.t_hinge, self.mol_hinge_r)
+        self.upper_site_grp = AtomGroup(self.r_upper_site, self.t_upper_site, self.mol_hinge_l)
 
         # split M in three parts
 
         cut = 2
-        self.middle_site_grp = AtomGroup(self.rSiteM[:cut], self.siteM_type, self.mol_middle_site)
-        self.middle_site_atp_grp = AtomGroup(self.rSiteM[cut:-1], self.atp_type, self.mol_middle_site)
+        self.middle_site_grp = AtomGroup(self.r_middle_site[:cut], self.t_middle_site, self.mol_middle_site)
+        self.middle_site_atp_grp = AtomGroup(self.r_middle_site[cut:-1], self.t_atp, self.mol_middle_site)
         # ref site
-        self.middle_site_ref_grp = AtomGroup(self.rSiteM[-1:], self.refSite_type, self.mol_middle_site)
+        self.middle_site_ref_grp = AtomGroup(self.r_middle_site[-1:], self.t_ref_site, self.mol_middle_site)
 
         # split B in two parts
 
         cut = 3
-        self.lower_site_grp = AtomGroup(self.rSiteD[:cut], self.siteD_type, self.mol_lower_site)
-        self.lower_site_arm_grp = AtomGroup(self.rSiteD[cut:], self.armHK_type, self.mol_lower_site)
+        self.lower_site_grp = AtomGroup(self.r_lower_site[:cut], self.t_lower_site, self.mol_lower_site)
+        self.lower_site_arm_grp = AtomGroup(self.r_lower_site[cut:], self.t_arms_heads_kleisin, self.mol_lower_site)
 
         self.left_attach_hinge = len(self.hinge_l_grp.positions) // 2
         self.right_attach_hinge = len(self.hinge_r_grp.positions) // 2
@@ -238,7 +238,7 @@ class SMC:
         ]
 
     def get_impropers(self) -> List[BAI]:
-        kleisin_center = len(self.rHK) // 2
+        kleisin_center = len(self.r_heads_kleisin) // 2
         return [
             # Fix orientation of ATP/kleisin bridge
             # WARNING: siteM is split into groups, be careful with index
@@ -263,3 +263,21 @@ class SMC:
             # BAI(imp_t1, (self.hingeL_group, self.left_attach_hinge), (self.hingeR_group, self.right_attach_hinge), (self.atp_group, 0), (self.atp_group, -1)),
             BAI(self.imp_t4, (self.upper_site_grp, 0), (self.upper_site_grp, len(self.upper_site_grp.positions) // 2), (self.atp_grp, len(self.atp_grp.positions) // 2), (self.atp_grp, -1)),
         ]
+
+    def add_repel_interactions(self, pair_inter: PairWise, eps: float, sigma: float, r_cut: float) -> None:
+        # prevent hinges from overlapping
+        pair_inter.add_interaction(
+            self.t_hinge,
+            self.t_hinge,
+            eps,
+            sigma,
+            r_cut,
+        )
+        # prevent upper site from overlapping with arms
+        pair_inter.add_interaction(
+            self.t_arms_heads_kleisin,
+            self.t_upper_site,
+            eps,
+            sigma,
+            r_cut,
+        )

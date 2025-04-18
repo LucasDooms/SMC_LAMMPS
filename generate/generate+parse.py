@@ -280,36 +280,27 @@ mSMC = smc_creator.get_mass_per_atom(mSMCtotal)
 gen = Generator()
 gen.set_system_size(boxWidth)
 
-armHK_type = AtomType(mSMC)
-hinge_type = AtomType(mSMC)
-atp_type = AtomType(mSMC)
-siteU_type = AtomType(mSMC)
-siteM_type = AtomType(mSMC)
-siteD_type = AtomType(mSMC)
-refSite_type = AtomType(mSMC)
-
-
 smc_1 = SMC(
     use_rigid_hinge=par.rigidHinge,
 
-    rArmDL=rArmDL,
-    rArmUL=rArmUL,
-    rArmUR=rArmUR,
-    rArmDR=rArmDR,
-    rATP=rATP,
-    rHK=rHK,
-    rSiteU=rSiteU,
-    rSiteM=rSiteM,
-    rSiteD=rSiteD,
-    rHinge=rHinge,
+    r_arm_dl=rArmDL,
+    r_arm_ul=rArmUL,
+    r_arm_ur=rArmUR,
+    r_arm_dr=rArmDR,
+    r_ATP=rATP,
+    r_heads_kleisin=rHK,
+    r_upper_site=rSiteU,
+    r_middle_site=rSiteM,
+    r_lower_site=rSiteD,
+    r_hinge=rHinge,
 
-    armHK_type=armHK_type,
-    hinge_type=hinge_type,
-    atp_type=atp_type,
-    siteU_type=siteU_type,
-    siteM_type=siteM_type,
-    siteD_type=siteD_type,
-    refSite_type=refSite_type,
+    t_arms_heads_kleisin=AtomType(mSMC),
+    t_hinge=AtomType(mSMC),
+    t_atp=AtomType(mSMC),
+    t_upper_site=AtomType(mSMC),
+    t_middle_site=AtomType(mSMC),
+    t_lower_site=AtomType(mSMC),
+    t_ref_site=AtomType(mSMC),
 
     k_bond = kBondSMC,
     k_hinge = kBondHinge,
@@ -356,12 +347,9 @@ gen.atom_groups += [
 
 # Pair coefficients
 pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
-# prevent hinges from overlapping
-pair_inter.add_interaction(hinge_type, hinge_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
-# prevent upper site from overlapping with arms
-pair_inter.add_interaction(armHK_type, siteU_type, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
 
 dnaConfig.add_interactions(pair_inter)
+smc_1.add_repel_interactions(pair_inter, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
@@ -370,27 +358,27 @@ gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
 
 # Interactions that change for different phases of SMC
-bridge_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, atp_type])
+bridge_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_atp])
 bridge_on = Generator.DynamicCoeffs(
     None,
     f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n",
-    [dna_type, atp_type],
+    [dna_type, smc_1.t_atp],
 )
 
-bridge_soft_off = Generator.DynamicCoeffs(None, "soft 0 0\n", [dna_type, atp_type])
+bridge_soft_off = Generator.DynamicCoeffs(None, "soft 0 0\n", [dna_type, smc_1.t_atp])
 bridge_soft_on = Generator.DynamicCoeffs(
     None,
     f"soft {epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n",
-    [dna_type, atp_type],
+    [dna_type, smc_1.t_atp],
 )
 
 hinge_attraction_off = Generator.DynamicCoeffs(
-    None, "lj/cut 0 0 0\n", [dna_type, siteU_type]
+    None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_upper_site]
 )
 hinge_attraction_on = Generator.DynamicCoeffs(
     None,
     f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n",
-    [dna_type, siteU_type],
+    [dna_type, smc_1.t_upper_site],
 )
 
 if False:  # isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
@@ -398,34 +386,34 @@ if False:  # isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafe
     lower_site_off = Generator.DynamicCoeffs(
         None,
         f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n",
-        [dna_type, siteD_type],
+        [dna_type, smc_1.t_lower_site],
     )
 else:
     lower_site_off = Generator.DynamicCoeffs(
-        None, "lj/cut 0 0 0\n", [dna_type, siteD_type]
+        None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_lower_site]
     )
 lower_site_on = Generator.DynamicCoeffs(
     None,
     f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n",
-    [dna_type, siteD_type],
+    [dna_type, smc_1.t_lower_site],
 )
 
 middle_site_off = Generator.DynamicCoeffs(
-    None, "lj/cut 0 0 0\n", [dna_type, siteM_type]
+    None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_middle_site]
 )
 middle_site_on = Generator.DynamicCoeffs(
     None,
     f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n",
-    [dna_type, siteM_type],
+    [dna_type, smc_1.t_middle_site],
 )
 
 middle_site_soft_off = Generator.DynamicCoeffs(
-    None, "soft 0 0\n", [dna_type, siteM_type]
+    None, "soft 0 0\n", [dna_type, smc_1.t_middle_site]
 )
 middle_site_soft_on = Generator.DynamicCoeffs(
     None,
     "soft " + f"{par.epsilon5 * kBT} {par.sigma * 2**(1/6)}\n",
-    [dna_type, siteM_type],
+    [dna_type, smc_1.t_middle_site],
 )
 
 gen.bais += [
