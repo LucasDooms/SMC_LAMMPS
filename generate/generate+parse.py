@@ -29,6 +29,8 @@ class Parameters:
         return parameters.get(__name , getattr(default_parameters, __name))
 
     def __setattr__(self, __name: str, __value: Any) -> None:
+        if not hasattr(default_parameters, __name):
+            raise AttributeError(f"{__name} is not a known attribute of default_parameters")
         parameters[__name] = __value
 
     def __dir__(self):
