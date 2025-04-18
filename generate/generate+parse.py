@@ -370,27 +370,63 @@ gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
 
 # Interactions that change for different phases of SMC
-bridge_off = Generator.DynamicCoeffs(None, "{} {} lj/cut 0 0 0\n", [dna_type, atp_type])
-bridge_on = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n", [dna_type, atp_type])
+bridge_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, atp_type])
+bridge_on = Generator.DynamicCoeffs(
+    None,
+    f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n",
+    [dna_type, atp_type],
+)
 
-bridge_soft_off = Generator.DynamicCoeffs(None, "{} {} soft 0 0\n", [dna_type, atp_type])
-bridge_soft_on = Generator.DynamicCoeffs(None, "{} {} soft " + f"{epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n", [dna_type, atp_type])
+bridge_soft_off = Generator.DynamicCoeffs(None, "soft 0 0\n", [dna_type, atp_type])
+bridge_soft_on = Generator.DynamicCoeffs(
+    None,
+    f"soft {epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n",
+    [dna_type, atp_type],
+)
 
-hinge_attraction_off = Generator.DynamicCoeffs(None, "{} {} lj/cut 0 0 0\n", [dna_type, siteU_type])
-hinge_attraction_on = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n", [dna_type, siteU_type])
+hinge_attraction_off = Generator.DynamicCoeffs(
+    None, "lj/cut 0 0 0\n", [dna_type, siteU_type]
+)
+hinge_attraction_on = Generator.DynamicCoeffs(
+    None,
+    f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n",
+    [dna_type, siteU_type],
+)
 
-if False: #isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
+if False:  # isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
     # always keep site on
-    lower_site_off = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", [dna_type, siteD_type])
+    lower_site_off = Generator.DynamicCoeffs(
+        None,
+        f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n",
+        [dna_type, siteD_type],
+    )
 else:
-    lower_site_off = Generator.DynamicCoeffs(None, "{} {} lj/cut 0 0 0\n", [dna_type, siteD_type])
-lower_site_on = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n", [dna_type, siteD_type])
+    lower_site_off = Generator.DynamicCoeffs(
+        None, "lj/cut 0 0 0\n", [dna_type, siteD_type]
+    )
+lower_site_on = Generator.DynamicCoeffs(
+    None,
+    f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n",
+    [dna_type, siteD_type],
+)
 
-middle_site_off = Generator.DynamicCoeffs(None, "{} {} lj/cut 0 0 0\n", [dna_type, siteM_type])
-middle_site_on = Generator.DynamicCoeffs(None, "{} {} " + f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n", [dna_type, siteM_type])
+middle_site_off = Generator.DynamicCoeffs(
+    None, "lj/cut 0 0 0\n", [dna_type, siteM_type]
+)
+middle_site_on = Generator.DynamicCoeffs(
+    None,
+    f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n",
+    [dna_type, siteM_type],
+)
 
-middle_site_soft_off = Generator.DynamicCoeffs(None, "{} {} soft 0 0\n", [dna_type, siteM_type])
-middle_site_soft_on = Generator.DynamicCoeffs(None, "{} {} soft " + f"{par.epsilon5 * kBT} {par.sigma * 2**(1/6)}\n", [dna_type, siteM_type])
+middle_site_soft_off = Generator.DynamicCoeffs(
+    None, "soft 0 0\n", [dna_type, siteM_type]
+)
+middle_site_soft_on = Generator.DynamicCoeffs(
+    None,
+    "soft " + f"{par.epsilon5 * kBT} {par.sigma * 2**(1/6)}\n",
+    [dna_type, siteM_type],
+)
 
 gen.bais += [
     *smc_1.get_bonds(smc_creator.hinge_opening),

@@ -97,13 +97,12 @@ class SMC:
 
         self.arms_close = Generator.DynamicCoeffs(
             BAI_Kind.ANGLE,
-            "{} harmonic "
-            + f"{self.k_arm} {np.rad2deg(np.arccos((self.bridge_width / 2.0 - self.hinge_radius) / self.arm_length))}\n",
+            f"harmonic {self.k_arm} {np.rad2deg(np.arccos((self.bridge_width / 2.0 - self.hinge_radius) / self.arm_length))}\n",
             [self.arms_bridge]
         )
         self.arms_open = Generator.DynamicCoeffs(
             BAI_Kind.ANGLE,
-            "{} harmonic " + f"{self.k_arm} {self.arms_angle_ATP}\n",
+            f"harmonic {self.k_arm} {self.arms_angle_ATP}\n",
             [self.arms_bridge]
         )
 
@@ -115,23 +114,23 @@ class SMC:
 
         self.kleisin_folds1 = Generator.DynamicCoeffs(
             BAI_Kind.IMPROPER,
-            "{} " + f"{self.k_fold} {180.0 - self.folding_angle_ATP}\n",
+            f"{self.k_fold} {180.0 - self.folding_angle_ATP}\n",
             [self.imp_t2]
         )
         self.kleisin_unfolds1 = Generator.DynamicCoeffs(
             BAI_Kind.IMPROPER,
-            "{} " + f"{self.k_fold} {180.0 - self.folding_angle_APO}\n",
+            f"{self.k_fold} {180.0 - self.folding_angle_APO}\n",
             [self.imp_t2]
         )
 
         self.kleisin_folds2 = Generator.DynamicCoeffs(
             BAI_Kind.IMPROPER,
-            "{} " + f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_ATP)}\n",
+            f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_ATP)}\n",
             [self.imp_t3]
         )
         self.kleisin_unfolds2 = Generator.DynamicCoeffs(
             BAI_Kind.IMPROPER,
-            "{} " + f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n",
+            f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n",
             [self.imp_t3]
         )
 

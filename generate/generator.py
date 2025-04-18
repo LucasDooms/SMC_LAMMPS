@@ -428,7 +428,7 @@ class Generator:
     @dataclass
     class DynamicCoeffs:
         pair_or_BAI: None | BAI_Kind
-        format_string: str
+        coeff_string: str
         args: List[Any]
 
     def write_script_bai_coeffs(self, file, coeffs: DynamicCoeffs) -> None:
@@ -437,8 +437,8 @@ class Generator:
         # if pair type -> get atom indices (two AtomType instances)
         # else (bai) -> get BAI_Type index
         # in both cases -> assume arguments have .index field
-        format_args = [arg.index for arg in coeffs.args]
-        formatted_string = coeffs.format_string.format(*format_args)
+        format_args = [str(arg.index) for arg in coeffs.args]
+        formatted_string = " ".join(format_args) + " " + coeffs.coeff_string
         file.write(cmd_name + " " + formatted_string)
 
 
