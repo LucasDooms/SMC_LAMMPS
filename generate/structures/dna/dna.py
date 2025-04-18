@@ -331,6 +331,19 @@ class DnaConfiguration:
     def get_bonds(self) -> List[BAI]:
         return self.bead_bonds
 
+    def split_dna(self, split: AtomIdentifier) -> Tuple[AtomGroup, AtomGroup]:
+        self.dna_groups.remove(split[0])
+        pos1 = split[0].positions[:split[1]]
+        pos2 = split[0].positions[split[1]:]
+
+        args = (split[0].type, split[0].molecule_index, split[0].polymer_bond_type, split[0].polymer_angle_type)
+        groups = (
+            AtomGroup(pos1, *args),
+            AtomGroup(pos2, *args),
+        )
+        self.dna_groups += groups
+        return groups
+
     def add_bead_to_dna(
         self,
         bead_type: AtomType,
