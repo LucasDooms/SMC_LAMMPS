@@ -1,13 +1,5 @@
 # Copyright (c) 2024 Lucas Dooms
 
-from __future__ import annotations
-
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Dict, List, Set, Tuple
-
-import numpy as np
-
 """
 generator.py
 ------------
@@ -22,19 +14,32 @@ How to use:
     - call Generator.write(file) to create the final datafile
 """
 
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Set, Tuple
+
+import numpy as np
+
+
 class AtomType:
 
-    __index = 1
+    __index = 0
 
     def __init__(self, mass: float = 1.0) -> None:
         self._index = None
         self.mass = mass
 
+    @classmethod
+    def _get_next(cls) -> int:
+        cls.__index += 1
+        return cls.__index
+
     @property
     def index(self) -> int:
         if self._index is None:
-            self._index = self.__class__.__index
-            self.__class__.__index += 1
+            self._index = self._get_next()
         return self._index
 
 
@@ -53,13 +58,15 @@ class BAI_Kind(Enum):
     ANGLE = 2
     IMPROPER = 3
 
-
-# number of arguments (atom ids) needed to define a BAI interaction
-length_lookup = dict({
-    BAI_Kind.BOND: 2,
-    BAI_Kind.ANGLE: 3,
-    BAI_Kind.IMPROPER: 4
-})
+    @classmethod
+    def length_lookup(cls, kind: BAI_Kind) -> int:
+        """Returns the number of arguments (atom ids) needed to define a BAI interaction."""
+        values = {
+            BAI_Kind.BOND: 2,
+            BAI_Kind.ANGLE: 3,
+            BAI_Kind.IMPROPER: 4
+        }
+        return values[kind]
 
 
 class BAI_Type:
@@ -98,10 +105,10 @@ class AtomGroup:
         self.type = atom_type
         self.molecule_index = molecule_index
         if polymer_bond_type is not None:
-            assert(polymer_bond_type.kind == BAI_Kind.BOND)
+            assert polymer_bond_type.kind == BAI_Kind.BOND
         self.polymer_bond_type = polymer_bond_type
         if polymer_angle_type is not None:
-            assert(polymer_angle_type.kind == BAI_Kind.ANGLE)
+            assert polymer_angle_type.kind == BAI_Kind.ANGLE
         self.polymer_angle_type = polymer_angle_type
 
 
@@ -114,9 +121,9 @@ class BAI:
         Represents a Bond/Angle/Improper interaction between a certain number of atoms
     """
 
-    def __init__(self, type: BAI_Type, *atoms: AtomIdentifier) -> None:
+    def __init__(self, type_: BAI_Type, *atoms: AtomIdentifier) -> None:
         """Length of atoms should be 2 for Bond, 3 for Angle, 4 for Improper"""
-        self.type = type
+        self.type = type_
         self.atoms: List[AtomIdentifier] = list(atoms)
 
 
@@ -148,6 +155,11 @@ class PairWise:
         return self
 
     def write(self, file, atom_types: List[AtomType]) -> None:
+        """Write the Pair Coeffs header and all pair interactions to a file.
+        e.g.
+        PairIJ Coeffs
+        1 8 lj/cut 0.0 0.0 0.0
+        """
         file.write(self.header)
         for atom_type1, atom_type2, text in self.get_all_interactions(atom_types):
             file.write(f"{atom_type1.index} {atom_type2.index} " + text)
@@ -168,12 +180,16 @@ class PairWise:
 
         return all_inters
 
-    def get_all_interactions(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType, str]]:
+    def get_all_interactions(
+        self, all_atom_types: List[AtomType]
+    ) -> List[Tuple[AtomType, AtomType, str]]:
         """Returns actual interactions to define,
-           applying the default where no interaction was specified by the user."""
+        applying the default where no interaction was specified by the user."""
         all_inters = self.get_all_interaction_pairs(all_atom_types)
-        
-        def pair_in_inter(interaction: Tuple[AtomType, AtomType]) -> Tuple[AtomType, AtomType, List[Any]] | None:
+
+        def pair_in_inter(
+            interaction: Tuple[AtomType, AtomType],
+        ) -> Tuple[AtomType, AtomType, List[Any]] | None:
             for pair in self.pairs:
                 if interaction[0] == pair[0] and interaction[1] == pair[1]:
                     return pair
@@ -207,24 +223,33 @@ class Generator:
         self.atom_group_map: List[int] = []
         self.pair_interactions: List[PairWise] = []
         self.box_width = None
-        self.molecule_override: Dict[AtomIdentifier, int] = dict()
+        self.molecule_override: Dict[AtomIdentifier, int] = {}
 
     def set_system_size(self, box_width: float) -> None:
+        """Set the box size of the simulation."""
         self.box_width = box_width
 
     def get_total_atoms(self) -> int:
+        """Get the total number of atoms across all groups."""
         return sum(map(lambda atom_group: atom_group.n, self.atom_groups))
 
     def write_header(self, file) -> None:
+        """Write the top header to a file.
+        Note: LAMMPS always ignores the first line of a data file,
+        which should be this header."""
         file.write("# LAMMPS data file\n")
 
     def get_all_atom_types(self) -> List[AtomType]:
+        """Get a list of all atom types across all atom groups.
+        The returned list is sorted based on the AtomType index."""
         atom_types: Set[AtomType] = set()
         for atom_group in self.atom_groups:
             atom_types.add(atom_group.type)
         return sorted(atom_types, key=lambda atom_type: atom_type.index)
 
     def get_all_types(self, kind: BAI_Kind) -> List[BAI_Type]:
+        """Get a list of all Bond/Angle/Improper types across all atom groups.
+        The returned list is sorted based on the BAI_Type index."""
         bai_types: Set[BAI_Type] = set()
         for bai in filter(lambda bai: bai.type.kind == kind, self.bais):
             bai_types.add(bai.type)
@@ -236,53 +261,60 @@ class Generator:
         return sorted(bai_types, key=lambda bai_type: bai_type.index)
 
     def get_bai_dict_by_type(self) -> Dict[BAI_Kind, List[BAI]]:
-        bai_by_kind: Dict[BAI_Kind, List[BAI]] = {kind: list() for kind in BAI_Kind}
+        """Get a dictionary mapping the Bond/Angle/Improper kind
+        to a list of all BAIs which have that type."""
+        bai_by_kind: Dict[BAI_Kind, List[BAI]] = {kind: [] for kind in BAI_Kind}
         for bai in self.bais:
             bai_by_kind[bai.type.kind].append(bai)
         return bai_by_kind
 
     def write_amounts(self, file) -> None:
-        file.write("%s atoms\n"       %self.get_total_atoms())
+        """Write the amount of atoms, bonds, angles, and impropers to a file."""
+        file.write(f"{self.get_total_atoms()} atoms\n")
 
         length_lookup = {key: len(value) for (key, value) in self.get_bai_dict_by_type().items()}
 
-        totalBonds = length_lookup[BAI_Kind.BOND]
-        totalAngles = length_lookup[BAI_Kind.ANGLE]
-        totalImpropers = length_lookup[BAI_Kind.IMPROPER]
+        total_bonds = length_lookup[BAI_Kind.BOND]
+        total_angles = length_lookup[BAI_Kind.ANGLE]
+        total_impropers = length_lookup[BAI_Kind.IMPROPER]
 
         for atom_group in self.atom_groups:
             if atom_group.polymer_bond_type is not None:
-                totalBonds += len(atom_group.positions) - 1
+                total_bonds += len(atom_group.positions) - 1
             if atom_group.polymer_angle_type is not None:
-                totalAngles += len(atom_group.positions) - 2
+                total_angles += len(atom_group.positions) - 2
 
-        file.write("%s bonds\n"       %totalBonds)
-        file.write("%s angles\n"      %totalAngles)
-        file.write("%s impropers\n" %totalImpropers)
+        file.write(f"{total_bonds} bonds\n")
+        file.write(f"{total_angles} angles\n")
+        file.write(f"{total_impropers} impropers\n")
 
         file.write("\n")
 
     def write_types(self, file) -> None:
-        file.write("%s atom types\n"       %len(self.get_all_atom_types()))
-        file.write("%s bond types\n"       %len(self.get_all_types(BAI_Kind.BOND)))
-        file.write("%s angle types\n"      %len(self.get_all_types(BAI_Kind.ANGLE)))
-        file.write("%s improper types\n" %len(self.get_all_types(BAI_Kind.IMPROPER)))
+        """Write the amount of atom types, bond types, angle types, and improper types to a file."""
+        file.write(f"{len(self.get_all_atom_types())} atom types\n")
+        file.write(f"{len(self.get_all_types(BAI_Kind.BOND))} bond types\n")
+        file.write(f"{len(self.get_all_types(BAI_Kind.ANGLE))} angle types\n")
+        file.write(f"{len(self.get_all_types(BAI_Kind.IMPROPER))} improper types\n")
 
         file.write("\n")
 
     def write_system_size(self, file) -> None:
+        """Write the system size to a file."""
         file.write("# System size\n")
 
         if self.box_width is None:
-            raise Exception("box_width was not set")
+            raise TypeError("box_width was not set")
         half_width = self.box_width / 2.0
-        file.write("%s %s xlo xhi\n"   %(-half_width, half_width))
-        file.write("%s %s ylo yhi\n"   %(-half_width, half_width))
-        file.write("%s %s zlo zhi\n" %(-half_width, half_width))
+        lohi = (-half_width, half_width)
+        file.write(f"{lohi[0]} {lohi[1]} xlo xhi\n")
+        file.write(f"{lohi[0]} {lohi[1]} ylo yhi\n")
+        file.write(f"{lohi[0]} {lohi[1]} zlo zhi\n")
 
         file.write("\n")
 
     def write_masses(self, file) -> None:
+        """Write the masses of all atom types to a file."""
         file.write("Masses\n\n")
         for atom_type in self.get_all_atom_types():
             file.write(f"{atom_type.index} {atom_type.mass}\n")
@@ -291,6 +323,7 @@ class Generator:
 
     @staticmethod
     def get_BAI_coeffs_header(kind: BAI_Kind) -> str:
+        """Get the header string corresponding to a Bond/Angle/Improper kind."""
         lookup = {
             BAI_Kind.BOND: "Bond Coeffs # hybrid\n\n",
             BAI_Kind.ANGLE: "Angle Coeffs # hybrid\n\n",
@@ -299,6 +332,7 @@ class Generator:
         return lookup[kind]
 
     def write_BAI_coeffs(self, file) -> None:
+        """Write the Bond/Angle/Improper coefficients for each BAI kind to a file."""
         for kind in BAI_Kind:
             file.write(self.get_BAI_coeffs_header(kind))
             for bai_type in self.get_all_types(kind):
@@ -308,27 +342,22 @@ class Generator:
             file.write("\n")
 
     def write_pair_interactions(self, file) -> None:
+        """Write the Pair Coeffs header(s) and corresponding pair interactions to a file."""
         all_atom_types = self.get_all_atom_types()
         for pair in self.pair_interactions:
             pair.write(file, all_atom_types)
 
-    # def get_atom_index(self, atomId: AtomIdentifier) -> int:
-    #     index = self.atom_groups.index(atomId[0])
-    #     if len(self.atom_group_map) <= index:
-    #         self.atom_group_map = [0] + list(map(lambda atom_group: len(atom_group.positions), self.atom_groups))
-    #         self.atom_group_map = list(np.array(self.atom_group_map).cumsum())
-    #         self.atom_group_map = [el + 1 for el in self.atom_group_map]
-    #     return self.atom_group_map[index] + atomId[1]
-
-    def get_atom_index(self, atomId: AtomIdentifier) -> int:
+    def get_atom_index(self, atom_id: AtomIdentifier) -> int:
+        """Get the absolute LAMMPS index for an atom.
+        You must call write_atoms before using this method."""
         if not self.atom_group_map:
-            raise Exception("write_atoms must be called first")
+            raise AttributeError("write_atoms must be called first")
 
-        index = self.atom_groups.index(atomId[0])
-        if atomId[1] < 0:
-            atom_group_length = len(atomId[0].positions)
-            atomId = (atomId[0], atomId[1] + atom_group_length)
-        return self.atom_group_map[index] + atomId[1]
+        index = self.atom_groups.index(atom_id[0])
+        if atom_id[1] < 0:
+            atom_group_length = len(atom_id[0].positions)
+            atom_id = (atom_id[0], atom_id[1] + atom_group_length)
+        return self.atom_group_map[index] + atom_id[1]
 
     def _set_up_atom_group_map(self) -> None:
         index_offset = 1
@@ -337,10 +366,14 @@ class Generator:
             index_offset += len(atom_group.positions)
 
     def write_atoms(self, file) -> None:
+        """Write the Atoms header and all atom positions to a file."""
         file.write("Atoms # molecular\n\n")
 
         self._set_up_atom_group_map()
-        molecule_override_ids = {self.get_atom_index(atomId): molId for atomId, molId in self.molecule_override.items()}
+        molecule_override_ids = {
+            self.get_atom_index(atom_id): mol_id
+            for atom_id, mol_id in self.molecule_override.items()
+        }
 
         for atom_group in self.atom_groups:
             for j, position in enumerate(atom_group.positions):
@@ -349,7 +382,9 @@ class Generator:
                     mol_id = molecule_override_ids[atom_id]
                 except KeyError:
                     mol_id = atom_group.molecule_index
-                file.write(f"%s %s {atom_group.type.index} %s %s %s\n" %(atom_id, mol_id, *position) )
+                file.write(
+                    f"{atom_id} {mol_id} {atom_group.type.index} {position[0]} {position[1]} {position[2]}\n"
+                )
 
         file.write("\n")
 
@@ -358,11 +393,12 @@ class Generator:
         lookup = {
             BAI_Kind.BOND: "Bonds\n\n",
             BAI_Kind.ANGLE: "Angles\n\n",
-            BAI_Kind.IMPROPER: "Impropers\n\n"
+            BAI_Kind.IMPROPER: "Impropers\n\n",
         }
         return lookup[kind]
 
     def write_bai(self, file) -> None:
+        """Write the Bond/Angle/Improper headers and all corresponding BAI interactions to a file."""
         for kind in BAI_Kind:
             file.write(self.get_BAI_header(kind))
 
@@ -371,23 +407,41 @@ class Generator:
             for atom_group in self.atom_groups:
                 if kind == BAI_Kind.BOND and atom_group.polymer_bond_type is not None:
                     for j in range(len(atom_group.positions) - 1):
-                        file.write(f"%s {atom_group.polymer_bond_type.index} %s %s\n" %(global_index, self.get_atom_index((atom_group, j)), self.get_atom_index((atom_group, j + 1))) )
-                        global_index += 1
-                if kind == BAI_Kind.ANGLE and atom_group.polymer_angle_type is not None:
-                    for j in range(len(atom_group.positions) - 2):
-                        file.write(f"%s {atom_group.polymer_angle_type.index} %s %s %s\n" %(global_index, self.get_atom_index((atom_group, j)), self.get_atom_index((atom_group, j + 1)), self.get_atom_index((atom_group, j + 2))) )
+                        file.write(
+                            f"{global_index} {atom_group.polymer_bond_type.index} "
+                            f"{self.get_atom_index((atom_group, j))} "
+                            f"{self.get_atom_index((atom_group, j + 1))}"
+                            "\n"
+                        )
                         global_index += 1
 
-            length = length_lookup[kind]
-            for bai in filter(lambda bai: bai.type.kind == kind, self.bais):    
-                file.write(f"%s {bai.type.index} " %(global_index) )
-                formatter = ("%s " * length)[:-1] + "\n"
-                file.write(formatter %(*(self.get_atom_index(bai.atoms[i]) for i in range(length)),))
+                if kind == BAI_Kind.ANGLE and atom_group.polymer_angle_type is not None:
+                    for j in range(len(atom_group.positions) - 2):
+                        file.write(
+                            f"{global_index} {atom_group.polymer_angle_type.index} "
+                            f"{self.get_atom_index((atom_group, j))} "
+                            f"{self.get_atom_index((atom_group, j + 1))} "
+                            f"{self.get_atom_index((atom_group, j + 2))} "
+                            "\n"
+                        )
+                        global_index += 1
+
+            length = BAI_Kind.length_lookup(kind)
+            for bai in [bai for bai in self.bais if bai.type.kind == kind]:
+                file.write(f"{global_index} {bai.type.index} ")
+                formatter = ("{} " * length)[:-1] + "\n"
+                file.write(
+                    formatter.format(
+                        *(self.get_atom_index(bai.atoms[i]) for i in range(length))
+                    )
+                )
                 global_index += 1
 
             file.write("\n")
 
     def write_coeffs(self, file) -> None:
+        """Write the coefficient information to a file.
+        Useful when restarting a simulation."""
         self.write_header(file)
         self.write_types(file)
         file.write("\n")
@@ -396,6 +450,7 @@ class Generator:
         self.write_pair_interactions(file)
 
     def write_positions_and_bonds(self, file) -> None:
+        """Write the positions and bonds to a file."""
         self.write_header(file)
         self.write_amounts(file)
         self.write_types(file)
@@ -405,6 +460,7 @@ class Generator:
         self.write_bai(file)
 
     def write_full(self, file) -> None:
+        """Write a full LAMMPS data file."""
         self.write_header(file)
         self.write_amounts(file)
         self.write_types(file)
@@ -418,6 +474,8 @@ class Generator:
 
     @staticmethod
     def get_script_bai_command_name(pair_or_BAI: BAI_Kind | None) -> str:
+        """Get the command name for a pair / BAI interaction.
+        Used to redefine coefficients within a LAMMPS script."""
         name_dict = {
             None: "pair_coeff",
             BAI_Kind.BOND: "bond_coeff",
@@ -433,6 +491,7 @@ class Generator:
         args: List[Any]
 
     def write_script_bai_coeffs(self, file, coeffs: DynamicCoeffs) -> None:
+        """Write a LAMMPS command for a pair / BAI interaction to a file."""
         cmd_name = self.get_script_bai_command_name(coeffs.pair_or_BAI)
         # parse args:
         # if pair type -> get atom indices (two AtomType instances)
