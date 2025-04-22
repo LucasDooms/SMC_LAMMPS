@@ -46,7 +46,7 @@ def generate(args, path):
     if args.seed:
         extra_args.append(args.seed)
     print("running setup file...")
-    run_and_handle_error(lambda: subprocess.run(["python", "generate/generate+parse.py", f"{path}"] + extra_args, check=False), args.ignore_errors)
+    run_and_handle_error(lambda: subprocess.run(python_run + ["generate.generate+parse", f"{path}"] + extra_args, check=False), args.ignore_errors)
     print("successfully ran setup file")
 
 
@@ -107,7 +107,7 @@ def post_process(args, path):
         return
 
     print("running post processing...")
-    run_and_handle_error(lambda: subprocess.run(["python", "post-process/process_displacement.py", f"{path}"], check=False), args.ignore_errors)
+    run_and_handle_error(lambda: subprocess.run(python_run + ["post-process/process_displacement", f"{path}"], check=False), args.ignore_errors)
     print("succesfully ran post processing")
 
 
@@ -116,7 +116,7 @@ def visualize(args, path):
         return
 
     print("starting VMD")
-    run_and_handle_error(lambda: subprocess.run(["python", "post-process/visualize.py", f"{path}"], check=False), args.ignore_errors)
+    run_and_handle_error(lambda: subprocess.run(python_run + ["post-process.visualize", f"{path}"], check=False), args.ignore_errors)
     print("VMD exited")
 
 
@@ -134,4 +134,5 @@ def main():
 
 if __name__ == "__main__":
     # set PYTHONUNBUFFERED=1 if python is not printing correctly
+    python_run = ["python", "-m"]
     main()
