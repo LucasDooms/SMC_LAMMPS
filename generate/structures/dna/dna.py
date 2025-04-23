@@ -54,18 +54,18 @@ class InteractionParameters:
     # DNA-DNA #
     ###########
 
-    sigmaDNAvsDNA: float
-    epsilonDNAvsDNA: float
-    rcutDNAvsDNA: float
+    sigma_DNA_DNA: float
+    epsilon_DNA_DNA: float
+    rcut_DNA_DNA: float
 
 
     ###########
     # SMC-DNA #
     ###########
 
-    sigmaSMCvsDNA: float
-    epsilonSMCvsDNA: float
-    rcutSMCvsDNA: float
+    sigma_SMC_DNA: float
+    epsilon_SMC_DNA: float
+    rcut_SMC_DNA: float
 
 
     #############
@@ -73,13 +73,13 @@ class InteractionParameters:
     #############
 
     # Sigma of LJ attraction (same as those of the repulsive SMC sites)
-    sigmaSiteDvsDNA: float
+    sigma_upper_site_DNA: float
 
     # Cutoff distance of LJ attraction
-    rcutSiteDvsDNA: float
+    rcut_lower_site_DNA: float
 
     # Epsilon parameter of LJ attraction
-    epsilonSiteDvsDNA: float
+    epsilon_upper_site_DNA: float
 
 
 @dataclass
@@ -127,7 +127,7 @@ class Tether:
         if real_obstacle:
             obstacle_radius = 100 # nanometers
             obstacle_cut = obstacle_radius * 2**(1/6)
-            pos = tether_group.positions[0] - np.array([0, obstacle_radius - ip.sigmaDNAvsDNA, 0], dtype=float)
+            pos = tether_group.positions[0] - np.array([0, obstacle_radius - ip.sigma_DNA_DNA, 0], dtype=float)
             obstacle_type = AtomType(cls.get_gold_mass(obstacle_radius))
             obstacle_group = AtomGroup(
                 positions=np.array([pos]),
@@ -135,7 +135,7 @@ class Tether:
                 molecule_index=tether_group.molecule_index
             )
 
-            obstacle_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(1, obstacle_radius, 0, 0, ip.sigmaDNAvsDNA))
+            obstacle_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(1, obstacle_radius, 0, 0, ip.sigma_DNA_DNA))
             tether_obstacle_bond = BAI(obstacle_bond, (tether_group, 0), (obstacle_group, 0))
             return Tether.Gold(obstacle_group, obstacle_radius, obstacle_cut, tether_obstacle_bond)
         else:
@@ -178,19 +178,19 @@ class Tether:
         # tether
         pair_inter.add_interaction(
             tether_type, tether_type,
-            ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA
+            ip.epsilon_DNA_DNA * kBT, ip.sigma_DNA_DNA, ip.rcut_DNA_DNA
         )
         pair_inter.add_interaction(
             tether_type, dna_type,
-            ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA
+            ip.epsilon_DNA_DNA * kBT, ip.sigma_DNA_DNA, ip.rcut_DNA_DNA
         )
         pair_inter.add_interaction(
             tether_type, smc.t_arms_heads_kleisin,
-            ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA
+            ip.epsilon_SMC_DNA * kBT, ip.sigma_SMC_DNA, ip.rcut_SMC_DNA
         )
         pair_inter.add_interaction(
             tether_type, smc.t_hinge,
-            ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA / 2.0, ip.rcutSMCvsDNA / 2.0
+            ip.epsilon_SMC_DNA * kBT, ip.sigma_SMC_DNA / 2.0, ip.rcut_SMC_DNA / 2.0
         )
         # Optional: don't allow bridge to go through tether
         # pair_inter.add_interaction(
@@ -203,10 +203,10 @@ class Tether:
         #     ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA
         # )
         if isinstance(self.obstacle, Tether.Gold):
-            pair_inter.add_interaction(self.obstacle.group.type, dna_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
-            pair_inter.add_interaction(self.obstacle.group.type, smc.t_arms_heads_kleisin, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
-            pair_inter.add_interaction(self.obstacle.group.type, smc.t_hinge, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
-            pair_inter.add_interaction(self.obstacle.group.type, tether_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
+            pair_inter.add_interaction(self.obstacle.group.type, dna_type, ip.epsilon_DNA_DNA * kBT, self.obstacle.radius, self.obstacle.cut)
+            pair_inter.add_interaction(self.obstacle.group.type, smc.t_arms_heads_kleisin, ip.epsilon_DNA_DNA * kBT, self.obstacle.radius, self.obstacle.cut)
+            pair_inter.add_interaction(self.obstacle.group.type, smc.t_hinge, ip.epsilon_DNA_DNA * kBT, self.obstacle.radius, self.obstacle.cut)
+            pair_inter.add_interaction(self.obstacle.group.type, tether_type, ip.epsilon_DNA_DNA * kBT, self.obstacle.radius, self.obstacle.cut)
 
     def get_bonds(self, bond_type: BAI_Type) -> List[BAI]:
         bonds = [BAI(bond_type, (self.group, -1), self.dna_tether_id)]
@@ -320,17 +320,17 @@ class DnaConfiguration:
         dna_type = self.dna_parameters.type
         ip = self.inter_par
         kBT = self.par.kB * self.par.T
-        pair_inter.add_interaction(dna_type, dna_type, ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA)
-        pair_inter.add_interaction(dna_type, self.smc.t_arms_heads_kleisin, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
-        pair_inter.add_interaction(dna_type, self.smc.t_hinge, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
-        pair_inter.add_interaction(dna_type, self.smc.t_lower_site, ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA)
+        pair_inter.add_interaction(dna_type, dna_type, ip.epsilon_DNA_DNA * kBT, ip.sigma_DNA_DNA, ip.rcut_DNA_DNA)
+        pair_inter.add_interaction(dna_type, self.smc.t_arms_heads_kleisin, ip.epsilon_SMC_DNA * kBT, ip.sigma_SMC_DNA, ip.rcut_SMC_DNA)
+        pair_inter.add_interaction(dna_type, self.smc.t_hinge, ip.epsilon_SMC_DNA * kBT, ip.sigma_SMC_DNA, ip.rcut_SMC_DNA)
+        pair_inter.add_interaction(dna_type, self.smc.t_lower_site, ip.epsilon_upper_site_DNA * kBT, ip.sigma_upper_site_DNA, ip.rcut_lower_site_DNA)
 
         # every bead should repel every SMC group
         for bead, bead_size, smc_grp in zip(self.beads, self.bead_sizes, self.smc.get_groups()):
             pair_inter.add_interaction(
                 bead.type,
                 smc_grp.type,
-                ip.epsilonSMCvsDNA * kBT,
+                ip.epsilon_SMC_DNA * kBT,
                 bead_size * self.dna_parameters.DNAbondLength,
                 bead_size * self.dna_parameters.DNAbondLength * (2 ** (1/6))
             )

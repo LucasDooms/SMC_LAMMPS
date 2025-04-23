@@ -28,12 +28,14 @@ from generate.util import create_phase
 
 
 if len(argv) < 2:
-    raise Exception("Provide a folder path")
+    raise ValueError("Provide a folder path")
 path = Path(argv[1])
 
 parameters = run_path((path / "parameters.py").as_posix())
 
 class Parameters:
+
+    """Access data from parameters, use default_parameters if not set"""
 
     def __getattr__(self, __name: str) -> Any:
         return parameters.get(__name , getattr(default_parameters, __name))
@@ -50,7 +52,7 @@ par = Parameters()
 
 
 nDNA = par.N
-DNAdiscr = par.n
+bases_per_bead = par.n
 
 
 #################################################################################
@@ -75,10 +77,10 @@ kBT = kB * T
 #######
 
 # Mass per base pair (ag)
-bpMass = 2 * 3.1575 * 5.24e-4
+basepair_mass = 2 * 3.1575 * 5.24e-4
 
 # Effective bead mass (ag)
-mDNA = DNAdiscr * bpMass
+DNA_bead_mass = bases_per_bead * basepair_mass
 
 
 #######
@@ -86,7 +88,7 @@ mDNA = DNAdiscr * bpMass
 #######
 
 # Total mass of SMC protein (ag)
-mSMCtotal = 0.25
+SMC_total_mass = 0.25
 
 
 #################################### Lengths ####################################
@@ -97,7 +99,7 @@ mSMCtotal = 0.25
 ################
 
 # DNA-DNA repulsion radius (nm)
-intRadDNAvsDNA = 3.5
+radius_DNA_DNA = 3.5
 
 
 #######
@@ -105,17 +107,17 @@ intRadDNAvsDNA = 3.5
 #######
 
 # Bending stiffness (nm)
-DNAstiff = 50.
-ssDNAstiff = 5.
+DNA_persistence_length = 50.
+ssDNA_persistence_length = 5.
 
 # Base pair step (nm)
-bpStep = 0.34
+basepair_size = 0.34
 
 # Effective bond length = DNA bead size (nm)
-DNAbondLength = DNAdiscr * bpStep
+DNA_bond_length = bases_per_bead * basepair_size
 
 # Total length of DNA (nm)
-DNAcontourLength = DNAbondLength * nDNA
+DNA_total_length = DNA_bond_length * nDNA
 
 
 #######
@@ -125,7 +127,7 @@ DNAcontourLength = DNAbondLength * nDNA
 # Desirable SMC spacing (radius of 1 SMC bead is R = intRadSMCvsDNA)
 # Equal to R:   Minimum diameter = sqrt(3)    = 1.73 R
 # Equal to R/2: Minimum diameter = sqrt(15)/2 = 1.94 R
-SMCspacing = par.intRadSMCvsDNA/2
+SMC_spacing = par.intRadSMCvsDNA/2
 
 
 ##################
@@ -134,7 +136,7 @@ SMCspacing = par.intRadSMCvsDNA/2
 
 
 # Width of cubic simulation box (nm)
-boxWidth = 2 * DNAcontourLength
+box_width = 2 * DNA_total_length
 
 
 ################################## Interactions #################################
@@ -144,18 +146,18 @@ boxWidth = 2 * DNAcontourLength
 # DNA-DNA #
 ###########
 
-sigmaDNAvsDNA   = intRadDNAvsDNA
-epsilonDNAvsDNA = par.epsilon3
-rcutDNAvsDNA    = sigmaDNAvsDNA * 2**(1/6)
+sigma_DNA_DNA   = radius_DNA_DNA
+epsilon_DNA_DNA = par.epsilon3
+rcut_DNA_DNA    = sigma_DNA_DNA * 2**(1/6)
 
 
 ###########
 # SMC-DNA #
 ###########
 
-sigmaSMCvsDNA   = par.intRadSMCvsDNA
-epsilonSMCvsDNA = par.epsilon3
-rcutSMCvsDNA    = sigmaSMCvsDNA * 2**(1/6)
+sigma_SMC_DNA   = par.intRadSMCvsDNA
+epsilon_SMC_DNA = par.epsilon3
+rcut_SMC_DNA    = sigma_SMC_DNA * 2**(1/6)
 
 
 #############
@@ -163,53 +165,51 @@ rcutSMCvsDNA    = sigmaSMCvsDNA * 2**(1/6)
 #############
 
 # Sigma of LJ attraction (same as those of the repulsive SMC sites)
-sigmaSiteDvsDNA = sigmaSMCvsDNA
+sigma_upper_site_DNA = sigma_SMC_DNA
 
 # Cutoff distance of LJ attraction
-rcutSiteDvsDNA = par.cutoff6
+rcut_upper_site_DNA = par.cutoff6
 
 # Epsilon parameter of LJ attraction
-epsilonSiteDvsDNA = par.epsilon6
+epsilon_upper_site_DNA = par.epsilon6
 
 interaction_parameters = dna.InteractionParameters(
-    sigmaDNAvsDNA=sigmaDNAvsDNA,
-    epsilonDNAvsDNA=epsilonDNAvsDNA,
-    rcutDNAvsDNA=rcutDNAvsDNA,
-    sigmaSMCvsDNA=sigmaSMCvsDNA,
-    epsilonSMCvsDNA=epsilonSMCvsDNA,
-    rcutSMCvsDNA=rcutSMCvsDNA,
-    sigmaSiteDvsDNA=sigmaSiteDvsDNA,
-    rcutSiteDvsDNA=rcutSiteDvsDNA,
-    epsilonSiteDvsDNA=epsilonSiteDvsDNA,
+    sigma_DNA_DNA=sigma_DNA_DNA,
+    epsilon_DNA_DNA=epsilon_DNA_DNA,
+    rcut_DNA_DNA=rcut_DNA_DNA,
+    sigma_SMC_DNA=sigma_SMC_DNA,
+    epsilon_SMC_DNA=epsilon_SMC_DNA,
+    rcut_SMC_DNA=rcut_SMC_DNA,
+    sigma_upper_site_DNA=sigma_upper_site_DNA,
+    rcut_lower_site_DNA=rcut_upper_site_DNA,
+    epsilon_upper_site_DNA=epsilon_upper_site_DNA,
 )
 
 # Even More Parameters
 
 
 # Relative bond fluctuations
-bondFlDNA = 1e-2
-bondFlSMC = 1e-2
-# bondFlHinge = 0.5 # large fluctuations to allow tether passing
-bondFlHinge = 3e-2 # small fluctuations
+bond_fluctuation_DNA = 1e-2
+bond_fluctuation_SMC = 1e-2
+# bond_fluctuation_hinge = 0.5 # large fluctuations to allow tether passing
+bond_fluctuation_hinge = 3e-2 # small fluctuations
 
 # Maximum relative bond extension (units of rest length)
-bondMax = 1.
+bond_max_extension = 1.0
 
 # Spring constant obeying equilibrium relative bond fluctuations
-kBondDNA = 3 * kBT / (DNAbondLength * bondFlDNA)**2
-kBondSMC = 3 * kBT / (SMCspacing * bondFlSMC)**2
-kBondHinge = 3 * kBT / (SMCspacing * bondFlHinge)**2
-kBondAlign1 = 10 * kBT / SMCspacing**2
-kBondAlign2 = 200 * kBT / SMCspacing**2
+k_bond_DNA = 3 * kBT / (DNA_bond_length * bond_fluctuation_DNA)**2
+k_bond_SMC = 3 * kBT / (SMC_spacing * bond_fluctuation_SMC)**2
+k_bond_hinge = 3 * kBT / (SMC_spacing * bond_fluctuation_hinge)**2
 
 
 # Maximum bond length
-maxLengthDNA = DNAbondLength * bondMax
-maxLengthSMC = SMCspacing * bondMax
+max_bond_length_DNA = DNA_bond_length * bond_max_extension
+max_bond_length_SMC = SMC_spacing * bond_max_extension
 
 # DNA bending rigidity
-kDNA = DNAstiff * kBT / DNAbondLength
-kssDNA = ssDNAstiff * kBT / DNAbondLength
+k_angle_DNA = DNA_persistence_length * kBT / DNA_bond_length
+k_angle_ssDNA = ssDNA_persistence_length * kBT / DNA_bond_length
 
 
 #################################################################################
@@ -227,32 +227,32 @@ dnaConfigClass = dna.DnaConfiguration.str_to_config(par.dnaConfig)
 
 
 smc_creator = SMC_Creator(
-    SMCspacing=SMCspacing,
+    SMC_spacing=SMC_spacing,
 
-    siteUvDist=4.0,
-    siteUhDist=2.0,
-    siteMvDist=1.0,
-    siteMhDist=2.0,
-    siteDvDist=0.5,
-    siteDhDist=2.0,
+    upper_site_v=4.0,
+    upper_site_h=2.0,
+    middle_site_v=1.0,
+    middle_site_h=2.0,
+    lower_site_v=0.5,
+    lower_site_h=2.0,
 
-    armLength=par.armLength,
-    bridgeWidth=par.bridgeWidth,
-    hingeRadius=par.hingeRadius,
+    arm_length=par.armLength,
+    bridge_width=par.bridgeWidth,
+    hinge_radius=par.hingeRadius,
     # SMCspacing half of the minimal required spacing of ssDNA
     # so between 2*SMCspacing and 4*SMCspacing should
     # allow ssDNA passage but not dsDNA
-    hinge_opening=2.2 * SMCspacing,
+    hinge_opening=2.2 * SMC_spacing,
 
-    HKradius=par.HKradius,
+    kleisin_radius=par.HKradius,
 
-    foldingAngleAPO=par.foldingAngleAPO
+    folding_angle_APO=par.foldingAngleAPO
 )
 
 rot_vec = np.array([0.0, 0.0, -np.deg2rad(42)]) if dnaConfigClass is dna.AdvancedObstacleSafety else None
 rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge = \
         smc_creator.get_smc(
-            siteD_points_down=False,
+            lower_site_points_down=False,
             #dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
             extra_rotation=rot_vec
         )
@@ -263,18 +263,18 @@ rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge = \
 #################################################################################
 
 # set DNA bonds, angles, and mass
-molDNA = MoleculeId.get_next()
-dna_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(kBondDNA, maxLengthDNA, 0, 0, DNAbondLength))
-dna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kDNA )
-ssdna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine %s\n"        %  kssDNA )
-dna_type = AtomType(mDNA)
+mol_DNA = MoleculeId.get_next()
+dna_bond = BAI_Type(BAI_Kind.BOND, f"fene/expand {k_bond_DNA} {max_bond_length_DNA} {0.0} {0.0} {DNA_bond_length}\n")
+dna_angle = BAI_Type(BAI_Kind.ANGLE, f"cosine {k_angle_DNA}\n")
+ssdna_angle = BAI_Type(BAI_Kind.ANGLE, f"cosine {k_angle_ssDNA}\n")
+dna_type = AtomType(DNA_bead_mass)
 
 dna_parameters = dna.DnaParameters(
     nDNA=nDNA,
-    DNAbondLength=DNAbondLength,
-    mDNA=mDNA,
+    DNAbondLength=DNA_bond_length,
+    mDNA=DNA_bead_mass,
     type=dna_type,
-    molDNA=molDNA,
+    molDNA=mol_DNA,
     bond=dna_bond,
     angle=dna_angle,
     ssangle=ssdna_angle,
@@ -286,12 +286,12 @@ dnaConfig = dnaConfigClass.get_dna_config(dna_parameters, rSiteD, par)
 #################################################################################
 
 # Divide total mass evenly among the segments
-mSMC = smc_creator.get_mass_per_atom(mSMCtotal)
+mSMC = smc_creator.get_mass_per_atom(SMC_total_mass)
 
 
 # SET UP DATAFILE GENERATOR
 gen = Generator()
-gen.set_system_size(boxWidth)
+gen.set_system_size(box_width)
 
 smc_1 = SMC(
     use_rigid_hinge=par.rigidHinge,
@@ -315,9 +315,9 @@ smc_1 = SMC(
     t_lower_site=AtomType(mSMC),
     t_ref_site=AtomType(mSMC),
 
-    k_bond = kBondSMC,
-    k_hinge = kBondHinge,
-    max_bond_length = maxLengthSMC,
+    k_bond = k_bond_SMC,
+    k_hinge = k_bond_hinge,
+    max_bond_length = max_bond_length_SMC,
 
     k_elbow = par.elbowsStiffness * kBT,
     k_arm = par.armsStiffness * kBT,
@@ -338,10 +338,10 @@ dnaConfig.set_smc(smc_1)
 
 if hasattr(dnaConfig, 'tether') and par.addRNAPolymerase:
     molBead = MoleculeId.get_next()
-    bead_type = AtomType(10.0 * mDNA)
+    bead_type = AtomType(10.0 * DNA_bead_mass)
     bead_size = 3 # half of 6 (since it binds to DNA of two sides) -> ~ 6 * 1.7 nm ~ 10 nm
     if par.RNAPolymeraseType == 0:
-        bead_bond = BAI_Type(BAI_Kind.BOND, "harmonic %s %s\n" %(kBondDNA, bead_size * DNAbondLength))
+        bead_bond = BAI_Type(BAI_Kind.BOND, f"harmonic {k_bond_DNA} {bead_size * DNA_bond_length}\n")
     elif par.RNAPolymeraseType == 1:
         bead_bond = None
     else:
@@ -362,7 +362,7 @@ gen.atom_groups += [
 pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
 
 dnaConfig.add_interactions(pair_inter)
-smc_1.add_repel_interactions(pair_inter, epsilonSMCvsDNA * kBT, sigmaSMCvsDNA, rcutSMCvsDNA)
+smc_1.add_repel_interactions(pair_inter, epsilon_SMC_DNA * kBT, sigma_SMC_DNA, rcut_SMC_DNA)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
@@ -374,14 +374,14 @@ gen.pair_interactions.append(pair_soft_inter)
 bridge_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_atp])
 bridge_on = Generator.DynamicCoeffs(
     None,
-    f"lj/cut {epsilonSMCvsDNA * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n",
+    f"lj/cut {epsilon_SMC_DNA * kBT} {par.sigma} {par.sigma * 2**(1/6)}\n",
     [dna_type, smc_1.t_atp],
 )
 
 bridge_soft_off = Generator.DynamicCoeffs(None, "soft 0 0\n", [dna_type, smc_1.t_atp])
 bridge_soft_on = Generator.DynamicCoeffs(
     None,
-    f"soft {epsilonSMCvsDNA * kBT} {par.sigma * 2**(1/6)}\n",
+    f"soft {epsilon_SMC_DNA * kBT} {par.sigma * 2**(1/6)}\n",
     [dna_type, smc_1.t_atp],
 )
 
@@ -526,17 +526,11 @@ ppp = dnaConfig.get_post_process_parameters()
 with open(path / "post_processing_parameters.py", 'w', encoding='utf-8') as file:
     file.write(
         "# use to form plane of SMC arms\n"
-        "top_bead_id = {}\n"
-        "left_bead_id = {}\n"
-        "right_bead_id = {}\n"
-        "middle_left_bead_id = {}\n"
-        "middle_right_bead_id = {}\n".format(
-            gen.get_atom_index((smc_1.arm_ul_grp, -1)),
-            gen.get_atom_index((smc_1.arm_ul_grp, 0)),
-            gen.get_atom_index((smc_1.arm_ur_grp, -1)),
-            gen.get_atom_index((smc_1.atp_grp, 0)),
-            gen.get_atom_index((smc_1.atp_grp, -1))
-        )
+        f"top_bead_id = {gen.get_atom_index((smc_1.arm_ul_grp, -1))}\n"
+        f"left_bead_id = {gen.get_atom_index((smc_1.arm_ul_grp, 0))}\n"
+        f"right_bead_id = {gen.get_atom_index((smc_1.arm_ur_grp, -1))}\n"
+        f"middle_left_bead_id = {gen.get_atom_index((smc_1.atp_grp, 0))}\n"
+        f"middle_right_bead_id = {gen.get_atom_index((smc_1.atp_grp, -1))}\n"
     )
     file.write("\n")
     dna_indices_list = [
@@ -545,7 +539,7 @@ with open(path / "post_processing_parameters.py", 'w', encoding='utf-8') as file
     ]
     file.write(
         "# list of (min, max) of DNA indices for separate pieces to analyze\n"
-        "dna_indices_list = {}\n".format(dna_indices_list)
+        f"dna_indices_list = {dna_indices_list}\n"
     )
     file.write("\n")
     kleisin_ids_list = [
@@ -554,11 +548,11 @@ with open(path / "post_processing_parameters.py", 'w', encoding='utf-8') as file
     ]
     file.write(
         "# use to form plane of SMC kleisin\n"
-        "kleisin_ids = {}\n".format(kleisin_ids_list)
+        f"kleisin_ids = {kleisin_ids_list}\n"
     )
     file.write("\n")
     file.write(
-        "dna_spacing = {}\n".format(maxLengthDNA)
+        f"dna_spacing = {max_bond_length_DNA}\n"
     )
 
 
@@ -642,7 +636,7 @@ with open(path / 'parameterfile', 'w', encoding='utf-8') as parameterfile:
         par.seed = seed_overwrite
     params = get_variables_from_module(par)
     for key in params:
-        parameterfile.write("variable %s equal %s\n\n"       %(key, getattr(par, key)))
+        parameterfile.write(f"variable {key} equal {getattr(par, key)}\n\n")
 
     # write molecule ids
     # NOTE: indices are allowed to be the same, LAMMPS will ignore duplicates
@@ -713,7 +707,7 @@ with open(path / 'parameterfile', 'w', encoding='utf-8') as parameterfile:
     if hasattr(dnaConfig, "tether") and isinstance(dnaConfig.tether.obstacle, dna.Tether.Gold):
         obstacle_lammps_id = gen.get_atom_index((dnaConfig.tether.obstacle.group, 0))
         parameterfile.write(
-            "variable obstacle_id equal {}\n".format(obstacle_lammps_id)
+            f"variable obstacle_id equal {obstacle_lammps_id}\n"
         )
 
     parameterfile.write("\n")

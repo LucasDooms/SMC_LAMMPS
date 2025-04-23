@@ -2,6 +2,7 @@
 
 import math
 from dataclasses import dataclass
+from typing import TypeVar, Tuple
 
 import numpy as np
 from numpy.random import default_rng
@@ -17,286 +18,290 @@ from generate.structures.structure_creator import (
 @dataclass
 class SMC_Creator:
 
-    SMCspacing: float
+    """Computes the positions of all SMC beads"""
 
-    # Vertical distance of top binding sites from hinge (units of bead spacing)
-    siteUhDist: float
+    SMC_spacing: float
+
     # Horizontal distance between top binding sites (units bead spacing)
-    siteUvDist: float
-    # Vertical distance of middle binding sites from bridge (units of bead spacing)
-    siteMhDist: float
+    upper_site_h: float
+    # Vertical distance of top binding sites from hinge (units of bead spacing)
+    upper_site_v: float
     # Horizontal distance between middle binding sites (units bead spacing)
-    siteMvDist: float
-    # Distance of bottom binding sites from kleisin (units of bead spacing)
-    siteDhDist: float
+    middle_site_h: float
+    # Vertical distance of middle binding sites from bridge (units of bead spacing)
+    middle_site_v: float
     # Horizontal distance between bottom binding sites (units bead spacing)
-    siteDvDist: float
+    lower_site_h: float
+    # Distance of bottom binding sites from kleisin (units of bead spacing)
+    lower_site_v: float
 
-    armLength: float
-    bridgeWidth: float
-    hingeRadius: float
+    arm_length: float
+    bridge_width: float
+    hinge_radius: float
     hinge_opening: float
 
-    HKradius: float
+    kleisin_radius: float
 
-    foldingAngleAPO: float
+    folding_angle_APO: float
 
-    SMALL: float = 1e-9
+    small_noise: float = 1e-9
 
 
     def get_arms(self, seed: int = 8671288977726523465):
         # Number of beads forming each arm segment (err on the high side)
-        nArmSegm = math.ceil(self.armLength / (2 * self.SMCspacing))
+        n_arm_segments = math.ceil(self.arm_length / (2 * self.SMC_spacing))
 
         # z and y lengths of each arm (2 aligned segments), for the initial triangular geometry
-        zArm = self.bridgeWidth / 2.0
-        yArm = math.sqrt(self.armLength**2 - zArm**2)
+        z_arm = self.bridge_width / 2.0
+        y_arm = math.sqrt(self.arm_length**2 - z_arm**2)
 
-        direction_DL = [0, yArm, zArm]
-        direction_UL = [0, yArm, zArm]
-        direction_UR = [0, -yArm, zArm]
-        direction_DR = [0, -yArm, zArm]
+        # u: up, d: down
+        # l: left, r: right
+        direction_dl = [0, y_arm, z_arm]
+        direction_ul = [0, y_arm, z_arm]
+        direction_ur = [0, -y_arm, z_arm]
+        direction_dr = [0, -y_arm, z_arm]
 
-        rArmDL = get_straight_segment(nArmSegm, direction_DL) / 2.0 * self.armLength / nArmSegm
-        rArmUL = get_straight_segment(nArmSegm, direction_UL) / 2.0 * self.armLength / nArmSegm
-        rArmUR = get_straight_segment(nArmSegm, direction_UR) / 2.0 * self.armLength / nArmSegm
-        rArmDR = get_straight_segment(nArmSegm, direction_DR) / 2.0 * self.armLength / nArmSegm
+        r_arm_dl = get_straight_segment(n_arm_segments, direction_dl) / 2.0 * self.arm_length / n_arm_segments
+        r_arm_ul = get_straight_segment(n_arm_segments, direction_ul) / 2.0 * self.arm_length / n_arm_segments
+        r_arm_ur = get_straight_segment(n_arm_segments, direction_ur) / 2.0 * self.arm_length / n_arm_segments
+        r_arm_dr = get_straight_segment(n_arm_segments, direction_dr) / 2.0 * self.arm_length / n_arm_segments
 
-        rArmDL, rArmUL, rArmUR, rArmDR = attach_chain(rArmDL, [[rArmUL, False], [rArmUR, False], [rArmDR, False]])
+        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr = attach_chain(r_arm_dl, [[r_arm_ul, False], [r_arm_ur, False], [r_arm_dr, False]])
 
         # move lower center to origin (where bridge will be placed)
-        center = (rArmDL[0] + rArmDR[-1]) / 2.0
-        pieces = [rArmDL, rArmUL, rArmUR, rArmDR]
-        for i in range(len(pieces)):
-            pieces[i] -= center
+        center = (r_arm_dl[0] + r_arm_dr[-1]) / 2.0
 
+        r_arm_dl -= center
+        r_arm_ul -= center
+        r_arm_ur -= center
+        r_arm_dr -= center
 
         # A bit of randomness, to avoid exact overlap (pressure is messed up in LAMMPS)
         rng_arms = default_rng(seed=seed)
 
-        rArmDL += rng_arms.standard_normal(size=rArmDL.shape) * self.SMALL
-        rArmUL += rng_arms.standard_normal(size=rArmUL.shape) * self.SMALL
-        rArmUR += rng_arms.standard_normal(size=rArmUR.shape) * self.SMALL
-        rArmDR += rng_arms.standard_normal(size=rArmDR.shape) * self.SMALL
-        
-        return rArmDL, rArmUL, rArmUR, rArmDR
+        r_arm_dl += rng_arms.standard_normal(size=r_arm_dl.shape) * self.small_noise
+        r_arm_ul += rng_arms.standard_normal(size=r_arm_ul.shape) * self.small_noise
+        r_arm_ur += rng_arms.standard_normal(size=r_arm_ur.shape) * self.small_noise
+        r_arm_dr += rng_arms.standard_normal(size=r_arm_dr.shape) * self.small_noise
+
+        return r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr
 
     def get_bridge(self, seed: int = 4685150768879447999):
         # Number of beads forming the ATP ring (err on the high side)
-        nATP = math.ceil(self.bridgeWidth / self.SMCspacing)
+        n_ATP = math.ceil(self.bridge_width / self.SMC_spacing)
 
         # We want an odd number (necessary for angle/dihedral interactions)
-        if nATP % 2 == 0:
-            nATP += 1
+        if n_ATP % 2 == 0:
+            n_ATP += 1
 
         # Positions
-        rATP = get_straight_segment(nATP, [0, 0, 1])
+        r_ATP = get_straight_segment(n_ATP, [0, 0, 1])
 
         # use the bridgeWidth as the absolute truth (SMC spacing may be slighlty off)
-        rATP *= self.bridgeWidth / nATP
+        r_ATP *= self.bridge_width / n_ATP
         
         # move center to origin
-        rATP -= (rATP[0] + rATP[-1]) / 2.0
+        r_ATP -= (r_ATP[0] + r_ATP[-1]) / 2.0
 
         # A bit of randomness
         rng_atp = default_rng(seed=seed)
-        rATP += rng_atp.standard_normal(rATP.shape) * self.SMALL
-        
-        return rATP
+        r_ATP += rng_atp.standard_normal(r_ATP.shape) * self.small_noise
+
+        return r_ATP
 
     def get_heads_kleisin(self, seed: int = 8305832029550348799):
         # Circle-arc radius
         # radius = (self.HKradius**2 + (self.bridgeWidth / 2.0)**2) / (2.0 * self.HKradius)
-        bridgeRadius = self.bridgeWidth / 2.0
-        radius = self.HKradius
-        if radius < bridgeRadius:
-            raise ValueError(f"The kleisin radius ({radius}) is too small (<{bridgeRadius}) based on the bridgeWidth {self.bridgeWidth}")
+        bridge_radius = self.bridge_width / 2.0
+        radius = self.kleisin_radius
+        if radius < bridge_radius:
+            raise ValueError(f"The kleisin radius ({radius}) is too small (< {bridge_radius}) based on the bridgeWidth {self.bridge_width}")
 
         # from the y-axis
-        starting_angle = math.asin(bridgeRadius / radius)
+        starting_angle = math.asin(bridge_radius / radius)
         # Opening angle of circular arc (away from the bridge = 2*pi - angle towards the bridge)
         phi0 = 2.0 * math.pi - 2.0 * starting_angle
 
         # Number of beads forming the heads/kleisin complex (err on the high side)
-        nHK = math.ceil(phi0 * radius / self.SMCspacing)
+        n_kleisin = math.ceil(phi0 * radius / self.SMC_spacing)
 
         # We want an odd number (necessary for angle/dihedral interactions)
-        if nHK % 2 == 0:
-            nHK += 1
-        
+        if n_kleisin % 2 == 0:
+            n_kleisin += 1
+
         ending_angle = 2.0 * math.pi - starting_angle
         # add pi/2, since circle_segment calculation starts from x-axis
         starting_angle += math.pi / 2.0
         ending_angle += math.pi / 2.0
 
-        rHK = get_circle_segment_unit_radius(nHK, end_inclusive=True, theta_start=starting_angle,
+        r_kleisin = get_circle_segment_unit_radius(n_kleisin, end_inclusive=True, theta_start=starting_angle,
                                              theta_end=ending_angle, normal_direction=[1, 0, 0])
 
-        rHK *= radius
+        r_kleisin *= radius
         # move the bridge-gap to the origin
-        rHK[:,1] -= rHK[0][1]
+        r_kleisin[:,1] -= r_kleisin[0][1]
 
 
         # A bit of randomness
         rng_rhk = default_rng(seed=seed)
-        rHK += rng_rhk.standard_normal(size=rHK.shape) * self.SMALL
+        r_kleisin += rng_rhk.standard_normal(size=r_kleisin.shape) * self.small_noise
 
-        return rHK
+        return r_kleisin
 
     @staticmethod
-    def shielded_site_template(nInnerBeads: int, nOuterBeadsPerInnerBead: int, innerSpacing: float, outerSpacing: float):
+    def shielded_site_template(n_inner_beads: int, n_outer_beads_per_inner_bead: int, inner_spacing: float, outer_spacing: float):
         """create a line of beads surrounded by a protective shell/shield"""
         axis = np.array([1, 0, 0])
         # Inner/Attractive beads
-        innerBeads = get_straight_segment(nInnerBeads, direction=axis) * innerSpacing
+        inner_beads = get_straight_segment(n_inner_beads, direction=axis) * inner_spacing
         # put center at the origin
-        innerBeads -= (innerBeads[0] + innerBeads[-1]) / 2.0
+        inner_beads -= (inner_beads[0] + inner_beads[-1]) / 2.0
 
         # Repulsive/Outer beads, forming a surrounding shell
         shells = []
-        for innerBead in innerBeads:
+        for inner_bead in inner_beads:
             shells.append(
-                get_circle_segment_unit_radius(nOuterBeadsPerInnerBead, end_inclusive=True,
+                get_circle_segment_unit_radius(n_outer_beads_per_inner_bead, end_inclusive=True,
                                                theta_start=0, theta_end=np.pi,
-                                               normal_direction=axis) * outerSpacing
+                                               normal_direction=axis) * outer_spacing
             )
             # place center of shell at inner bead
-            shells[-1] += innerBead
+            shells[-1] += inner_bead
 
         # Horizontal shield at two ends
-        end_first = (innerBeads[0] - innerSpacing * axis).reshape(1, 3)
-        end_last = (innerBeads[-1] + innerSpacing * axis).reshape(1, 3)
+        end_first = (inner_beads[0] - inner_spacing * axis).reshape(1, 3)
+        end_last = (inner_beads[-1] + inner_spacing * axis).reshape(1, 3)
 
-        return np.concatenate([innerBeads, *shells, end_first, end_last])
+        return np.concatenate([inner_beads, *shells, end_first, end_last])
+
+    T = TypeVar('T')
 
     @staticmethod
-    def transpose_rotate_transpose(rotation, array, *arrays):
-        ret = tuple(rotation.dot(arr.transpose()).transpose() for arr in [array, *arrays])
-        if not arrays:
-            return ret[0]
-        return ret
+    def transpose_rotate_transpose(rotation, *arrays: T) -> Tuple[T]:
+        return tuple(rotation.dot(arr.transpose()).transpose() for arr in arrays)
 
-    def get_interaction_sites(self, siteD_points_down: bool, seed: int = 8343859591397577529):
+    def get_interaction_sites(self, lower_site_points_down: bool, seed: int = 8343859591397577529):
         # U = upper  interaction site
         # M = middle interaction site
         # D = lower  interaction site
 
         # UPPER SITE
 
-        rSiteU = get_straight_segment(3)
-        rSiteU -= rSiteU[1]
+        r_upper_site = get_straight_segment(3)
+        r_upper_site -= r_upper_site[1]
 
         rotate_around_x_axis = Rotation.from_rotvec(math.pi * np.array([1.0, 0.0, 0.0])).as_matrix()
 
         # MIDDLE SITE
-        rSiteM = self.shielded_site_template(1, 4, self.siteMhDist, 1)
-        rSiteM = self.transpose_rotate_transpose(rotate_around_x_axis, rSiteM)
+        r_middle_site = self.shielded_site_template(1, 4, self.middle_site_h, 1)
+        r_middle_site, = self.transpose_rotate_transpose(rotate_around_x_axis, r_middle_site)
 
         # take last bead and use it as an extra inner bead
-        rSiteM = np.concatenate([rSiteM[:1], rSiteM[-1:], rSiteM[1:-1]])
+        r_middle_site = np.concatenate([r_middle_site[:1], r_middle_site[-1:], r_middle_site[1:-1]])
         # move, so that this bead is at the origin
-        rSiteM -= rSiteM[1]
+        r_middle_site -= r_middle_site[1]
 
         # LOWER SITE
-        rSiteD = self.shielded_site_template(3, 4, self.siteDhDist, 1)
-        if not siteD_points_down:
-            rSiteD = self.transpose_rotate_transpose(rotate_around_x_axis, rSiteD)
+        r_lower_site = self.shielded_site_template(3, 4, self.lower_site_h, 1)
+        if not lower_site_points_down:
+            r_lower_site, = self.transpose_rotate_transpose(rotate_around_x_axis, r_lower_site)
 
 
         # Add randomness
         rng_sites = default_rng(seed=seed)
-        rSiteU += rng_sites.standard_normal(size=rSiteU.shape) * self.SMALL
-        rSiteM += rng_sites.standard_normal(size=rSiteM.shape) * self.SMALL
-        rSiteD += rng_sites.standard_normal(size=rSiteD.shape) * self.SMALL
+        r_upper_site += rng_sites.standard_normal(size=r_upper_site.shape) * self.small_noise
+        r_middle_site += rng_sites.standard_normal(size=r_middle_site.shape) * self.small_noise
+        r_lower_site += rng_sites.standard_normal(size=r_lower_site.shape) * self.small_noise
 
-        return rSiteU, rSiteM, rSiteD
+        return r_upper_site, r_middle_site, r_lower_site
 
     def get_hinge(self):
-        radius = self.hingeRadius
+        radius = self.hinge_radius
 
-        spacing = self.SMCspacing * 0.8
+        spacing = self.SMC_spacing * 0.8
 
-        nRing = math.ceil(2 * np.pi * radius / spacing)
+        n_ring = math.ceil(2 * np.pi * radius / spacing)
         # should be multiple of 2 but not of 4
-        if nRing % 2 == 1:
-            nRing -= 1
-        if nRing % 4 == 0:
-            nRing += 2
+        if n_ring % 2 == 1:
+            n_ring -= 1
+        if n_ring % 4 == 0:
+            n_ring += 2
 
-        rHinge = get_circle_segment_unit_radius(nRing, end_inclusive=False, normal_direction=(0, 1, 0))
+        r_hinge = get_circle_segment_unit_radius(n_ring, end_inclusive=False, normal_direction=(0, 1, 0))
 
         # rotate slightly
-        angle = np.linalg.norm(rHinge[1] - rHinge[0]) / 2.0
-        rotMat = Rotation.from_rotvec(angle * np.array([0.0, 1.0, 0.0])).as_matrix()
+        angle = np.linalg.norm(r_hinge[1] - r_hinge[0]) / 2.0
+        rotation = Rotation.from_rotvec(angle * np.array([0.0, 1.0, 0.0])).as_matrix()
 
-        rHinge *= radius
+        r_hinge *= radius
 
-        rHinge = self.transpose_rotate_transpose(rotMat, rHinge)
+        r_hinge, = self.transpose_rotate_transpose(rotation, r_hinge)
 
         # separate pieces
-        half = len(rHinge) // 2
+        half = len(r_hinge) // 2
         # overlap
-        rHinge[:half,2] -= rHinge[0,2]
-        rHinge[half:,2] -= rHinge[-1,2]
+        r_hinge[:half,2] -= r_hinge[0,2]
+        r_hinge[half:,2] -= r_hinge[-1,2]
 
-        rHinge[:half,2] -= self.hinge_opening / 2.0
-        rHinge[half:,2] += self.hinge_opening / 2.0
+        r_hinge[:half,2] -= self.hinge_opening / 2.0
+        r_hinge[half:,2] += self.hinge_opening / 2.0
 
-        return rHinge
+        return r_hinge
 
-    def get_smc(self, siteD_points_down: bool, extra_rotation = None):
-        rArmDL, rArmUL, rArmUR, rArmDR = self.get_arms()
-        rATP = self.get_bridge()
-        rHK = self.get_heads_kleisin()
-        rSiteU, rSiteM, rSiteD = self.get_interaction_sites(siteD_points_down)
-        rHinge = self.get_hinge()
+    def get_smc(self, lower_site_points_down: bool, extra_rotation = None):
+        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr = self.get_arms()
+        r_ATP = self.get_bridge()
+        r_kleisin = self.get_heads_kleisin()
+        r_upper_site, r_middle_site, r_lower_site = self.get_interaction_sites(lower_site_points_down)
+        r_hinge = self.get_hinge()
 
         # Inert bead, used for breaking folding symmetry
-        rSiteM = np.concatenate([rSiteM, np.array([1.0, -1.0, 0.0]).reshape(1, 3)])
-        rSiteM[:,1] += self.siteMvDist
-        if siteD_points_down:
-            rSiteD[:,1] -= self.siteDvDist
+        r_middle_site = np.concatenate([r_middle_site, np.array([1.0, -1.0, 0.0]).reshape(1, 3)])
+        r_middle_site[:,1] += self.middle_site_v
+        if lower_site_points_down:
+            r_lower_site[:,1] -= self.lower_site_v
         else:
-            rSiteD[:,1] += self.siteDvDist
+            r_lower_site[:,1] += self.lower_site_v
 
         # scale properly
-        rSiteU *= self.SMCspacing
-        rSiteM *= self.SMCspacing
-        rSiteD *= self.SMCspacing
+        r_upper_site *= self.SMC_spacing
+        r_middle_site *= self.SMC_spacing
+        r_lower_site *= self.SMC_spacing
 
         # place hinge at center of top
-        rHinge += rArmUR[0]
+        r_hinge += r_arm_ur[0]
         # place bead slightly below
-        rSiteU += rArmUR[0]
-        rSiteU[:,1] -= self.SMCspacing
+        r_upper_site += r_arm_ur[0]
+        r_upper_site[:,1] -= self.SMC_spacing
 
         # rotate upper arms away to attach to hinge properly
-        left_attach_hinge = len(rHinge) // 4
-        rot = Rotation.align_vectors(rArmUL[-1] - rArmUL[0], rHinge[left_attach_hinge] - rArmUL[0])[0]
-        rArmUR = self.transpose_rotate_transpose(rot.as_matrix(), rArmUR - rArmUR[-1]) + rArmUR[-1]
-        rArmUL = self.transpose_rotate_transpose(rot.inv().as_matrix(), rArmUL - rArmUL[0]) + rArmUL[0]
+        left_attach_hinge = len(r_hinge) // 4
+        rot = Rotation.align_vectors(r_arm_ul[-1] - r_arm_ul[0], r_hinge[left_attach_hinge] - r_arm_ul[0])[0]
+        r_arm_ur = self.transpose_rotate_transpose(rot.as_matrix(), r_arm_ur - r_arm_ur[-1])[0] + r_arm_ur[-1]
+        r_arm_ul = self.transpose_rotate_transpose(rot.inv().as_matrix(), r_arm_ul - r_arm_ul[0])[0] + r_arm_ul[0]
 
         # move into the correct location
-        rSiteM += rATP[len(rATP)//2]
-        rSiteD += rHK[len(rHK)//2]
+        r_middle_site += r_ATP[len(r_ATP)//2]
+        r_lower_site += r_kleisin[len(r_kleisin)//2]
 
         ############################# Fold upper compartment ############################
 
         # Rotation matrix (clockwise about z axis)
-        rotMat = Rotation.from_rotvec(-math.radians(self.foldingAngleAPO) * np.array([0.0, 0.0, 1.0])).as_matrix()
+        rotation = Rotation.from_rotvec(-math.radians(self.folding_angle_APO) * np.array([0.0, 0.0, 1.0])).as_matrix()
 
         # Rotate upper segments only
-        rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM, rHinge = \
-            self.transpose_rotate_transpose(rotMat, rArmDL, rArmUL, rArmUR, rArmDR, rSiteU, rSiteM, rHinge)
+        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_upper_site, r_middle_site, r_hinge = \
+            self.transpose_rotate_transpose(rotation, r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_upper_site, r_middle_site, r_hinge)
 
-        self.generated_positions = [rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge]
+        self.generated_positions = (r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_ATP, r_kleisin, r_upper_site, r_middle_site, r_lower_site, r_hinge)
 
         # apply extra rotation to entire SMC
         if extra_rotation is not None:
-            rotMat = Rotation.from_rotvec(extra_rotation).as_matrix()
-            self.generated_positions = self.transpose_rotate_transpose(rotMat, *self.generated_positions)
+            rotation = Rotation.from_rotvec(extra_rotation).as_matrix()
+            self.generated_positions = self.transpose_rotate_transpose(rotation, *self.generated_positions)
 
-        return tuple(self.generated_positions)
+        return self.generated_positions
 
     def get_mass_per_atom(self, total_mass: float) -> float:
         return total_mass / sum(len(x) for x in self.generated_positions)
