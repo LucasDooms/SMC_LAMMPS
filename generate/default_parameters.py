@@ -1,8 +1,14 @@
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
 class Parameters:
+    def __setattr__(self, name: str, value: Any, /) -> None:
+        if not hasattr(self, name):
+            raise AttributeError("You cannot define new parameters.")
+        super().__setattr__(name, value)
+
     ################ General parameters ################
 
     # Initial loop size (DNA beads)

@@ -5,6 +5,7 @@ p = Parameters()
 #### END OF BLOCK ####
 
 ## Define your parameters using p.key = value
+## See generate/default_parameters.py for all parameters
 
 # Radius of lower circular-arc compartment (nm)
 p.HKradius = 4.5
