@@ -1,22 +1,30 @@
+#### DO NOT EDIT THIS BLOCK ####
+from generate.default_parameters import Parameters
+
+p = Parameters()
+#### END OF BLOCK ####
+
+## Define your parameters using p.key = value
+
 # Radius of lower circular-arc compartment (nm)
-HKradius = 4.5
+p.HKradius = 4.5
 
 # amount of DNA
-N = 350
+p.N = 350
 
 # cycles = 20
-cycles = None
-max_steps = 240000000 # average number of steps for 20 cycles
+p.cycles = None
+p.max_steps = 240000000  # average number of steps for 20 cycles
 
-rigidHinge = True
+p.rigidHinge = True
 
 # weak force
-force = 0.05
+p.force = 0.05
 
 # configuration
-# dnaConfig = "advanced_obstacle_safety"
-# dnaConfig = "obstacle_safety"
-dnaConfig = "obstacle"
+# p.dnaConfig = "advanced_obstacle_safety"
+# p.dnaConfig = "obstacle_safety"
+p.dnaConfig = "obstacle"
 # dnaConfig = "line"
 
 # smc_force = 0.01

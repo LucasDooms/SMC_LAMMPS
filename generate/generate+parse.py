@@ -12,7 +12,6 @@ from typing import Any, List
 import numpy as np
 from numpy.random import default_rng
 
-from generate import default_parameters
 from generate.generator import (
     AtomIdentifier,
     AtomType,
@@ -26,33 +25,15 @@ from generate.structures.dna import dna
 from generate.structures.smc.smc import SMC
 from generate.structures.smc.smc_creator import SMC_Creator
 from generate.util import create_phase
+from generate.default_parameters import Parameters
 
 if len(argv) < 2:
     raise ValueError("Provide a folder path")
 path = Path(argv[1])
 
-parameters = run_path((path / "parameters.py").as_posix())
+par = run_path((path / "parameters.py").as_posix())["p"]
 
-
-class Parameters:
-    """Access data from parameters, use default_parameters if not set"""
-
-    def __getattr__(self, __name: str) -> Any:
-        return parameters.get(__name, getattr(default_parameters, __name))
-
-    def __setattr__(self, __name: str, __value: Any) -> None:
-        if not hasattr(default_parameters, __name):
-            raise AttributeError(
-                f"{__name} is not a known attribute of default_parameters"
-            )
-        parameters[__name] = __value
-
-    def __dir__(self):
-        return dir(default_parameters)
-
-
-par = Parameters()
-
+assert isinstance(par, Parameters)
 
 nDNA = par.N
 bases_per_bead = par.n
