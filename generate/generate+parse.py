@@ -271,10 +271,10 @@ dna_type = AtomType(DNA_bead_mass)
 
 dna_parameters = dna.DnaParameters(
     nDNA=nDNA,
-    DNAbondLength=DNA_bond_length,
-    mDNA=DNA_bead_mass,
+    DNA_bond_length=DNA_bond_length,
+    DNA_mass=DNA_bead_mass,
     type=dna_type,
-    molDNA=mol_DNA,
+    mol_DNA=mol_DNA,
     bond=dna_bond,
     angle=dna_angle,
     ssangle=ssdna_angle,
