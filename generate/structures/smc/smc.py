@@ -19,27 +19,26 @@ from generate.generator import (
 
 @dataclass
 class SMC:
-
     use_rigid_hinge: bool
 
-    r_arm_dl : ...
-    r_arm_ul : ...
-    r_arm_ur : ...
-    r_arm_dr : ...
-    r_ATP : ...
-    r_heads_kleisin  : ...
-    r_upper_site : ...
-    r_middle_site : ...
-    r_lower_site : ...
-    r_hinge : ...
+    r_arm_dl: ...
+    r_arm_ul: ...
+    r_arm_ur: ...
+    r_arm_dr: ...
+    r_ATP: ...
+    r_heads_kleisin: ...
+    r_upper_site: ...
+    r_middle_site: ...
+    r_lower_site: ...
+    r_hinge: ...
 
-    t_arms_heads_kleisin : AtomType
+    t_arms_heads_kleisin: AtomType
     t_hinge: AtomType
-    t_atp : AtomType
-    t_upper_site : AtomType
-    t_middle_site : AtomType
-    t_lower_site : AtomType
-    t_ref_site : AtomType
+    t_atp: AtomType
+    t_upper_site: AtomType
+    t_middle_site: AtomType
+    t_lower_site: AtomType
+    t_ref_site: AtomType
 
     # bonds
     k_bond: float
@@ -102,47 +101,56 @@ class SMC:
 
     def _set_angles(self) -> None:
         self.align_arms = BAI_Type(BAI_Kind.ANGLE, f"harmonic {self.k_elbow} {180.0}\n")
-        arms_bridge_angle = np.rad2deg(np.arccos(self.bridge_width / self.arm_length / 4.0))
-        self.arms_bridge = BAI_Type(BAI_Kind.ANGLE, f"harmonic {self.k_arm} {arms_bridge_angle}\n")
+        arms_bridge_angle = np.rad2deg(
+            np.arccos(self.bridge_width / self.arm_length / 4.0)
+        )
+        self.arms_bridge = BAI_Type(
+            BAI_Kind.ANGLE, f"harmonic {self.k_arm} {arms_bridge_angle}\n"
+        )
         self.hinge_arms = BAI_Type(BAI_Kind.ANGLE, f"harmonic {self.k_arm} {90.0}\n")
 
         self.arms_close = Generator.DynamicCoeffs(
             BAI_Kind.ANGLE,
             f"harmonic {self.k_arm} {np.rad2deg(np.arccos((self.bridge_width / 2.0 - self.hinge_radius) / self.arm_length))}\n",
-            [self.arms_bridge]
+            [self.arms_bridge],
         )
         self.arms_open = Generator.DynamicCoeffs(
             BAI_Kind.ANGLE,
             f"harmonic {self.k_arm} {self.arms_angle_ATP}\n",
-            [self.arms_bridge]
+            [self.arms_bridge],
         )
 
     def _set_impropers(self) -> None:
         self.imp_t1 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_align_site} {0.0}\n")
-        self.imp_t2 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_fold} {180.0 - self.folding_angle_APO}\n")
-        self.imp_t3 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n")
+        self.imp_t2 = BAI_Type(
+            BAI_Kind.IMPROPER, f"{self.k_fold} {180.0 - self.folding_angle_APO}\n"
+        )
+        self.imp_t3 = BAI_Type(
+            BAI_Kind.IMPROPER,
+            f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n",
+        )
         self.imp_t4 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_align_site / 5.0} {90.0}\n")
 
         self.kleisin_folds1 = Generator.DynamicCoeffs(
             BAI_Kind.IMPROPER,
             f"{self.k_fold} {180.0 - self.folding_angle_ATP}\n",
-            [self.imp_t2]
+            [self.imp_t2],
         )
         self.kleisin_unfolds1 = Generator.DynamicCoeffs(
             BAI_Kind.IMPROPER,
             f"{self.k_fold} {180.0 - self.folding_angle_APO}\n",
-            [self.imp_t2]
+            [self.imp_t2],
         )
 
         self.kleisin_folds2 = Generator.DynamicCoeffs(
             BAI_Kind.IMPROPER,
             f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_ATP)}\n",
-            [self.imp_t3]
+            [self.imp_t3],
         )
         self.kleisin_unfolds2 = Generator.DynamicCoeffs(
             BAI_Kind.IMPROPER,
             f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n",
-            [self.imp_t3]
+            [self.imp_t3],
         )
 
     def __post_init__(self) -> None:
@@ -150,31 +158,57 @@ class SMC:
         self._set_angles()
         self._set_impropers()
         # create groups
-        self.arm_dl_grp = AtomGroup(self.r_arm_dl, self.t_arms_heads_kleisin, self.mol_arm_dl)
-        self.arm_ul_grp = AtomGroup(self.r_arm_ul, self.t_arms_heads_kleisin, self.mol_arm_ul)
-        self.arm_ur_grp = AtomGroup(self.r_arm_ur, self.t_arms_heads_kleisin, self.mol_arm_ur)
-        self.arm_dr_grp = AtomGroup(self.r_arm_dr, self.t_arms_heads_kleisin, self.mol_arm_dr)
-        self.hk_grp = AtomGroup(self.r_heads_kleisin, self.t_arms_heads_kleisin, self.mol_heads_kleisin)
+        self.arm_dl_grp = AtomGroup(
+            self.r_arm_dl, self.t_arms_heads_kleisin, self.mol_arm_dl
+        )
+        self.arm_ul_grp = AtomGroup(
+            self.r_arm_ul, self.t_arms_heads_kleisin, self.mol_arm_ul
+        )
+        self.arm_ur_grp = AtomGroup(
+            self.r_arm_ur, self.t_arms_heads_kleisin, self.mol_arm_ur
+        )
+        self.arm_dr_grp = AtomGroup(
+            self.r_arm_dr, self.t_arms_heads_kleisin, self.mol_arm_dr
+        )
+        self.hk_grp = AtomGroup(
+            self.r_heads_kleisin, self.t_arms_heads_kleisin, self.mol_heads_kleisin
+        )
 
         self.atp_grp = AtomGroup(self.r_ATP, self.t_atp, self.mol_ATP)
 
-        self.hinge_l_grp = AtomGroup(self.r_hinge[:len(self.r_hinge) // 2], self.t_hinge, self.mol_hinge_l)
-        self.hinge_r_grp = AtomGroup(self.r_hinge[len(self.r_hinge) // 2:], self.t_hinge, self.mol_hinge_r)
-        self.upper_site_grp = AtomGroup(self.r_upper_site, self.t_upper_site, self.mol_hinge_l)
+        self.hinge_l_grp = AtomGroup(
+            self.r_hinge[: len(self.r_hinge) // 2], self.t_hinge, self.mol_hinge_l
+        )
+        self.hinge_r_grp = AtomGroup(
+            self.r_hinge[len(self.r_hinge) // 2 :], self.t_hinge, self.mol_hinge_r
+        )
+        self.upper_site_grp = AtomGroup(
+            self.r_upper_site, self.t_upper_site, self.mol_hinge_l
+        )
 
         # split M in three parts
 
         cut = 2
-        self.middle_site_grp = AtomGroup(self.r_middle_site[:cut], self.t_middle_site, self.mol_middle_site)
-        self.middle_site_atp_grp = AtomGroup(self.r_middle_site[cut:-1], self.t_atp, self.mol_middle_site)
+        self.middle_site_grp = AtomGroup(
+            self.r_middle_site[:cut], self.t_middle_site, self.mol_middle_site
+        )
+        self.middle_site_atp_grp = AtomGroup(
+            self.r_middle_site[cut:-1], self.t_atp, self.mol_middle_site
+        )
         # ref site
-        self.middle_site_ref_grp = AtomGroup(self.r_middle_site[-1:], self.t_ref_site, self.mol_middle_site)
+        self.middle_site_ref_grp = AtomGroup(
+            self.r_middle_site[-1:], self.t_ref_site, self.mol_middle_site
+        )
 
         # split B in two parts
 
         cut = 3
-        self.lower_site_grp = AtomGroup(self.r_lower_site[:cut], self.t_lower_site, self.mol_lower_site)
-        self.lower_site_arm_grp = AtomGroup(self.r_lower_site[cut:], self.t_arms_heads_kleisin, self.mol_lower_site)
+        self.lower_site_grp = AtomGroup(
+            self.r_lower_site[:cut], self.t_lower_site, self.mol_lower_site
+        )
+        self.lower_site_arm_grp = AtomGroup(
+            self.r_lower_site[cut:], self.t_arms_heads_kleisin, self.mol_lower_site
+        )
 
         self.left_attach_hinge = len(self.hinge_l_grp.positions) // 2
         self.right_attach_hinge = len(self.hinge_r_grp.positions) // 2
@@ -199,18 +233,29 @@ class SMC:
 
     def get_bonds(self, hinge_opening: float | None = None) -> List[BAI]:
         # Every joint is kept in place through bonds
-        attach = BAI_Type(BAI_Kind.BOND, f"fene/expand {self.k_bond} {self.max_bond_length} {0.0} {0.0} {0.0}\n")
+        attach = BAI_Type(
+            BAI_Kind.BOND,
+            f"fene/expand {self.k_bond} {self.max_bond_length} {0.0} {0.0} {0.0}\n",
+        )
 
         bonds = [
             # attach arms together
             BAI(attach, (self.arm_dl_grp, -1), (self.arm_ul_grp, 0)),
             BAI(attach, (self.arm_ur_grp, -1), (self.arm_dr_grp, 0)),
             # attach hinge and arms
-            BAI(attach, (self.arm_ul_grp, -1), (self.hinge_l_grp, self.left_attach_hinge)),
-            BAI(attach, (self.arm_ur_grp, 0), (self.hinge_r_grp, self.right_attach_hinge)),
+            BAI(
+                attach,
+                (self.arm_ul_grp, -1),
+                (self.hinge_l_grp, self.left_attach_hinge),
+            ),
+            BAI(
+                attach,
+                (self.arm_ur_grp, 0),
+                (self.hinge_r_grp, self.right_attach_hinge),
+            ),
             # attach atp bridge to arms
             BAI(attach, (self.arm_dr_grp, -1), (self.atp_grp, -1)),
-            BAI(attach, (self.atp_grp,  0), (self.arm_dl_grp, 0)),
+            BAI(attach, (self.atp_grp, 0), (self.arm_dl_grp, 0)),
             # attach bridge to hk
             BAI(attach, (self.atp_grp, -1), (self.hk_grp, 0)),
             BAI(attach, (self.hk_grp, -1), (self.atp_grp, 0)),
@@ -221,7 +266,9 @@ class SMC:
         # always add bond for now, even if it is rigid
         if not self.use_rigid_hinge or True:
             assert hinge_opening is not None
-            hinge_bond = BAI_Type(BAI_Kind.BOND, f"harmonic {self.k_hinge} {hinge_opening}\n")
+            hinge_bond = BAI_Type(
+                BAI_Kind.BOND, f"harmonic {self.k_hinge} {hinge_opening}\n"
+            )
             bonds += [
                 # connect Left and Right hinge pieces together
                 BAI(hinge_bond, (self.hinge_l_grp, -1), (self.hinge_r_grp, 0)),
@@ -232,20 +279,57 @@ class SMC:
     def get_angles(self) -> List[BAI]:
         return [
             # keep left arms rigid (prevent too much bending)
-            BAI(self.align_arms, (self.arm_dl_grp, 0), (self.arm_ul_grp, 0), (self.arm_ul_grp, -1)),
+            BAI(
+                self.align_arms,
+                (self.arm_dl_grp, 0),
+                (self.arm_ul_grp, 0),
+                (self.arm_ul_grp, -1),
+            ),
             # same, but for right arms
-            BAI(self.align_arms, (self.arm_ur_grp, 0), (self.arm_ur_grp, -1), (self.arm_dr_grp, -1)),
-
+            BAI(
+                self.align_arms,
+                (self.arm_ur_grp, 0),
+                (self.arm_ur_grp, -1),
+                (self.arm_dr_grp, -1),
+            ),
             # keep hinge perpendicular to arms
-            BAI(self.hinge_arms, (self.arm_ul_grp, -2), (self.arm_ul_grp, -1), (self.hinge_l_grp, self.left_attach_hinge + 1)),
-            BAI(self.hinge_arms, (self.arm_ul_grp, -2), (self.arm_ul_grp, -1), (self.hinge_l_grp, self.left_attach_hinge - 1)),
-
-            BAI(self.hinge_arms, (self.arm_ur_grp, 1), (self.arm_ur_grp, 0), (self.hinge_r_grp, self.right_attach_hinge - 1)),
-            BAI(self.hinge_arms, (self.arm_ur_grp, 1), (self.arm_ur_grp, 0), (self.hinge_r_grp, self.right_attach_hinge + 1)),
-
+            BAI(
+                self.hinge_arms,
+                (self.arm_ul_grp, -2),
+                (self.arm_ul_grp, -1),
+                (self.hinge_l_grp, self.left_attach_hinge + 1),
+            ),
+            BAI(
+                self.hinge_arms,
+                (self.arm_ul_grp, -2),
+                (self.arm_ul_grp, -1),
+                (self.hinge_l_grp, self.left_attach_hinge - 1),
+            ),
+            BAI(
+                self.hinge_arms,
+                (self.arm_ur_grp, 1),
+                (self.arm_ur_grp, 0),
+                (self.hinge_r_grp, self.right_attach_hinge - 1),
+            ),
+            BAI(
+                self.hinge_arms,
+                (self.arm_ur_grp, 1),
+                (self.arm_ur_grp, 0),
+                (self.hinge_r_grp, self.right_attach_hinge + 1),
+            ),
             # prevent too much bending between lower arms and the bridge
-            BAI(self.arms_bridge, (self.arm_dl_grp, -1), (self.arm_dl_grp, 0), (self.atp_grp, -1)),
-            BAI(self.arms_bridge, (self.arm_dr_grp, 0), (self.arm_dr_grp, -1), (self.atp_grp, 0))
+            BAI(
+                self.arms_bridge,
+                (self.arm_dl_grp, -1),
+                (self.arm_dl_grp, 0),
+                (self.atp_grp, -1),
+            ),
+            BAI(
+                self.arms_bridge,
+                (self.arm_dr_grp, 0),
+                (self.arm_dr_grp, -1),
+                (self.atp_grp, 0),
+            ),
         ]
 
     def get_impropers(self) -> List[BAI]:
@@ -253,29 +337,86 @@ class SMC:
         return [
             # Fix orientation of ATP/kleisin bridge
             # WARNING: siteM is split into groups, be careful with index
-            BAI(self.imp_t1, (self.arm_dl_grp, -1), (self.arm_dl_grp, 0), (self.atp_grp, -1), (self.middle_site_grp, 1)),
-            BAI(self.imp_t1, (self.arm_dr_grp, 0), (self.arm_dr_grp, -1), (self.atp_grp, 0), (self.middle_site_grp, 1)),
-
-            BAI(self.imp_t2, (self.arm_dl_grp, -1), (self.arm_dl_grp, 0), (self.atp_grp, -1), (self.hk_grp, kleisin_center)),
-            BAI(self.imp_t2, (self.arm_dr_grp, 0), (self.arm_dr_grp, -1), (self.atp_grp, 0), (self.hk_grp, kleisin_center)),
-
+            BAI(
+                self.imp_t1,
+                (self.arm_dl_grp, -1),
+                (self.arm_dl_grp, 0),
+                (self.atp_grp, -1),
+                (self.middle_site_grp, 1),
+            ),
+            BAI(
+                self.imp_t1,
+                (self.arm_dr_grp, 0),
+                (self.arm_dr_grp, -1),
+                (self.atp_grp, 0),
+                (self.middle_site_grp, 1),
+            ),
+            BAI(
+                self.imp_t2,
+                (self.arm_dl_grp, -1),
+                (self.arm_dl_grp, 0),
+                (self.atp_grp, -1),
+                (self.hk_grp, kleisin_center),
+            ),
+            BAI(
+                self.imp_t2,
+                (self.arm_dr_grp, 0),
+                (self.arm_dr_grp, -1),
+                (self.atp_grp, 0),
+                (self.hk_grp, kleisin_center),
+            ),
             # prevent kleisin ring from swaying too far relative to the bridge
-            BAI(self.imp_t3, (self.middle_site_ref_grp, 0), (self.arm_dl_grp, 0), (self.arm_dr_grp, -1), (self.hk_grp, kleisin_center)),
-
+            BAI(
+                self.imp_t3,
+                (self.middle_site_ref_grp, 0),
+                (self.arm_dl_grp, 0),
+                (self.arm_dr_grp, -1),
+                (self.hk_grp, kleisin_center),
+            ),
             # fix hinge to a plane
-            BAI(self.imp_t1, (self.hinge_l_grp, 0), (self.hinge_l_grp, -1), (self.hinge_r_grp, 0), (self.hinge_r_grp, -1)),
-            BAI(self.imp_t1, (self.hinge_l_grp, 0), (self.hinge_l_grp, self.left_attach_hinge), (self.hinge_r_grp, 0), (self.hinge_r_grp, self.right_attach_hinge)),
-
+            BAI(
+                self.imp_t1,
+                (self.hinge_l_grp, 0),
+                (self.hinge_l_grp, -1),
+                (self.hinge_r_grp, 0),
+                (self.hinge_r_grp, -1),
+            ),
+            BAI(
+                self.imp_t1,
+                (self.hinge_l_grp, 0),
+                (self.hinge_l_grp, self.left_attach_hinge),
+                (self.hinge_r_grp, 0),
+                (self.hinge_r_grp, self.right_attach_hinge),
+            ),
             # fix hinge perpendicular to arms plane
-            BAI(self.imp_t4, (self.arm_ul_grp, -2), (self.arm_ul_grp, -1), (self.hinge_l_grp, self.left_attach_hinge - 1), (self.hinge_l_grp, self.left_attach_hinge + 1)),
-            BAI(self.imp_t4, (self.arm_ur_grp, 1), (self.arm_ur_grp, 0), (self.hinge_r_grp, self.right_attach_hinge + 1), (self.hinge_r_grp, self.right_attach_hinge - 1)),
-
+            BAI(
+                self.imp_t4,
+                (self.arm_ul_grp, -2),
+                (self.arm_ul_grp, -1),
+                (self.hinge_l_grp, self.left_attach_hinge - 1),
+                (self.hinge_l_grp, self.left_attach_hinge + 1),
+            ),
+            BAI(
+                self.imp_t4,
+                (self.arm_ur_grp, 1),
+                (self.arm_ur_grp, 0),
+                (self.hinge_r_grp, self.right_attach_hinge + 1),
+                (self.hinge_r_grp, self.right_attach_hinge - 1),
+            ),
             # # keep hinge aligned with bridge axis
             # BAI(imp_t1, (self.hingeL_group, self.left_attach_hinge), (self.hingeR_group, self.right_attach_hinge), (self.atp_group, 0), (self.atp_group, -1)),
-            BAI(self.imp_t4, (self.upper_site_grp, 0), (self.upper_site_grp, len(self.upper_site_grp.positions) // 2), (self.atp_grp, len(self.atp_grp.positions) // 2), (self.atp_grp, -1)),
+            BAI(
+                self.imp_t4,
+                (self.upper_site_grp, 0),
+                (self.upper_site_grp, len(self.upper_site_grp.positions) // 2),
+                (self.atp_grp, len(self.atp_grp.positions) // 2),
+                (self.atp_grp, -1),
+            ),
         ]
 
-    def add_repel_interactions(self, pair_inter: PairWise, eps: float, sigma: float, r_cut: float) -> None:
+    def add_repel_interactions(
+        self, pair_inter: PairWise, eps: float, sigma: float, r_cut: float
+    ) -> None:
         # prevent hinges from overlapping
         pair_inter.add_interaction(
             self.t_hinge,

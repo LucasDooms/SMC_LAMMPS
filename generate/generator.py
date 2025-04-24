@@ -24,7 +24,6 @@ import numpy as np
 
 
 class AtomType:
-
     __index = 0
 
     def __init__(self, mass: float = 1.0) -> None:
@@ -44,7 +43,6 @@ class AtomType:
 
 
 class MoleculeId:
-
     __index = 0
 
     @classmethod
@@ -61,16 +59,11 @@ class BAI_Kind(Enum):
     @classmethod
     def length_lookup(cls, kind: BAI_Kind) -> int:
         """Returns the number of arguments (atom ids) needed to define a BAI interaction."""
-        values = {
-            BAI_Kind.BOND: 2,
-            BAI_Kind.ANGLE: 3,
-            BAI_Kind.IMPROPER: 4
-        }
+        values = {BAI_Kind.BOND: 2, BAI_Kind.ANGLE: 3, BAI_Kind.IMPROPER: 4}
         return values[kind]
 
 
 class BAI_Type:
-
     indices = {kind: 1 for kind in BAI_Kind}
 
     def __init__(self, kind: BAI_Kind, coefficients: str = "") -> None:
@@ -90,16 +83,21 @@ class BAI_Type:
 
 
 class AtomGroup:
-
     """
-        positions: list of 3d positions of (n) atoms [[x, y, z], ...]
-        atom_type: type of the atoms
-        molecule_index (int): the molecule index which is needed for atom_style molecule
-        polymer_bond_type: if None -> no bonds, otherwise all atoms will form bonds as a polymer
+    positions: list of 3d positions of (n) atoms [[x, y, z], ...]
+    atom_type: type of the atoms
+    molecule_index (int): the molecule index which is needed for atom_style molecule
+    polymer_bond_type: if None -> no bonds, otherwise all atoms will form bonds as a polymer
     """
 
-    def __init__(self, positions: List[List[float]],
-                 atom_type: AtomType, molecule_index: int, polymer_bond_type: BAI_Type | None = None, polymer_angle_type: BAI_Type | None = None) -> None:
+    def __init__(
+        self,
+        positions: List[List[float]],
+        atom_type: AtomType,
+        molecule_index: int,
+        polymer_bond_type: BAI_Type | None = None,
+        polymer_angle_type: BAI_Type | None = None,
+    ) -> None:
         self.n = len(positions)
         self.positions = positions
         self.type = atom_type
@@ -116,9 +114,8 @@ AtomIdentifier = Tuple[AtomGroup, int]
 
 
 class BAI:
-
     """
-        Represents a Bond/Angle/Improper interaction between a certain number of atoms
+    Represents a Bond/Angle/Improper interaction between a certain number of atoms
     """
 
     def __init__(self, type_: BAI_Type, *atoms: AtomIdentifier) -> None:
@@ -128,14 +125,13 @@ class BAI:
 
 
 class PairWise:
-
     """
-        Represents pair interactions between all atoms of two atoms ids.
+    Represents pair interactions between all atoms of two atoms ids.
 
-        header: string defining the interaction style, e.g. "PairIJ Coeffs # hybrid"
-        template: a string with empty formatters `{}` for the interaction parameters, e.g. "lj/cut {} {} {}"
-        default: a list of default parameters (used to fill out all interactions, since LAMMPS requires them
-                                               to all be explicitly defined)
+    header: string defining the interaction style, e.g. "PairIJ Coeffs # hybrid"
+    template: a string with empty formatters `{}` for the interaction parameters, e.g. "lj/cut {} {} {}"
+    default: a list of default parameters (used to fill out all interactions, since LAMMPS requires them
+                                           to all be explicitly defined)
     """
 
     def __init__(self, header: str, template: str, default: List[Any] | None) -> None:
@@ -145,12 +141,12 @@ class PairWise:
         self.default = default
         self.pairs: List[Tuple[AtomType, AtomType, List[Any]]] = []
 
-    def add_interaction(self, atom_type1: AtomType, atom_type2: AtomType, *args: Any) -> PairWise:
+    def add_interaction(
+        self, atom_type1: AtomType, atom_type2: AtomType, *args: Any
+    ) -> PairWise:
         """Add an iteraction. Will sort the indices automatically."""
         ordered = sorted([atom_type1, atom_type2], key=lambda at: at.index)
-        self.pairs.append(
-            (ordered[0], ordered[1], list(args))
-        )
+        self.pairs.append((ordered[0], ordered[1], list(args)))
 
         return self
 
@@ -165,7 +161,9 @@ class PairWise:
             file.write(f"{atom_type1.index} {atom_type2.index} " + text)
         file.write("\n")
 
-    def get_all_interaction_pairs(self, all_atom_types: List[AtomType]) -> List[Tuple[AtomType, AtomType]]:
+    def get_all_interaction_pairs(
+        self, all_atom_types: List[AtomType]
+    ) -> List[Tuple[AtomType, AtomType]]:
         """Returns all possible interactions, whether they are set by the user or not."""
         present_atom_types = set()
         for pair in self.pairs:
@@ -208,15 +206,12 @@ class PairWise:
                         (inter[0], inter[1], self.template.format(*self.default))
                     )
             else:
-                final_pairs.append(
-                    (pair[0], pair[1], self.template.format(*pair[2]))
-                )
+                final_pairs.append((pair[0], pair[1], self.template.format(*pair[2])))
 
         return final_pairs
 
 
 class Generator:
-
     def __init__(self) -> None:
         self.atom_groups: List[AtomGroup] = []
         self.bais: List[BAI] = []
@@ -272,7 +267,9 @@ class Generator:
         """Write the amount of atoms, bonds, angles, and impropers to a file."""
         file.write(f"{self.get_total_atoms()} atoms\n")
 
-        length_lookup = {key: len(value) for (key, value) in self.get_bai_dict_by_type().items()}
+        length_lookup = {
+            key: len(value) for (key, value) in self.get_bai_dict_by_type().items()
+        }
 
         total_bonds = length_lookup[BAI_Kind.BOND]
         total_angles = length_lookup[BAI_Kind.ANGLE]
@@ -327,7 +324,7 @@ class Generator:
         lookup = {
             BAI_Kind.BOND: "Bond Coeffs # hybrid\n\n",
             BAI_Kind.ANGLE: "Angle Coeffs # hybrid\n\n",
-            BAI_Kind.IMPROPER: "Improper Coeffs # harmonic\n\n"
+            BAI_Kind.IMPROPER: "Improper Coeffs # harmonic\n\n",
         }
         return lookup[kind]
 
@@ -507,16 +504,18 @@ def test_simple_atoms():
     gen = Generator()
     gen.atom_groups.append(AtomGroup(positions, AtomType(), 1))
     gen.set_system_size(10)
-    with open("test.gen", 'w', encoding='utf-8') as file:
+    with open("test.gen", "w", encoding="utf-8") as file:
         gen.write_full(file)
 
 
 def test_simple_atoms_polymer():
     positions = np.zeros(shape=(100, 3))
     gen = Generator()
-    gen.atom_groups.append(AtomGroup(positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND)))
+    gen.atom_groups.append(
+        AtomGroup(positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND))
+    )
     gen.set_system_size(10)
-    with open("test.gen", 'w', encoding='utf-8') as file:
+    with open("test.gen", "w", encoding="utf-8") as file:
         gen.write_full(file)
 
 
@@ -535,31 +534,13 @@ def test_with_bonds():
     group2 = AtomGroup(np.copy(positions), AtomType(), 3)
     gen.atom_groups.append(group2)
 
-    gen.bais.append(
-        BAI(
-            bt1,
-            (group1, 1),
-            (group2, 0)
-        )
-    )
+    gen.bais.append(BAI(bt1, (group1, 1), (group2, 0)))
 
-    gen.bais.append(
-        BAI(
-            BAI_Type(BAI_Kind.BOND),
-            (group1, 5),
-            (group1, 6)
-        )
-    )
+    gen.bais.append(BAI(BAI_Type(BAI_Kind.BOND), (group1, 5), (group1, 6)))
 
-    gen.bais.append(
-        BAI(
-            bt1,
-            (group1, 9),
-            (group1, 16)
-        )
-    )
+    gen.bais.append(BAI(bt1, (group1, 9), (group1, 16)))
 
-    with open("test.gen", 'w', encoding='utf-8') as file:
+    with open("test.gen", "w", encoding="utf-8") as file:
         gen.write_full(file)
 
 
@@ -581,7 +562,7 @@ def test_with_pairs():
 
     gen.pair_interactions.append(pairwise)
 
-    with open("test.gen", 'w', encoding='utf-8') as file:
+    with open("test.gen", "w", encoding="utf-8") as file:
         gen.write_full(file)
 
 
@@ -594,6 +575,7 @@ def all_tests():
 
 def main():
     all_tests()
+
 
 if __name__ == "__main__":
     main()

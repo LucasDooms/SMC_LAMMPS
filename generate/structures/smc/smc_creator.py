@@ -2,7 +2,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import TypeVar, Tuple
+from typing import Tuple, TypeVar
 
 import numpy as np
 from numpy.random import default_rng
@@ -17,7 +17,6 @@ from generate.structures.structure_creator import (
 
 @dataclass
 class SMC_Creator:
-
     """Computes the positions of all SMC beads"""
 
     SMC_spacing: float
@@ -46,7 +45,6 @@ class SMC_Creator:
 
     small_noise: float = 1e-9
 
-
     def get_arms(self, seed: int = 8671288977726523465):
         # Number of beads forming each arm segment (err on the high side)
         n_arm_segments = math.ceil(self.arm_length / (2 * self.SMC_spacing))
@@ -62,12 +60,15 @@ class SMC_Creator:
         direction_ur = [0, -y_arm, z_arm]
         direction_dr = [0, -y_arm, z_arm]
 
-        r_arm_dl = get_straight_segment(n_arm_segments, direction_dl) / 2.0 * self.arm_length / n_arm_segments
-        r_arm_ul = get_straight_segment(n_arm_segments, direction_ul) / 2.0 * self.arm_length / n_arm_segments
-        r_arm_ur = get_straight_segment(n_arm_segments, direction_ur) / 2.0 * self.arm_length / n_arm_segments
-        r_arm_dr = get_straight_segment(n_arm_segments, direction_dr) / 2.0 * self.arm_length / n_arm_segments
+        factor = self.arm_length / 2.0 / n_arm_segments
+        r_arm_dl = get_straight_segment(n_arm_segments, direction_dl) * factor
+        r_arm_ul = get_straight_segment(n_arm_segments, direction_ul) * factor
+        r_arm_ur = get_straight_segment(n_arm_segments, direction_ur) * factor
+        r_arm_dr = get_straight_segment(n_arm_segments, direction_dr) * factor
 
-        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr = attach_chain(r_arm_dl, [[r_arm_ul, False], [r_arm_ur, False], [r_arm_dr, False]])
+        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr = attach_chain(
+            r_arm_dl, [[r_arm_ul, False], [r_arm_ur, False], [r_arm_dr, False]]
+        )
 
         # move lower center to origin (where bridge will be placed)
         center = (r_arm_dl[0] + r_arm_dr[-1]) / 2.0
@@ -98,9 +99,9 @@ class SMC_Creator:
         # Positions
         r_ATP = get_straight_segment(n_ATP, [0, 0, 1])
 
-        # use the bridgeWidth as the absolute truth (SMC spacing may be slighlty off)
+        # use the bridgeWidth as the absolute truth (SMC spacing may be slightly off)
         r_ATP *= self.bridge_width / n_ATP
-        
+
         # move center to origin
         r_ATP -= (r_ATP[0] + r_ATP[-1]) / 2.0
 
@@ -116,7 +117,9 @@ class SMC_Creator:
         bridge_radius = self.bridge_width / 2.0
         radius = self.kleisin_radius
         if radius < bridge_radius:
-            raise ValueError(f"The kleisin radius ({radius}) is too small (< {bridge_radius}) based on the bridgeWidth {self.bridge_width}")
+            raise ValueError(
+                f"The kleisin radius ({radius}) is too small (< {bridge_radius}) based on the bridgeWidth {self.bridge_width}"
+            )
 
         # from the y-axis
         starting_angle = math.asin(bridge_radius / radius)
@@ -135,13 +138,17 @@ class SMC_Creator:
         starting_angle += math.pi / 2.0
         ending_angle += math.pi / 2.0
 
-        r_kleisin = get_circle_segment_unit_radius(n_kleisin, end_inclusive=True, theta_start=starting_angle,
-                                             theta_end=ending_angle, normal_direction=[1, 0, 0])
+        r_kleisin = get_circle_segment_unit_radius(
+            n_kleisin,
+            end_inclusive=True,
+            theta_start=starting_angle,
+            theta_end=ending_angle,
+            normal_direction=[1, 0, 0],
+        )
 
         r_kleisin *= radius
         # move the bridge-gap to the origin
-        r_kleisin[:,1] -= r_kleisin[0][1]
-
+        r_kleisin[:, 1] -= r_kleisin[0][1]
 
         # A bit of randomness
         rng_rhk = default_rng(seed=seed)
@@ -150,11 +157,18 @@ class SMC_Creator:
         return r_kleisin
 
     @staticmethod
-    def shielded_site_template(n_inner_beads: int, n_outer_beads_per_inner_bead: int, inner_spacing: float, outer_spacing: float):
+    def shielded_site_template(
+        n_inner_beads: int,
+        n_outer_beads_per_inner_bead: int,
+        inner_spacing: float,
+        outer_spacing: float,
+    ):
         """create a line of beads surrounded by a protective shell/shield"""
         axis = np.array([1, 0, 0])
         # Inner/Attractive beads
-        inner_beads = get_straight_segment(n_inner_beads, direction=axis) * inner_spacing
+        inner_beads = (
+            get_straight_segment(n_inner_beads, direction=axis) * inner_spacing
+        )
         # put center at the origin
         inner_beads -= (inner_beads[0] + inner_beads[-1]) / 2.0
 
@@ -162,9 +176,14 @@ class SMC_Creator:
         shells = []
         for inner_bead in inner_beads:
             shells.append(
-                get_circle_segment_unit_radius(n_outer_beads_per_inner_bead, end_inclusive=True,
-                                               theta_start=0, theta_end=np.pi,
-                                               normal_direction=axis) * outer_spacing
+                get_circle_segment_unit_radius(
+                    n_outer_beads_per_inner_bead,
+                    end_inclusive=True,
+                    theta_start=0,
+                    theta_end=np.pi,
+                    normal_direction=axis,
+                )
+                * outer_spacing
             )
             # place center of shell at inner bead
             shells[-1] += inner_bead
@@ -175,13 +194,15 @@ class SMC_Creator:
 
         return np.concatenate([inner_beads, *shells, end_first, end_last])
 
-    T = TypeVar('T')
+    T = TypeVar("T")
 
     @staticmethod
     def transpose_rotate_transpose(rotation, *arrays: T) -> Tuple[T]:
         return tuple(rotation.dot(arr.transpose()).transpose() for arr in arrays)
 
-    def get_interaction_sites(self, lower_site_points_down: bool, seed: int = 8343859591397577529):
+    def get_interaction_sites(
+        self, lower_site_points_down: bool, seed: int = 8343859591397577529
+    ):
         # U = upper  interaction site
         # M = middle interaction site
         # D = lower  interaction site
@@ -191,28 +212,41 @@ class SMC_Creator:
         r_upper_site = get_straight_segment(3)
         r_upper_site -= r_upper_site[1]
 
-        rotate_around_x_axis = Rotation.from_rotvec(math.pi * np.array([1.0, 0.0, 0.0])).as_matrix()
+        rotate_around_x_axis = Rotation.from_rotvec(
+            math.pi * np.array([1.0, 0.0, 0.0])
+        ).as_matrix()
 
         # MIDDLE SITE
         r_middle_site = self.shielded_site_template(1, 4, self.middle_site_h, 1)
-        r_middle_site, = self.transpose_rotate_transpose(rotate_around_x_axis, r_middle_site)
+        (r_middle_site,) = self.transpose_rotate_transpose(
+            rotate_around_x_axis, r_middle_site
+        )
 
         # take last bead and use it as an extra inner bead
-        r_middle_site = np.concatenate([r_middle_site[:1], r_middle_site[-1:], r_middle_site[1:-1]])
+        r_middle_site = np.concatenate(
+            [r_middle_site[:1], r_middle_site[-1:], r_middle_site[1:-1]]
+        )
         # move, so that this bead is at the origin
         r_middle_site -= r_middle_site[1]
 
         # LOWER SITE
         r_lower_site = self.shielded_site_template(3, 4, self.lower_site_h, 1)
         if not lower_site_points_down:
-            r_lower_site, = self.transpose_rotate_transpose(rotate_around_x_axis, r_lower_site)
-
+            (r_lower_site,) = self.transpose_rotate_transpose(
+                rotate_around_x_axis, r_lower_site
+            )
 
         # Add randomness
         rng_sites = default_rng(seed=seed)
-        r_upper_site += rng_sites.standard_normal(size=r_upper_site.shape) * self.small_noise
-        r_middle_site += rng_sites.standard_normal(size=r_middle_site.shape) * self.small_noise
-        r_lower_site += rng_sites.standard_normal(size=r_lower_site.shape) * self.small_noise
+        r_upper_site += (
+            rng_sites.standard_normal(size=r_upper_site.shape) * self.small_noise
+        )
+        r_middle_site += (
+            rng_sites.standard_normal(size=r_middle_site.shape) * self.small_noise
+        )
+        r_lower_site += (
+            rng_sites.standard_normal(size=r_lower_site.shape) * self.small_noise
+        )
 
         return r_upper_site, r_middle_site, r_lower_site
 
@@ -228,7 +262,9 @@ class SMC_Creator:
         if n_ring % 4 == 0:
             n_ring += 2
 
-        r_hinge = get_circle_segment_unit_radius(n_ring, end_inclusive=False, normal_direction=(0, 1, 0))
+        r_hinge = get_circle_segment_unit_radius(
+            n_ring, end_inclusive=False, normal_direction=(0, 1, 0)
+        )
 
         # rotate slightly
         angle = np.linalg.norm(r_hinge[1] - r_hinge[0]) / 2.0
@@ -236,33 +272,37 @@ class SMC_Creator:
 
         r_hinge *= radius
 
-        r_hinge, = self.transpose_rotate_transpose(rotation, r_hinge)
+        (r_hinge,) = self.transpose_rotate_transpose(rotation, r_hinge)
 
         # separate pieces
         half = len(r_hinge) // 2
         # overlap
-        r_hinge[:half,2] -= r_hinge[0,2]
-        r_hinge[half:,2] -= r_hinge[-1,2]
+        r_hinge[:half, 2] -= r_hinge[0, 2]
+        r_hinge[half:, 2] -= r_hinge[-1, 2]
 
-        r_hinge[:half,2] -= self.hinge_opening / 2.0
-        r_hinge[half:,2] += self.hinge_opening / 2.0
+        r_hinge[:half, 2] -= self.hinge_opening / 2.0
+        r_hinge[half:, 2] += self.hinge_opening / 2.0
 
         return r_hinge
 
-    def get_smc(self, lower_site_points_down: bool, extra_rotation = None):
+    def get_smc(self, lower_site_points_down: bool, extra_rotation=None):
         r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr = self.get_arms()
         r_ATP = self.get_bridge()
         r_kleisin = self.get_heads_kleisin()
-        r_upper_site, r_middle_site, r_lower_site = self.get_interaction_sites(lower_site_points_down)
+        r_upper_site, r_middle_site, r_lower_site = self.get_interaction_sites(
+            lower_site_points_down
+        )
         r_hinge = self.get_hinge()
 
         # Inert bead, used for breaking folding symmetry
-        r_middle_site = np.concatenate([r_middle_site, np.array([1.0, -1.0, 0.0]).reshape(1, 3)])
-        r_middle_site[:,1] += self.middle_site_v
+        r_middle_site = np.concatenate(
+            [r_middle_site, np.array([1.0, -1.0, 0.0]).reshape(1, 3)]
+        )
+        r_middle_site[:, 1] += self.middle_site_v
         if lower_site_points_down:
-            r_lower_site[:,1] -= self.lower_site_v
+            r_lower_site[:, 1] -= self.lower_site_v
         else:
-            r_lower_site[:,1] += self.lower_site_v
+            r_lower_site[:, 1] += self.lower_site_v
 
         # scale properly
         r_upper_site *= self.SMC_spacing
@@ -273,33 +313,68 @@ class SMC_Creator:
         r_hinge += r_arm_ur[0]
         # place bead slightly below
         r_upper_site += r_arm_ur[0]
-        r_upper_site[:,1] -= self.SMC_spacing
+        r_upper_site[:, 1] -= self.SMC_spacing
 
         # rotate upper arms away to attach to hinge properly
         left_attach_hinge = len(r_hinge) // 4
-        rot = Rotation.align_vectors(r_arm_ul[-1] - r_arm_ul[0], r_hinge[left_attach_hinge] - r_arm_ul[0])[0]
-        r_arm_ur = self.transpose_rotate_transpose(rot.as_matrix(), r_arm_ur - r_arm_ur[-1])[0] + r_arm_ur[-1]
-        r_arm_ul = self.transpose_rotate_transpose(rot.inv().as_matrix(), r_arm_ul - r_arm_ul[0])[0] + r_arm_ul[0]
+        rot = Rotation.align_vectors(
+            r_arm_ul[-1] - r_arm_ul[0], r_hinge[left_attach_hinge] - r_arm_ul[0]
+        )[0]
+        r_arm_ur = (
+            self.transpose_rotate_transpose(rot.as_matrix(), r_arm_ur - r_arm_ur[-1])[0]
+            + r_arm_ur[-1]
+        )
+        r_arm_ul = (
+            self.transpose_rotate_transpose(
+                rot.inv().as_matrix(), r_arm_ul - r_arm_ul[0]
+            )[0]
+            + r_arm_ul[0]
+        )
 
         # move into the correct location
-        r_middle_site += r_ATP[len(r_ATP)//2]
-        r_lower_site += r_kleisin[len(r_kleisin)//2]
+        r_middle_site += r_ATP[len(r_ATP) // 2]
+        r_lower_site += r_kleisin[len(r_kleisin) // 2]
 
         ############################# Fold upper compartment ############################
 
         # Rotation matrix (clockwise about z axis)
-        rotation = Rotation.from_rotvec(-math.radians(self.folding_angle_APO) * np.array([0.0, 0.0, 1.0])).as_matrix()
+        rotation = Rotation.from_rotvec(
+            -math.radians(self.folding_angle_APO) * np.array([0.0, 0.0, 1.0])
+        ).as_matrix()
 
         # Rotate upper segments only
-        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_upper_site, r_middle_site, r_hinge = \
-            self.transpose_rotate_transpose(rotation, r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_upper_site, r_middle_site, r_hinge)
+        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_upper_site, r_middle_site, r_hinge = (
+            self.transpose_rotate_transpose(
+                rotation,
+                r_arm_dl,
+                r_arm_ul,
+                r_arm_ur,
+                r_arm_dr,
+                r_upper_site,
+                r_middle_site,
+                r_hinge,
+            )
+        )
 
-        self.generated_positions = (r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_ATP, r_kleisin, r_upper_site, r_middle_site, r_lower_site, r_hinge)
+        self.generated_positions = (
+            r_arm_dl,
+            r_arm_ul,
+            r_arm_ur,
+            r_arm_dr,
+            r_ATP,
+            r_kleisin,
+            r_upper_site,
+            r_middle_site,
+            r_lower_site,
+            r_hinge,
+        )
 
         # apply extra rotation to entire SMC
         if extra_rotation is not None:
             rotation = Rotation.from_rotvec(extra_rotation).as_matrix()
-            self.generated_positions = self.transpose_rotate_transpose(rotation, *self.generated_positions)
+            self.generated_positions = self.transpose_rotate_transpose(
+                rotation, *self.generated_positions
+            )
 
         return self.generated_positions
 
