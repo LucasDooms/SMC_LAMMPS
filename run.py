@@ -28,14 +28,14 @@ def parse() -> argparse.Namespace:
 
 
 def run_and_handle_error(process, ignore_errors: bool):
-    completion = process()
+    completion: subprocess.CompletedProcess = process()
     if completion.returncode != 0:
-        message = f"process ended with error code {completion.returncode}\n{completion}\n"
+        message = f"\n\nprocess ended with error code {completion.returncode}\n{completion}\n"
         print(message)
         if ignore_errors:
             print("-n (--ignore-errors) flag is set, continuing...\n")
             return
-        raise ChildProcessError(message)
+        raise ChildProcessError()
 
 
 def generate(args, path):
