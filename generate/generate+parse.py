@@ -549,9 +549,18 @@ def atomIds_to_LAMMPS_ids(lst: Sequence[AtomIdentifier]) -> List[int]:
     return [gen.get_atom_index(atomId) for atomId in lst]
 
 
-def get_variables_from_module(module):
-    all_vars = dir(module)
-    return list(filter(lambda name: not name.startswith("_"), all_vars))
+def get_variables_for_lammps() -> List[str]:
+    """returns variable names that are needed in LAMMPS script"""
+    return [
+        "T",
+        "gamma",
+        "seed",
+        "output_steps",
+        "epsilon3",
+        "sigma",
+        "timestep",
+        "smc_force",
+    ]
 
 
 def list_to_space_str(lst: Sequence[Any], surround="") -> str:
@@ -628,7 +637,7 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     if len(argv) > 2:
         seed_overwrite = int(argv[2])
         par.seed = seed_overwrite
-    params = get_variables_from_module(par)
+    params = get_variables_for_lammps()
     for key in params:
         parameterfile.write(f"variable {key} equal {getattr(par, key)}\n\n")
 
