@@ -21,7 +21,7 @@ def parse() -> argparse.Namespace:
     parser.add_argument('-f', '--force', action='store_true', help='don\'t prompt before overwriting existing files / continuing empty simulation')
     parser.add_argument('-c', '--continue', dest='continue_flag', action='store_true', help='continue from restart file and append to existing simulation')
     parser.add_argument('-e', '--executable', help='name of the LAMMPS executable to use', default="lmp")
-    parser.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default="input.lmp")
+    parser.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default="lammps/input.lmp")
     parser.add_argument('-o', '--output', help='path to dump LAMMPS output to (prints to terminal by default)')
 
     return parser.parse_args()

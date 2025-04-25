@@ -123,7 +123,7 @@ timestep ${timestep}
 #----------------------------------------------Run-------------------------------------------------#
 
 if $(!v_is_restart) then &
-    "include ../equilibrate.lmp"
+    "include ../lammps/equilibrate.lmp"
 
 # collect msd for obstacle
 if $(is_defined(variable,obstacle_id)) then &
