@@ -19,13 +19,17 @@ p.max_steps = 240000000  # average number of steps for 20 cycles
 
 p.rigid_hinge = True
 
+p.add_RNA_polymerase = True
+p.RNA_polymerase_type = 1
+p.RNA_polymerase_size = 0.5
+
 # weak force
 p.force = 0.05
 
 # configuration
-# p.dnaConfig = "advanced_obstacle_safety"
-# p.dnaConfig = "obstacle_safety"
-p.dna_config = "obstacle"
-# dnaConfig = "line"
+# p.dna_config = "advanced_obstacle_safety"
+# p.dna_config = "obstacle_safety"
+# p.dna_config = "obstacle"
+p.dna_config = "line"
 
-# smc_force = 0.01
+# p.smc_force = 0.01

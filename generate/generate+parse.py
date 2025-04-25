@@ -315,13 +315,10 @@ smc_1 = SMC(
 
 dna_config.set_smc(smc_1)
 
-if hasattr(dna_config, "tether") and par.add_RNA_polymerase:
+if par.add_RNA_polymerase:
     mol_bead = MoleculeId.get_next()
     bead_type = AtomType(10.0 * DNA_bead_mass)
-    # TODO
-    bead_size = (
-        3  # half of 6 (since it binds to DNA of two sides) -> ~ 6 * 1.7 nm ~ 10 nm
-    )
+    bead_size = par.RNA_polymerase_size
     if par.RNA_polymerase_type == 0:
         bead_bond = BAI_Type(
             BAI_Kind.BOND, f"harmonic {k_bond_DNA} {bead_size * DNA_bond_length}\n"
@@ -330,7 +327,10 @@ if hasattr(dna_config, "tether") and par.add_RNA_polymerase:
         bead_bond = None
     else:
         raise ValueError(f"unknown RNAPolymeraseType, {par.RNA_polymerase_type}")
-    dna_id = dna_config.tether.dna_tether_id
+    if hasattr(dna_config, "tether"):
+        dna_id = dna_config.tether.dna_tether_id
+    else:
+        dna_id = (dna_config.dna_groups[0], int(len(dna_config.dna_groups[0].positions) // 2))
     dna_config.add_bead_to_dna(bead_type, mol_bead, dna_id, bead_bond, bead_size)
 
     if bead_bond is None:

@@ -71,8 +71,9 @@ class Parameters:
     "configuration to generate"
 
     add_RNA_polymerase = True
-    """adds 10 nm bead at DNA-tether site
-    only relevant if dnaConfig includes tether!"""
+    "adds 10 nm bead at DNA-tether site"
+
+    RNA_polymerase_size: float = 3
 
     RNA_polymerase_type = 1
 
