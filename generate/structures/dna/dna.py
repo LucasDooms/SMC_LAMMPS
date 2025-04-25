@@ -544,11 +544,11 @@ class Line(DnaConfiguration):
         ppp.freeze_indices += [
             (
                 self.dna_groups[0],
-                get_closest(self.dna_groups[0].positions, self.smc.r_lower_site[1]),
+                get_closest(self.dna_groups[0].positions, self.smc.pos.r_lower_site[1]),
             ),  # closest to bottom -> r_lower_site[1]
             (
                 self.dna_groups[0],
-                get_closest(self.dna_groups[0].positions, self.smc.r_middle_site[1]),
+                get_closest(self.dna_groups[0].positions, self.smc.pos.r_middle_site[1]),
             ),  # closest to middle -> r_lower_site[1]
         ]
 
@@ -598,11 +598,11 @@ class Folded(DnaConfiguration):
         ppp.freeze_indices += [
             (
                 self.dna_groups[0],
-                get_closest(self.dna_groups[0].positions, self.smc.r_lower_site[1]),
+                get_closest(self.dna_groups[0].positions, self.smc.pos.r_lower_site[1]),
             ),  # closest to bottom -> r_lower_site[1]
             (
                 self.dna_groups[0],
-                get_closest(self.dna_groups[0].positions, self.smc.r_middle_site[1]),
+                get_closest(self.dna_groups[0].positions, self.smc.pos.r_middle_site[1]),
             ),  # closest to middle -> r_lower_site[1]
         ]
 
@@ -706,11 +706,11 @@ class Doubled(DnaConfiguration):
             ppp.freeze_indices += [
                 (
                     dna_grp,
-                    get_closest(dna_grp.positions, self.smc.r_lower_site[1]),
+                    get_closest(dna_grp.positions, self.smc.pos.r_lower_site[1]),
                 ),  # closest to bottom
                 (
                     dna_grp,
-                    get_closest(dna_grp.positions, self.smc.r_middle_site[1]),
+                    get_closest(dna_grp.positions, self.smc.pos.r_middle_site[1]),
                 ),  # closest to middle
             ]
 
