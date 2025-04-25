@@ -11,98 +11,100 @@ class Parameters:
 
     ################ General parameters ################
 
-    # Initial loop size (DNA beads)
     loop = 100
+    "Initial loop size (DNA beads)"
 
-    # Diameter of initial loop (nm)
     diameter = 20
+    "Diameter of initial loop (nm)"
 
-    # Simulation temperature (K)
     T = 300.0
+    "Simulation temperature (K)"
 
-    # Boltzmann's constant (pN nm / K)
     kB = 0.013806504
+    "Boltzmann's constant (pN nm / K)"
 
-    # Inverse of friction coefficient (ns)
     gamma = 0.5
+    "Inverse of friction coefficient (ns)"
 
-    # Printing period (time steps)
     output_steps = 10000
-    # output_steps = 200000
+    "Printing period (time steps)"
 
-    # Simulation timestep (ns)
     timestep = 2e-4
+    "Simulation timestep (ns)"
 
-    # Seed
     seed = 123
+    "Random number seed"
 
-    # Number of DNA beads
     N: int = 501
+    "Number of DNA beads"
 
-    # Number of base pairs per DNA bead
     n = 5
+    "Number of base pairs per DNA bead"
 
-    # Stretching forces (pN) (set to any falsy value for no forces)
-    # WARNING: currently: if no forces -> ends are frozen
-
-    # forces = 0.100 0.800 1.500 2.200 2.900 3.600 4.300 5.000
     force = 0.800
+    """Stretching forces (pN) (set to any falsy value for no forces)
+    WARNING: currently: if no forces -> ends are frozen"""
 
-    # Number of independent runs
     runs = 10
+    "Number of independent runs"
 
-    # Number of SMC cycles (if set to None, will find approximate value using max_steps)
-    # Note: cycles are stochastic, so time per cycle is variable
     cycles: int | None = 2
+    """Number of SMC cycles (if set to None, will find approximate value using max_steps)
+    Note: cycles are stochastic, so time per cycle is variable"""
 
-    # Max steps for run (None -> no maximum, will complete every cycle)
-    # Note: this is not a hard limit, some extra steps may be performed to complete a cycle
     max_steps: int | None = None
+    """Max steps for run (None -> no maximum, will complete every cycle)
+    Note: this is not a hard limit, some extra steps may be performed to complete a cycle"""
 
-    # Average number of steps for ATP binding
     steps_ATP = 2000000
+    "Average number of steps for ATP binding"
 
-    # Average number of steps for ATP hydrolysis
     steps_ADP = 8000000
+    "Average number of steps for ATP hydrolysis"
 
-    # Average number of steps for returning to APO
     steps_APO = 2000000
+    "Average number of steps for returning to APO"
 
     ##################### DNA #######################
 
-    # configuration to generate
     dna_config = "folded"
+    "configuration to generate"
 
-    # adds 10 nm bead at DNA-tether site
-    # only relevant if dnaConfig includes tether!
     add_RNA_polymerase = True
+    """adds 10 nm bead at DNA-tether site
+    only relevant if dnaConfig includes tether!"""
+
     RNA_polymerase_type = 1
 
     ##################### Geometry #####################
 
-    # Length of each coiled-coil arm (nm)
     arm_length = 50.0
+    "Length of each coiled-coil arm (nm)"
 
-    # Width of ATP bridge (nm)
     bridge_width = 7.5
+    "Width of ATP bridge (nm)"
 
-    # Hinge radius (nm)
     hinge_radius = 1.5
+    "Hinge radius (nm)"
+
     rigid_hinge = True
 
-    # Radius of lower circular-arc compartment (nm)
     kleisin_radius = 7.0
+    "Radius of lower circular-arc compartment (nm)"
 
-    # SMC-DNA hard-core repulsion radius = LJ sigma (nm)
     sigma_SMC_DNA = 2.5
+    "SMC-DNA hard-core repulsion radius = LJ sigma (nm)"
+
     sigma = 2.5
 
-    # Folding angles of lower compartment (degrees)
     folding_angle_APO = 45.0
-    folding_angle_ATP = 160.0
+    "Folding angle of lower compartment (degrees)"
 
-    # Opening angle of arms in ATP-bound state (degrees)
+    folding_angle_ATP = 160.0
+    "Folding angle of lower compartment (degrees)"
+
     arms_angle_ATP = 130.0
+    "Opening angle of arms in ATP-bound state (degrees)"
 
     #################### LJ energies ###################
 
@@ -127,20 +129,20 @@ class Parameters:
 
     ################# Bending energies #################
 
-    # Bending stiffness of arm-bridge angle (kT units)
     arms_stiffness = 100.0
+    "Bending stiffness of arm-bridge angle (kT units)"
 
-    # Bending stiffness of elbows (kT units)
     elbows_stiffness = 30.0
+    "Bending stiffness of elbows (kT units)"
 
-    # Alignment stiffness of binding sites (kT units)
     site_stiffness = 100.0
+    "Alignment stiffness of binding sites (kT units)"
 
-    # Folding stiffness of lower compartment (kT units)
     folding_stiffness = 60.0
+    "Folding stiffness of lower compartment (kT units)"
 
-    # Folding asymmetry stiffness of lower compartment (kT units)
     asymmetry_stiffness = 100.0
+    "Folding asymmetry stiffness of lower compartment (kT units)"
 
-    # Extra force on SMC in the -x direction and +y direction (left & up)
     smc_force = 0.0
+    "Extra force on SMC in the -x direction and +y direction (left & up)"
