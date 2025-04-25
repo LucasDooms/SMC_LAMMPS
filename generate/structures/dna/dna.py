@@ -9,6 +9,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+from generate.default_parameters import Parameters
 from generate.generator import (
     BAI,
     AtomGroup,
@@ -342,7 +343,7 @@ class DnaConfiguration:
         dna_indices_list: List[Tuple[AtomIdentifier, AtomIdentifier]]
 
     @classmethod
-    def set_parameters(cls, par, inter_par: InteractionParameters) -> None:
+    def set_parameters(cls, par: Parameters, inter_par: InteractionParameters) -> None:
         cls.par = par
         cls.inter_par = inter_par
 
