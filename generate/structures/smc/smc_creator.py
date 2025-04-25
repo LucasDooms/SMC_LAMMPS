@@ -1,8 +1,8 @@
 # Copyright (c) 2024 Lucas Dooms
 
 import math
-from dataclasses import dataclass
-from typing import Tuple, TypeVar
+from dataclasses import dataclass, fields
+from typing import Any, List, Tuple, TypeVar
 
 import numpy as np
 from numpy.random import default_rng
@@ -13,6 +13,33 @@ from generate.structures.structure_creator import (
     get_circle_segment_unit_radius,
     get_straight_segment,
 )
+
+
+@dataclass
+class SMC_Pos:
+    r_arm_dl: ...
+    r_arm_ul: ...
+    r_arm_ur: ...
+    r_arm_dr: ...
+    r_ATP: ...
+    r_kleisin: ...
+    r_upper_site: ...
+    r_middle_site: ...
+    r_lower_site: ...
+    r_hinge: ...
+
+    def iter(self) -> List[Any]:
+        """Returns a list of all fields"""
+        return [getattr(self, field.name) for field in fields(SMC_Pos)]
+
+    def apply(self, func) -> None:
+        """Update the object inplace by applying a function to every field"""
+        for field in fields(self.__class__):
+            setattr(self, field.name, func(getattr(self, field.name)))
+
+    def map(self, func) -> List[Any]:
+        """Apply a function to every field and return the resulting list"""
+        return [func(x) for x in self.iter()]
 
 
 @dataclass
@@ -356,27 +383,27 @@ class SMC_Creator:
             )
         )
 
-        self.generated_positions = (
-            r_arm_dl,
-            r_arm_ul,
-            r_arm_ur,
-            r_arm_dr,
-            r_ATP,
-            r_kleisin,
-            r_upper_site,
-            r_middle_site,
-            r_lower_site,
-            r_hinge,
+        self.generated_positions = SMC_Pos(
+            r_arm_dl=r_arm_dl,
+            r_arm_ul=r_arm_ul,
+            r_arm_ur=r_arm_ur,
+            r_arm_dr=r_arm_dr,
+            r_ATP=r_ATP,
+            r_kleisin=r_kleisin,
+            r_upper_site=r_upper_site,
+            r_middle_site=r_middle_site,
+            r_lower_site=r_lower_site,
+            r_hinge=r_hinge,
         )
 
         # apply extra rotation to entire SMC
         if extra_rotation is not None:
             rotation = Rotation.from_rotvec(extra_rotation).as_matrix()
-            self.generated_positions = self.transpose_rotate_transpose(
-                rotation, *self.generated_positions
+            self.generated_positions.apply(
+                lambda pos: self.transpose_rotate_transpose(rotation, pos)
             )
 
         return self.generated_positions
 
     def get_mass_per_atom(self, total_mass: float) -> float:
-        return total_mass / sum(len(x) for x in self.generated_positions)
+        return total_mass / sum(self.generated_positions.map(len))

@@ -12,6 +12,7 @@ from typing import Any, List
 import numpy as np
 from numpy.random import default_rng
 
+from generate.default_parameters import Parameters
 from generate.generator import (
     AtomIdentifier,
     AtomType,
@@ -25,7 +26,6 @@ from generate.structures.dna import dna
 from generate.structures.smc.smc import SMC
 from generate.structures.smc.smc_creator import SMC_Creator
 from generate.util import create_phase
-from generate.default_parameters import Parameters
 
 if len(argv) < 2:
     raise ValueError("Provide a folder path")
@@ -202,7 +202,7 @@ k_angle_ssDNA = ssDNA_persistence_length * kBT / DNA_bond_length
 
 
 dna.DnaConfiguration.set_parameters(par, interaction_parameters)
-dnaConfigClass = dna.DnaConfiguration.str_to_config(par.dnaConfig)
+dna_config_class = dna.DnaConfiguration.str_to_config(par.dnaConfig)
 
 
 #################################################################################
@@ -234,15 +234,13 @@ smc_creator = SMC_Creator(
 
 rot_vec = (
     np.array([0.0, 0.0, -np.deg2rad(42)])
-    if dnaConfigClass is dna.AdvancedObstacleSafety
+    if dna_config_class is dna.AdvancedObstacleSafety
     else None
 )
-rArmDL, rArmUL, rArmUR, rArmDR, rATP, rHK, rSiteU, rSiteM, rSiteD, rHinge = (
-    smc_creator.get_smc(
-        lower_site_points_down=False,
-        # dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
-        extra_rotation=rot_vec,
-    )
+smc_positions = smc_creator.get_smc(
+    lower_site_points_down=False,
+    # dnaConfigClass in {dna.ObstacleSafety, dna.AdvancedObstacleSafety},
+    extra_rotation=rot_vec,
 )
 
 
@@ -270,7 +268,7 @@ dna_parameters = dna.DnaParameters(
     angle=dna_angle,
     ssangle=ssdna_angle,
 )
-dnaConfig = dnaConfigClass.get_dna_config(dna_parameters, rSiteD, par)
+dna_config = dna_config_class.get_dna_config(dna_parameters, smc_positions.r_lower_site, par)
 
 #################################################################################
 #                                Print to file                                  #
@@ -286,16 +284,7 @@ gen.set_system_size(box_width)
 
 smc_1 = SMC(
     use_rigid_hinge=par.rigidHinge,
-    r_arm_dl=rArmDL,
-    r_arm_ul=rArmUL,
-    r_arm_ur=rArmUR,
-    r_arm_dr=rArmDR,
-    r_ATP=rATP,
-    r_heads_kleisin=rHK,
-    r_upper_site=rSiteU,
-    r_middle_site=rSiteM,
-    r_lower_site=rSiteD,
-    r_hinge=rHinge,
+    pos=smc_positions,
     #
     t_arms_heads_kleisin=AtomType(mSMC),
     t_hinge=AtomType(mSMC),
@@ -324,10 +313,10 @@ smc_1 = SMC(
     folding_angle_APO=par.foldingAngleAPO,
 )
 
-dnaConfig.set_smc(smc_1)
+dna_config.set_smc(smc_1)
 
-if hasattr(dnaConfig, "tether") and par.addRNAPolymerase:
-    molBead = MoleculeId.get_next()
+if hasattr(dna_config, "tether") and par.addRNAPolymerase:
+    mol_bead = MoleculeId.get_next()
     bead_type = AtomType(10.0 * DNA_bead_mass)
     # TODO
     bead_size = (
@@ -341,14 +330,14 @@ if hasattr(dnaConfig, "tether") and par.addRNAPolymerase:
         bead_bond = None
     else:
         raise ValueError(f"unknown RNAPolymeraseType, {par.RNAPolymeraseType}")
-    dna_id = dnaConfig.tether.dna_tether_id
-    dnaConfig.add_bead_to_dna(bead_type, molBead, dna_id, bead_bond, bead_size)
+    dna_id = dna_config.tether.dna_tether_id
+    dna_config.add_bead_to_dna(bead_type, mol_bead, dna_id, bead_bond, bead_size)
 
     if bead_bond is None:
-        gen.molecule_override[dna_id] = molBead
+        gen.molecule_override[dna_id] = mol_bead
 
 gen.atom_groups += [
-    *dnaConfig.get_all_groups(),
+    *dna_config.get_all_groups(),
     *smc_1.get_groups(),
 ]
 
@@ -358,7 +347,7 @@ pair_inter = PairWise(
     "PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0]
 )
 
-dnaConfig.add_interactions(pair_inter)
+dna_config.add_interactions(pair_inter)
 smc_1.add_repel_interactions(
     pair_inter, epsilon_SMC_DNA * kBT, sigma_SMC_DNA, rcut_SMC_DNA
 )
@@ -428,16 +417,16 @@ middle_site_soft_on = Generator.DynamicCoeffs(
     [dna_type, smc_1.t_middle_site],
 )
 
-gen.bais += [*smc_1.get_bonds(smc_creator.hinge_opening), *dnaConfig.get_bonds()]
+gen.bais += [*smc_1.get_bonds(smc_creator.hinge_opening), *dna_config.get_bonds()]
 
 gen.bais += smc_1.get_angles()
 
 gen.bais += smc_1.get_impropers()
 
 # Override molecule ids to form rigid safety-belt bond
-if isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)):  # TODO
-    safety_index = dnaConfig.dna_safety_belt_index
-    gen.molecule_override[(dnaConfig.dna_groups[0], safety_index)] = (
+if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)):  # TODO
+    safety_index = dna_config.dna_safety_belt_index
+    gen.molecule_override[(dna_config.dna_groups[0], safety_index)] = (
         smc_1.mol_lower_site
     )
     # add neighbors to prevent rotation
@@ -519,7 +508,7 @@ create_phase(
 #                           Print to post processing                            #
 #################################################################################
 
-ppp = dnaConfig.get_post_process_parameters()
+ppp = dna_config.get_post_process_parameters()
 
 with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file:
     file.write(
@@ -594,7 +583,9 @@ def get_index_def(name: str, values: Sequence[Any]) -> str:
     return f"variable {name} index {list_to_space_str(values)}\n"
 
 
-def get_times(apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Generator) -> List[int]:
+def get_times(
+    apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Generator
+) -> List[int]:
     # get run times for each SMC state
     # APO -> ATP1 -> ATP2 -> ADP -> ...
 
@@ -647,7 +638,7 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
         get_string_def(
             "DNA_mols",
             list_to_space_str(
-                [grp.molecule_index for grp in dnaConfig.get_all_groups()]
+                [grp.molecule_index for grp in dna_config.get_all_groups()]
             ),
         )
     )
@@ -659,7 +650,7 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
                 + list(
                     filter(
                         lambda xyz: xyz is not None,
-                        [molBead if "molBead" in globals() else None],
+                        [mol_bead if "mol_bead" in globals() else None],
                     )
                 )
             ),
@@ -686,15 +677,15 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     )
 
     if isinstance(
-        dnaConfig, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)
-    ) and isinstance(dnaConfig.tether.obstacle, dna.Tether.Wall):
+        dna_config, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)
+    ) and isinstance(dna_config.tether.obstacle, dna.Tether.Wall):
         parameterfile.write(
-            f"variable wall_y equal {dnaConfig.tether.group.positions[0][1]}\n"
+            f"variable wall_y equal {dna_config.tether.group.positions[0][1]}\n"
         )
 
         excluded = [
-            gen.get_atom_index((dnaConfig.tether.group, 0)),
-            gen.get_atom_index((dnaConfig.tether.group, 1)),
+            gen.get_atom_index((dna_config.tether.group, 0)),
+            gen.get_atom_index((dna_config.tether.group, 1)),
         ]
         parameterfile.write(
             get_string_def(
@@ -722,10 +713,10 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
         parameterfile.write(get_universe_def("stretching_forces", sf_forces))
 
     # obstacle, if particle
-    if hasattr(dnaConfig, "tether") and isinstance(
-        dnaConfig.tether.obstacle, dna.Tether.Gold
+    if hasattr(dna_config, "tether") and isinstance(
+        dna_config.tether.obstacle, dna.Tether.Gold
     ):
-        obstacle_lammps_id = gen.get_atom_index((dnaConfig.tether.obstacle.group, 0))
+        obstacle_lammps_id = gen.get_atom_index((dna_config.tether.obstacle.group, 0))
         parameterfile.write(f"variable obstacle_id equal {obstacle_lammps_id}\n")
 
     parameterfile.write("\n")
