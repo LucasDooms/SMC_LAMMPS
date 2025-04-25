@@ -111,7 +111,7 @@ DNA_total_length = DNA_bond_length * nDNA
 # Desirable SMC spacing (radius of 1 SMC bead is R = intRadSMCvsDNA)
 # Equal to R:   Minimum diameter = sqrt(3)    = 1.73 R
 # Equal to R/2: Minimum diameter = sqrt(15)/2 = 1.94 R
-SMC_spacing = par.intRadSMCvsDNA / 2
+SMC_spacing = par.sigma_SMC_DNA / 2
 
 
 ##################
@@ -139,7 +139,7 @@ rcut_DNA_DNA = sigma_DNA_DNA * 2 ** (1 / 6)
 # SMC-DNA #
 ###########
 
-sigma_SMC_DNA = par.intRadSMCvsDNA
+sigma_SMC_DNA = par.sigma_SMC_DNA
 epsilon_SMC_DNA = par.epsilon3
 rcut_SMC_DNA = sigma_SMC_DNA * 2 ** (1 / 6)
 
@@ -202,7 +202,7 @@ k_angle_ssDNA = ssDNA_persistence_length * kBT / DNA_bond_length
 
 
 dna.DnaConfiguration.set_parameters(par, interaction_parameters)
-dna_config_class = dna.DnaConfiguration.str_to_config(par.dnaConfig)
+dna_config_class = dna.DnaConfiguration.str_to_config(par.dna_config)
 
 
 #################################################################################
@@ -220,16 +220,16 @@ smc_creator = SMC_Creator(
     lower_site_v=0.5,
     lower_site_h=2.0,
     #
-    arm_length=par.armLength,
-    bridge_width=par.bridgeWidth,
-    hinge_radius=par.hingeRadius,
+    arm_length=par.arm_length,
+    bridge_width=par.bridge_width,
+    hinge_radius=par.hinge_radius,
     # SMCspacing half of the minimal required spacing of ssDNA
     # so between 2*SMCspacing and 4*SMCspacing should
     # allow ssDNA passage but not dsDNA
     hinge_opening=2.2 * SMC_spacing,
     #
-    kleisin_radius=par.HKradius,
-    folding_angle_APO=par.foldingAngleAPO,
+    kleisin_radius=par.kleisin_radius,
+    folding_angle_APO=par.folding_angle_APO,
 )
 
 rot_vec = (
@@ -283,7 +283,7 @@ gen = Generator()
 gen.set_system_size(box_width)
 
 smc_1 = SMC(
-    use_rigid_hinge=par.rigidHinge,
+    use_rigid_hinge=par.rigid_hinge,
     pos=smc_positions,
     #
     t_arms_heads_kleisin=AtomType(mSMC),
@@ -298,38 +298,38 @@ smc_1 = SMC(
     k_hinge=k_bond_hinge,
     max_bond_length=max_bond_length_SMC,
     #
-    k_elbow=par.elbowsStiffness * kBT,
-    k_arm=par.armsStiffness * kBT,
+    k_elbow=par.elbows_stiffness * kBT,
+    k_arm=par.arms_stiffness * kBT,
     #
-    k_align_site=par.siteStiffness * kBT,
-    k_fold=par.foldingStiffness * kBT,
-    k_asymmetry=par.asymmetryStiffness * kBT,
+    k_align_site=par.site_stiffness * kBT,
+    k_fold=par.folding_stiffness * kBT,
+    k_asymmetry=par.asymmetry_stiffness * kBT,
     #
-    bridge_width=par.bridgeWidth,
-    arm_length=par.armLength,
-    hinge_radius=par.hingeRadius,
-    arms_angle_ATP=par.armsAngleATP,
-    folding_angle_ATP=par.foldingAngleATP,
-    folding_angle_APO=par.foldingAngleAPO,
+    bridge_width=par.bridge_width,
+    arm_length=par.arm_length,
+    hinge_radius=par.hinge_radius,
+    arms_angle_ATP=par.arms_angle_ATP,
+    folding_angle_ATP=par.folding_angle_ATP,
+    folding_angle_APO=par.folding_angle_APO,
 )
 
 dna_config.set_smc(smc_1)
 
-if hasattr(dna_config, "tether") and par.addRNAPolymerase:
+if hasattr(dna_config, "tether") and par.add_RNA_polymerase:
     mol_bead = MoleculeId.get_next()
     bead_type = AtomType(10.0 * DNA_bead_mass)
     # TODO
     bead_size = (
         3  # half of 6 (since it binds to DNA of two sides) -> ~ 6 * 1.7 nm ~ 10 nm
     )
-    if par.RNAPolymeraseType == 0:
+    if par.RNA_polymerase_type == 0:
         bead_bond = BAI_Type(
             BAI_Kind.BOND, f"harmonic {k_bond_DNA} {bead_size * DNA_bond_length}\n"
         )
-    elif par.RNAPolymeraseType == 1:
+    elif par.RNA_polymerase_type == 1:
         bead_bond = None
     else:
-        raise ValueError(f"unknown RNAPolymeraseType, {par.RNAPolymeraseType}")
+        raise ValueError(f"unknown RNAPolymeraseType, {par.RNA_polymerase_type}")
     dna_id = dna_config.tether.dna_tether_id
     dna_config.add_bead_to_dna(bead_type, mol_bead, dna_id, bead_bond, bead_size)
 
@@ -605,7 +605,7 @@ def get_times(
     return [math.ceil(mult(x)) for x in (apo, atp1, atp2, adp)]
 
 
-def get_times_with_max_steps(rng_gen: np.random.Generator) -> List[int]:
+def get_times_with_max_steps(parameters: Parameters, rng_gen: np.random.Generator) -> List[int]:
     run_steps = []
 
     def none_to_max(x):
@@ -613,12 +613,12 @@ def get_times_with_max_steps(rng_gen: np.random.Generator) -> List[int]:
             return maxsize  # very large number!
         return x
 
-    cycles_left = none_to_max(par.cycles)
-    max_steps = none_to_max(par.max_steps)
+    cycles_left = none_to_max(parameters.cycles)
+    max_steps = none_to_max(parameters.max_steps)
 
     cum_steps = 0
     while True:  # use do while loop since run_steps should not be empty
-        new_times = get_times(par.stepsAPO, 10000, par.stepsATP, par.stepsADP, rng_gen)
+        new_times = get_times(parameters.steps_APO, 10000, parameters.steps_ATP, parameters.steps_ADP, rng_gen)
         run_steps += new_times
 
         cum_steps += sum(new_times)
@@ -733,6 +733,6 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     # get run times for each SMC state
     # APO -> ATP1 -> ATP2 -> ADP -> ...
     rng = default_rng(par.seed)
-    runtimes = get_times_with_max_steps(rng)
+    runtimes = get_times_with_max_steps(par, rng)
 
     parameterfile.write(get_index_def("runtimes", runtimes))

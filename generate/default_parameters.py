@@ -60,49 +60,49 @@ class Parameters:
     max_steps: int | None = None
 
     # Average number of steps for ATP binding
-    stepsATP = 2000000
+    steps_ATP = 2000000
 
     # Average number of steps for ATP hydrolysis
-    stepsADP = 8000000
+    steps_ADP = 8000000
 
     # Average number of steps for returning to APO
-    stepsAPO = 2000000
+    steps_APO = 2000000
 
     ##################### DNA #######################
 
     # configuration to generate
-    dnaConfig = "folded"
+    dna_config = "folded"
 
     # adds 10 nm bead at DNA-tether site
     # only relevant if dnaConfig includes tether!
-    addRNAPolymerase = True
-    RNAPolymeraseType = 1
+    add_RNA_polymerase = True
+    RNA_polymerase_type = 1
 
     ##################### Geometry #####################
 
     # Length of each coiled-coil arm (nm)
-    armLength = 50.0
+    arm_length = 50.0
 
     # Width of ATP bridge (nm)
-    bridgeWidth = 7.5
+    bridge_width = 7.5
 
     # Hinge radius (nm)
-    hingeRadius = 1.5
-    rigidHinge = True
+    hinge_radius = 1.5
+    rigid_hinge = True
 
     # Radius of lower circular-arc compartment (nm)
-    HKradius = 7.0
+    kleisin_radius = 7.0
 
     # SMC-DNA hard-core repulsion radius = LJ sigma (nm)
-    intRadSMCvsDNA = 2.5
+    sigma_SMC_DNA = 2.5
     sigma = 2.5
 
     # Folding angles of lower compartment (degrees)
-    foldingAngleAPO = 45.0
-    foldingAngleATP = 160.0
+    folding_angle_APO = 45.0
+    folding_angle_ATP = 160.0
 
     # Opening angle of arms in ATP-bound state (degrees)
-    armsAngleATP = 130.0
+    arms_angle_ATP = 130.0
 
     #################### LJ energies ###################
 
@@ -128,19 +128,19 @@ class Parameters:
     ################# Bending energies #################
 
     # Bending stiffness of arm-bridge angle (kT units)
-    armsStiffness = 100.0
+    arms_stiffness = 100.0
 
     # Bending stiffness of elbows (kT units)
-    elbowsStiffness = 30.0
+    elbows_stiffness = 30.0
 
     # Alignment stiffness of binding sites (kT units)
-    siteStiffness = 100.0
+    site_stiffness = 100.0
 
     # Folding stiffness of lower compartment (kT units)
-    foldingStiffness = 60.0
+    folding_stiffness = 60.0
 
     # Folding asymmetry stiffness of lower compartment (kT units)
-    asymmetryStiffness = 100.0
+    asymmetry_stiffness = 100.0
 
     # Extra force on SMC in the -x direction and +y direction (left & up)
     smc_force = 0.0

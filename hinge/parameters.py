@@ -8,7 +8,7 @@ p = Parameters()
 ## See generate/default_parameters.py for all parameters
 
 # Radius of lower circular-arc compartment (nm)
-p.HKradius = 4.5
+p.kleisin_radius = 4.5
 
 # amount of DNA
 p.N = 350
@@ -17,7 +17,7 @@ p.N = 350
 p.cycles = None
 p.max_steps = 240000000  # average number of steps for 20 cycles
 
-p.rigidHinge = True
+p.rigid_hinge = True
 
 # weak force
 p.force = 0.05
@@ -25,7 +25,7 @@ p.force = 0.05
 # configuration
 # p.dnaConfig = "advanced_obstacle_safety"
 # p.dnaConfig = "obstacle_safety"
-p.dnaConfig = "obstacle"
+p.dna_config = "obstacle"
 # dnaConfig = "line"
 
 # smc_force = 0.01
