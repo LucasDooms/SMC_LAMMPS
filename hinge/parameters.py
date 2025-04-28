@@ -32,4 +32,6 @@ p.force = 0.05
 # p.dna_config = "obstacle"
 p.dna_config = "line"
 
+p.add_stopper_bead = True
+
 # p.smc_force = 0.01

@@ -487,6 +487,9 @@ class DnaConfiguration:
         self.bead_sizes.append(offset)
         self.bead_bonds += bais
 
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return []
+
     @staticmethod
     def str_to_config(string: str):
         string = string.lower()
@@ -548,13 +551,18 @@ class Line(DnaConfiguration):
             ),  # closest to bottom -> r_lower_site[1]
             (
                 self.dna_groups[0],
-                get_closest(self.dna_groups[0].positions, self.smc.pos.r_middle_site[1]),
+                get_closest(
+                    self.dna_groups[0].positions, self.smc.pos.r_middle_site[1]
+                ),
             ),  # closest to middle -> r_lower_site[1]
         ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
         return ppp
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [(self.dna_groups[0], -1)]
 
 
 class Folded(DnaConfiguration):
@@ -602,13 +610,19 @@ class Folded(DnaConfiguration):
             ),  # closest to bottom -> r_lower_site[1]
             (
                 self.dna_groups[0],
-                get_closest(self.dna_groups[0].positions, self.smc.pos.r_middle_site[1]),
+                get_closest(
+                    self.dna_groups[0].positions, self.smc.pos.r_middle_site[1]
+                ),
             ),  # closest to middle -> r_lower_site[1]
         ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
 
         return ppp
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        # TODO: maybe add bead at halfway point (left most point)?
+        return []
 
 
 class RightAngle(DnaConfiguration):
@@ -654,6 +668,9 @@ class RightAngle(DnaConfiguration):
         ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
 
         return ppp
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return []
 
 
 class Doubled(DnaConfiguration):
@@ -717,6 +734,10 @@ class Doubled(DnaConfiguration):
         ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
 
         return ppp
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        # TODO: see todo for folded config
+        return []
 
 
 @with_tether
@@ -796,6 +817,9 @@ class Obstacle(DnaConfiguration):
 
         return ppp
 
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [(self.dna_groups[0], -1)]
+
 
 @with_tether
 class ObstacleSafety(DnaConfiguration):
@@ -866,6 +890,9 @@ class ObstacleSafety(DnaConfiguration):
         # ]
 
         return ppp
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [(self.dna_groups[0], -1)]
 
 
 @with_tether
@@ -939,3 +966,6 @@ class AdvancedObstacleSafety(DnaConfiguration):
         # ]
 
         return ppp
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [(self.dna_groups[0], -1)]

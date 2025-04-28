@@ -70,6 +70,9 @@ class Parameters:
     dna_config = "folded"
     "configuration to generate"
 
+    add_stopper_bead = False
+    "add a bead that prevents the SMC from slipping off of the wrong end of the DNA"
+
     add_RNA_polymerase = True
     "adds 10 nm bead at DNA-tether site"
 

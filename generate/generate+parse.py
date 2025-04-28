@@ -268,7 +268,9 @@ dna_parameters = dna.DnaParameters(
     angle=dna_angle,
     ssangle=ssdna_angle,
 )
-dna_config = dna_config_class.get_dna_config(dna_parameters, smc_positions.r_lower_site, par)
+dna_config = dna_config_class.get_dna_config(
+    dna_parameters, smc_positions.r_lower_site, par
+)
 
 #################################################################################
 #                                Print to file                                  #
@@ -315,8 +317,11 @@ smc_1 = SMC(
 
 dna_config.set_smc(smc_1)
 
+extra_mols: List[int] = []
+
 if par.add_RNA_polymerase:
     mol_bead = MoleculeId.get_next()
+    extra_mols.append(mol_bead)
     bead_type = AtomType(10.0 * DNA_bead_mass)
     bead_size = par.RNA_polymerase_size
     if par.RNA_polymerase_type == 0:
@@ -330,11 +335,28 @@ if par.add_RNA_polymerase:
     if hasattr(dna_config, "tether"):
         dna_id = dna_config.tether.dna_tether_id
     else:
-        dna_id = (dna_config.dna_groups[0], int(len(dna_config.dna_groups[0].positions) // 2))
+        dna_id = (
+            dna_config.dna_groups[0],
+            int(len(dna_config.dna_groups[0].positions) // 2),
+        )
     dna_config.add_bead_to_dna(bead_type, mol_bead, dna_id, bead_bond, bead_size)
 
     if bead_bond is None:
         gen.molecule_override[dna_id] = mol_bead
+
+if par.add_stopper_bead:
+    mol_stopper = MoleculeId.get_next()
+    extra_mols.append(mol_stopper)
+    stopper_type = AtomType(0.01 * DNA_bead_mass)
+    stopper_size = DNA_bond_length * 15.0
+
+    stopper_ids = dna_config.get_stopper_ids()
+    for dna_id in stopper_ids:
+        dna_config.add_bead_to_dna(
+            stopper_type, mol_stopper, dna_id, None, stopper_size
+        )
+        gen.molecule_override[dna_id] = mol_stopper
+
 
 gen.atom_groups += [
     *dna_config.get_all_groups(),
@@ -605,7 +627,9 @@ def get_times(
     return [math.ceil(mult(x)) for x in (apo, atp1, atp2, adp)]
 
 
-def get_times_with_max_steps(parameters: Parameters, rng_gen: np.random.Generator) -> List[int]:
+def get_times_with_max_steps(
+    parameters: Parameters, rng_gen: np.random.Generator
+) -> List[int]:
     run_steps = []
 
     def none_to_max(x):
@@ -618,7 +642,13 @@ def get_times_with_max_steps(parameters: Parameters, rng_gen: np.random.Generato
 
     cum_steps = 0
     while True:  # use do while loop since run_steps should not be empty
-        new_times = get_times(parameters.steps_APO, 10000, parameters.steps_ATP, parameters.steps_ADP, rng_gen)
+        new_times = get_times(
+            parameters.steps_APO,
+            10000,
+            parameters.steps_ATP,
+            parameters.steps_ADP,
+            rng_gen,
+        )
         run_steps += new_times
 
         cum_steps += sum(new_times)
@@ -655,13 +685,7 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
         get_string_def(
             "SMC_mols",
             list_to_space_str(
-                smc_1.get_molecule_ids()
-                + list(
-                    filter(
-                        lambda xyz: xyz is not None,
-                        [mol_bead if "mol_bead" in globals() else None],
-                    )
-                )
+                smc_1.get_molecule_ids() + extra_mols
             ),
         )
     )
