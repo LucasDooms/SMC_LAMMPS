@@ -11,7 +11,7 @@ p = Parameters()
 p.kleisin_radius = 4.5
 
 # amount of DNA
-p.N = 350
+p.N = 300
 
 # cycles = 20
 p.cycles = None
@@ -21,7 +21,7 @@ p.rigid_hinge = True
 
 p.add_RNA_polymerase = True
 p.RNA_polymerase_type = 1
-p.RNA_polymerase_size = 0.5
+p.RNA_polymerase_size = 1
 
 # weak force
 p.force = 0.05
@@ -29,8 +29,8 @@ p.force = 0.05
 # configuration
 # p.dna_config = "advanced_obstacle_safety"
 # p.dna_config = "obstacle_safety"
-# p.dna_config = "obstacle"
-p.dna_config = "line"
+p.dna_config = "obstacle"
+# p.dna_config = "line"
 
 p.add_stopper_bead = True
 
