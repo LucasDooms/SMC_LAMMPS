@@ -20,16 +20,17 @@ boundary f f f
 #-----------------------------------------Define Styles--------------------------------------------#
 
 
-atom_style     molecular
+atom_style     full
 bond_style     hybrid fene/expand harmonic
 # bond_style     hybrid fene/expand
 angle_style    hybrid cosine harmonic
 improper_style harmonic
 
 pair_style     hybrid/overlay lj/cut $(3.5) soft $(3.5)
+# pair_style     hybrid/overlay lj/cut $(3.5) soft $(3.5) coul/debye $(5.0) $(5.0)
 
 # Give weighting coef to LJ potentials (0 = turn off) between atoms that are bonded, seperated by 2 and 3 bonds
-special_bonds lj 0. 0. 0.
+special_bonds lj/coul 0. 0. 0.
 
 # Only compute interactions between nearby atoms
 neighbor $(4*3.5) bin

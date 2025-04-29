@@ -97,6 +97,7 @@ class AtomGroup:
         molecule_index: int,
         polymer_bond_type: BAI_Type | None = None,
         polymer_angle_type: BAI_Type | None = None,
+        charge: float = 0.0,
     ) -> None:
         self.n = len(positions)
         self.positions = positions
@@ -108,6 +109,7 @@ class AtomGroup:
         if polymer_angle_type is not None:
             assert polymer_angle_type.kind == BAI_Kind.ANGLE
         self.polymer_angle_type = polymer_angle_type
+        self.charge = charge
 
 
 AtomIdentifier = Tuple[AtomGroup, int]
@@ -219,6 +221,7 @@ class Generator:
         self.pair_interactions: List[PairWise] = []
         self.box_width = None
         self.molecule_override: Dict[AtomIdentifier, int] = {}
+        self.charge_override: Dict[AtomIdentifier, float] = {}
 
     def set_system_size(self, box_width: float) -> None:
         """Set the box size of the simulation."""
@@ -364,12 +367,16 @@ class Generator:
 
     def write_atoms(self, file) -> None:
         """Write the Atoms header and all atom positions to a file."""
-        file.write("Atoms # molecular\n\n")
+        file.write("Atoms # full\n\n")
 
         self._set_up_atom_group_map()
         molecule_override_ids = {
             self.get_atom_index(atom_id): mol_id
             for atom_id, mol_id in self.molecule_override.items()
+        }
+        charge_override_values = {
+            self.get_atom_index(atom_id): charge
+            for atom_id, charge in self.charge_override.items()
         }
 
         for atom_group in self.atom_groups:
@@ -379,8 +386,12 @@ class Generator:
                     mol_id = molecule_override_ids[atom_id]
                 except KeyError:
                     mol_id = atom_group.molecule_index
+                try:
+                    charge = charge_override_values[atom_id]
+                except KeyError:
+                    charge = atom_group.charge
                 file.write(
-                    f"{atom_id} {mol_id} {atom_group.type.index} {position[0]} {position[1]} {position[2]}\n"
+                    f"{atom_id} {mol_id} {atom_group.type.index} {charge} {position[0]} {position[1]} {position[2]}\n"
                 )
 
         file.write("\n")

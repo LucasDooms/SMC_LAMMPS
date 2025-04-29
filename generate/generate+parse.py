@@ -369,6 +369,8 @@ pair_inter = PairWise(
     "PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0]
 )
 
+# pair_coul_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "coul/debye {}\n", [""])
+
 dna_config.add_interactions(pair_inter)
 smc_1.add_repel_interactions(
     pair_inter, epsilon_SMC_DNA * kBT, sigma_SMC_DNA, rcut_SMC_DNA
@@ -379,6 +381,7 @@ pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0
 
 gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
+# gen.pair_interactions.append(pair_coul_inter)
 
 # Interactions that change for different phases of SMC
 bridge_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_atp])
@@ -684,9 +687,7 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     parameterfile.write(
         get_string_def(
             "SMC_mols",
-            list_to_space_str(
-                smc_1.get_molecule_ids() + extra_mols
-            ),
+            list_to_space_str(smc_1.get_molecule_ids() + extra_mols),
         )
     )
 
