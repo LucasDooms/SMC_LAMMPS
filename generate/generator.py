@@ -213,6 +213,11 @@ class PairWise:
         return final_pairs
 
 
+def write_if_non_zero(file, fmt_string: str, amount: int):
+    if amount != 0:
+        file.write(fmt_string.format(amount))
+
+
 class Generator:
     def __init__(self) -> None:
         self.atom_groups: List[AtomGroup] = []
@@ -266,10 +271,7 @@ class Generator:
             bai_by_kind[bai.type.kind].append(bai)
         return bai_by_kind
 
-    def write_amounts(self, file) -> None:
-        """Write the amount of atoms, bonds, angles, and impropers to a file."""
-        file.write(f"{self.get_total_atoms()} atoms\n")
-
+    def get_amounts(self) -> Tuple[int, int, int]:
         length_lookup = {
             key: len(value) for (key, value) in self.get_bai_dict_by_type().items()
         }
@@ -284,18 +286,33 @@ class Generator:
             if atom_group.polymer_angle_type is not None:
                 total_angles += len(atom_group.positions) - 2
 
-        file.write(f"{total_bonds} bonds\n")
-        file.write(f"{total_angles} angles\n")
-        file.write(f"{total_impropers} impropers\n")
+        return total_bonds, total_angles, total_impropers
+
+    def write_amounts(self, file) -> None:
+        """Write the amount of atoms, bonds, angles, and impropers to a file."""
+        file.write(f"{self.get_total_atoms()} atoms\n")
+
+        total_bonds, total_angles, total_impropers = self.get_amounts()
+
+        write_if_non_zero(file, "{} bonds\n", total_bonds)
+        write_if_non_zero(file, "{} angles\n", total_angles)
+        write_if_non_zero(file, "{} impropers\n", total_impropers)
 
         file.write("\n")
 
     def write_types(self, file) -> None:
         """Write the amount of atom types, bond types, angle types, and improper types to a file."""
-        file.write(f"{len(self.get_all_atom_types())} atom types\n")
-        file.write(f"{len(self.get_all_types(BAI_Kind.BOND))} bond types\n")
-        file.write(f"{len(self.get_all_types(BAI_Kind.ANGLE))} angle types\n")
-        file.write(f"{len(self.get_all_types(BAI_Kind.IMPROPER))} improper types\n")
+
+        write_if_non_zero(file, "{} atom types\n", len(self.get_all_atom_types()))
+        write_if_non_zero(
+            file, "{} bond types\n", len(self.get_all_types(BAI_Kind.BOND))
+        )
+        write_if_non_zero(
+            file, "{} angle types\n", len(self.get_all_types(BAI_Kind.ANGLE))
+        )
+        write_if_non_zero(
+            file, "{} improper types\n", len(self.get_all_types(BAI_Kind.IMPROPER))
+        )
 
         file.write("\n")
 
@@ -333,7 +350,17 @@ class Generator:
 
     def write_BAI_coeffs(self, file) -> None:
         """Write the Bond/Angle/Improper coefficients for each BAI kind to a file."""
+        total_bonds, total_angles, total_impropers = self.get_amounts()
+        lookup = {
+            BAI_Kind.BOND: total_bonds,
+            BAI_Kind.ANGLE: total_angles,
+            BAI_Kind.IMPROPER: total_impropers,
+        }
         for kind in BAI_Kind:
+            if lookup[kind] == 0:
+                # do not write anything if there are no BAIs of this kind
+                continue
+
             file.write(self.get_BAI_coeffs_header(kind))
             for bai_type in self.get_all_types(kind):
                 if not bai_type.coefficients:
@@ -407,7 +434,18 @@ class Generator:
 
     def write_bai(self, file) -> None:
         """Write the Bond/Angle/Improper headers and all corresponding BAI interactions to a file."""
+        total_bonds, total_angles, total_impropers = self.get_amounts()
+        lookup = {
+            BAI_Kind.BOND: total_bonds,
+            BAI_Kind.ANGLE: total_angles,
+            BAI_Kind.IMPROPER: total_impropers,
+        }
+
         for kind in BAI_Kind:
+            if lookup[kind] == 0:
+                # do not write anything if there are no BAIs of this kind
+                continue
+
             file.write(self.get_BAI_header(kind))
 
             global_index = 1
