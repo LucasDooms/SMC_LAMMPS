@@ -70,7 +70,7 @@ class SMC_Creator:
 
     folding_angle_APO: float
 
-    small_noise: float = 1e-9
+    small_noise: float = 1e-5
 
     def get_arms(self, seed: int = 8671288977726523465):
         # Number of beads forming each arm segment (err on the high side)
@@ -108,10 +108,10 @@ class SMC_Creator:
         # A bit of randomness, to avoid exact overlap (pressure is messed up in LAMMPS)
         rng_arms = default_rng(seed=seed)
 
-        r_arm_dl += rng_arms.standard_normal(size=r_arm_dl.shape) * self.small_noise
-        r_arm_ul += rng_arms.standard_normal(size=r_arm_ul.shape) * self.small_noise
-        r_arm_ur += rng_arms.standard_normal(size=r_arm_ur.shape) * self.small_noise
-        r_arm_dr += rng_arms.standard_normal(size=r_arm_dr.shape) * self.small_noise
+        r_arm_dl += rng_arms.standard_normal() * self.small_noise
+        r_arm_ul += rng_arms.standard_normal() * self.small_noise
+        r_arm_ur += rng_arms.standard_normal() * self.small_noise
+        r_arm_dr += rng_arms.standard_normal() * self.small_noise
 
         return r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr
 
@@ -134,7 +134,7 @@ class SMC_Creator:
 
         # A bit of randomness
         rng_atp = default_rng(seed=seed)
-        r_ATP += rng_atp.standard_normal(r_ATP.shape) * self.small_noise
+        r_ATP += rng_atp.standard_normal() * self.small_noise
 
         return r_ATP
 
@@ -179,7 +179,7 @@ class SMC_Creator:
 
         # A bit of randomness
         rng_rhk = default_rng(seed=seed)
-        r_kleisin += rng_rhk.standard_normal(size=r_kleisin.shape) * self.small_noise
+        r_kleisin += rng_rhk.standard_normal() * self.small_noise
 
         return r_kleisin
 
@@ -266,13 +266,13 @@ class SMC_Creator:
         # Add randomness
         rng_sites = default_rng(seed=seed)
         r_upper_site += (
-            rng_sites.standard_normal(size=r_upper_site.shape) * self.small_noise
+            rng_sites.standard_normal() * self.small_noise
         )
         r_middle_site += (
-            rng_sites.standard_normal(size=r_middle_site.shape) * self.small_noise
+            rng_sites.standard_normal() * self.small_noise
         )
         r_lower_site += (
-            rng_sites.standard_normal(size=r_lower_site.shape) * self.small_noise
+            rng_sites.standard_normal() * self.small_noise
         )
 
         return r_upper_site, r_middle_site, r_lower_site
