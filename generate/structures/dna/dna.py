@@ -139,8 +139,7 @@ class Tether:
 
             obstacle_bond = BAI_Type(
                 BAI_Kind.BOND,
-                "fene/expand %s %s %s %s %s\n"
-                % (1, obstacle_radius, 0, 0, ip.sigma_DNA_DNA),
+                f"fene/expand {1.0} {obstacle_radius} {0.0} {0.0} {ip.sigma_DNA_DNA}\n",
             )
             tether_obstacle_bond = BAI(
                 obstacle_bond, (tether_group, 0), (obstacle_group, 0)
