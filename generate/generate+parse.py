@@ -553,9 +553,10 @@ ppp = dna_config.get_post_process_parameters()
 with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file:
     file.write(
         "# use to form plane of SMC arms\n"
-        f"top_bead_id = {gen.get_atom_index((smc_1.arm_ul_grp, -1))}\n"
-        f"left_bead_id = {gen.get_atom_index((smc_1.arm_ul_grp, 0))}\n"
-        f"right_bead_id = {gen.get_atom_index((smc_1.arm_ur_grp, -1))}\n"
+        f"top_left_bead_id = {gen.get_atom_index((smc_1.arm_ul_grp, -1))}\n"
+        f"top_right_bead_id = {gen.get_atom_index((smc_1.arm_ur_grp, 0))}\n"
+        f"left_bead_id = {gen.get_atom_index((smc_1.arm_dl_grp, -1))}\n"
+        f"right_bead_id = {gen.get_atom_index((smc_1.arm_dr_grp, 0))}\n"
         f"middle_left_bead_id = {gen.get_atom_index((smc_1.atp_grp, 0))}\n"
         f"middle_right_bead_id = {gen.get_atom_index((smc_1.atp_grp, -1))}\n"
     )

@@ -331,7 +331,8 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
         positions.append(data.positions[indices[-1]])
         return
 
-    pos_top = data.get_position_from_index(parameters["top_bead_id"])
+    pos_top_left = data.get_position_from_index(parameters["top_left_bead_id"])
+    pos_top_right = data.get_position_from_index(parameters["top_right_bead_id"])
     pos_left = data.get_position_from_index(parameters["left_bead_id"])
     pos_right = data.get_position_from_index(parameters["right_bead_id"])
     pos_middle_left = data.get_position_from_index(parameters["middle_left_bead_id"])
@@ -342,22 +343,26 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
     small_delta = delta / 4.0
 
     new_data_copy1 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data_copy1, [pos_top, pos_left, pos_right], delta, small_delta)
+    remove_outside_planar_n_gon(new_data_copy1, [pos_top_left, pos_left, pos_right], delta, small_delta)
 
     new_data_copy2 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data_copy2, [pos_middle_right, pos_middle_left, pos_left], delta, small_delta)
+    remove_outside_planar_n_gon(new_data_copy2, [pos_top_left, pos_top_right, pos_right], delta, small_delta)
 
     new_data_copy3 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data_copy3, [pos_middle_right, pos_left, pos_right], delta, small_delta)
+    remove_outside_planar_n_gon(new_data_copy3, [pos_middle_right, pos_middle_left, pos_left], delta, small_delta)
 
     new_data_copy4 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data_copy4, pos_kleisins, delta, small_delta)
+    remove_outside_planar_n_gon(new_data_copy4, [pos_middle_right, pos_left, pos_right], delta, small_delta)
+
+    new_data_copy5 = deepcopy(new_data)
+    remove_outside_planar_n_gon(new_data_copy5, pos_kleisins, delta, small_delta)
 
     new_data = LammpsData.empty()
     new_data.combine_by_ids(new_data_copy1)
     new_data.combine_by_ids(new_data_copy2)
     new_data.combine_by_ids(new_data_copy3)
     new_data.combine_by_ids(new_data_copy4)
+    new_data.combine_by_ids(new_data_copy5)
 
     if len(new_data.positions) == 0:
         print(f"call: {step}")
@@ -407,7 +412,8 @@ def get_best_match_dna_bead_in_smc(folder_path):
         steps.append(step)
 
         data = Parser.split_data(arr)
-        box = create_box(data, list(range(2, 10)))
+        # TODO: get range from post_processing_parameters.py
+        box = create_box(data, list(range(2, 11)))
 
         new_data = data.delete_outside_box(box)
         new_data.filter_by_types([1])
