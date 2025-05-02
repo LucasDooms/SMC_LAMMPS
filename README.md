@@ -45,6 +45,23 @@ export PATH="$HOME/lammps/bin:$PATH"
 To use the `post-process/visualize.py` script, you will need VMD, see  
 https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD.
 
+## Docker Installation
+
+You can also use docker to run the code. First build the image
+```sh
+docker build -t smc_lammps .
+```
+Now you can run an interactive session using
+```sh
+docker run -it -v .:/data smc_lammps
+```
+Or, to run directly (see Usage)
+```sh
+docker run -v .:/data smc_lammps python run.py ...
+```
+
+Note: the docker image does not include VMD.
+
 ## Usage
 
 1. Create a directory for your simulation, e.g. `hinge`
