@@ -696,7 +696,12 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
         get_string_def(
             "DNA_mols",
             list_to_space_str(
-                [grp.molecule_index for grp in dna_config.get_all_groups()]
+                list(
+                    set(grp.molecule_index for grp in dna_config.get_all_groups())
+                    - set(
+                        grp.molecule_index for grp in dna_config.beads
+                    )  # do not include RNA beads
+                )
             ),
         )
     )
