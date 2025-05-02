@@ -22,9 +22,6 @@ boundary f f f
 
 include styles
 
-pair_style     hybrid/overlay lj/cut $(3.5) soft $(3.5)
-# pair_style     hybrid/overlay lj/cut $(3.5) soft $(3.5) coul/debye $(5.0) $(5.0)
-
 # Give weighting coef to LJ potentials (0 = turn off) between atoms that are bonded, seperated by 2 and 3 bonds
 special_bonds lj/coul 0. 0. 0.
 

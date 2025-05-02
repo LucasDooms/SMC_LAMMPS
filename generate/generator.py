@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from textwrap import dedent
 from typing import Any, Dict, List, Set, Tuple
 from warnings import warn
 
@@ -106,7 +105,6 @@ class AtomGroup:
         polymer_angle_type: BAI_Type | None = None,
         charge: float = 0.0,
     ) -> None:
-        self.n = len(positions)
         self.positions = positions
         self.type = atom_type
         self.molecule_index = molecule_index
@@ -117,6 +115,10 @@ class AtomGroup:
             assert polymer_angle_type.kind == BAI_Kind.ANGLE
         self.polymer_angle_type = polymer_angle_type
         self.charge = charge
+
+    @property
+    def n(self) -> int:
+        return len(self.positions)
 
 
 AtomIdentifier = Tuple[AtomGroup, int]
@@ -240,6 +242,9 @@ class Generator:
             BAI_Kind.ANGLE: "hybrid",
             BAI_Kind.IMPROPER: "hybrid",
         }
+        self.random_shift = lambda: np.array([0.0, 0.0, 0.0])
+        """Function that returns a random shift vector.
+        This is useful to avoid exact overlap, which causes LAMMPS to crash during kspace calculations (e.g. with pair_style could)."""
 
     def set_system_size(self, box_width: float) -> None:
         """Set the box size of the simulation."""
@@ -285,6 +290,7 @@ class Generator:
         return bai_by_kind
 
     def get_amounts(self) -> Tuple[int, int, int]:
+        """Return the total amount of bonds, angles, and impropers."""
         length_lookup = {
             key: len(value) for (key, value) in self.get_bai_dict_by_type().items()
         }
@@ -352,12 +358,24 @@ class Generator:
         file.write("\n")
 
     def get_all_BAI_styles(self) -> Dict[BAI_Kind, List[str]]:
+        """Return a list of unique styles for each BAI kind."""
+
         def get_unique_styles(bai_types: List[BAI_Type]) -> List[str]:
             return list(set(t.style for t in bai_types))
 
         return {k: get_unique_styles(self.get_all_types(k)) for k in BAI_Kind}
 
+    @staticmethod
+    def get_BAI_style_command_name(kind: BAI_Kind) -> str:
+        lookup = {
+            BAI_Kind.BOND: "bond_style",
+            BAI_Kind.ANGLE: "angle_style",
+            BAI_Kind.IMPROPER: "improper_style",
+        }
+        return lookup[kind]
+
     def get_BAI_styles_command(self) -> str:
+        """Return the command to define the BAI styles in a LAMMPS script."""
         all_styles = self.get_all_BAI_styles()
 
         def extract_command(k: BAI_Kind) -> str:
@@ -367,13 +385,15 @@ class Generator:
             styles_string = " ".join(styles)
             return f"{self.hybrid_styles[k]} {styles_string}"
 
-        return dedent(f"""
-            bond_style {extract_command(BAI_Kind.BOND)}
-            angle_style {extract_command(BAI_Kind.ANGLE)}
-            improper_style {extract_command(BAI_Kind.IMPROPER)}
-           """)
+        strings = [
+            f"{self.get_BAI_style_command_name(k)} {extract_command(k)}\n"
+            for k in BAI_Kind
+        ]
+        return "".join(strings)
 
     def get_hybrid_or_single_style(self) -> Dict[BAI_Kind, str]:
+        """Return the style needed for the BAI Coeffs header."""
+
         def extract_style(k: BAI_Kind, styles: List[str]) -> str:
             if len(styles) == 1:
                 return styles[0]
@@ -440,6 +460,7 @@ class Generator:
             index_offset += len(atom_group.positions)
 
     def get_atom_style(self) -> str:
+        """Return the atom_style for LAMMPS (based on use_charges)."""
         if self.use_charges:
             return "full"
         else:
@@ -452,6 +473,7 @@ class Generator:
         return f"atom_style {self.get_atom_style()}\n"
 
     def check_charges(self) -> None:
+        """Checks for discrepancies between the use_charges flag and the actual atom charges."""
         nonzero_charges = [grp.charge != 0.0 for grp in self.atom_groups]
 
         if self.use_charges:
@@ -503,6 +525,7 @@ class Generator:
                         charge = atom_group.charge
                     ids += f" {charge}"
 
+                position += self.random_shift()
                 file.write(ids + f" {position[0]} {position[1]} {position[2]}\n")
 
         file.write("\n")
@@ -645,7 +668,9 @@ def test_simple_atoms_polymer():
     positions = np.zeros(shape=(100, 3))
     gen = Generator()
     gen.atom_groups.append(
-        AtomGroup(positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND, "fene"))
+        AtomGroup(
+            positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND, "fene")
+        )
     )
     gen.set_system_size(10)
     with open("test.gen", "w", encoding="utf-8") as file:

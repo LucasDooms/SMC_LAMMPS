@@ -284,6 +284,11 @@ mSMC = smc_creator.get_mass_per_atom(SMC_total_mass)
 # SET UP DATAFILE GENERATOR
 gen = Generator()
 gen.set_system_size(box_width)
+gen.use_charges = True
+if gen.use_charges:
+    # prevents inf/nan in coul calculations
+    shift_rng = default_rng(par.seed)
+    gen.random_shift = lambda: shift_rng.normal(0, 1e-6 * DNA_bond_length, (3,))
 
 smc_1 = SMC(
     use_rigid_hinge=par.rigid_hinge,
@@ -370,8 +375,6 @@ pair_inter = PairWise(
     "PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0]
 )
 
-# pair_coul_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "coul/debye {}\n", [""])
-
 dna_config.add_interactions(pair_inter)
 smc_1.add_repel_interactions(
     pair_inter, epsilon_SMC_DNA * kBT, sigma_SMC_DNA, rcut_SMC_DNA
@@ -382,7 +385,10 @@ pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0
 
 gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
-# gen.pair_interactions.append(pair_coul_inter)
+if gen.use_charges:
+    gen.pair_interactions.append(
+        PairWise("PairIJ Coeffs # hybrid\n\n", "coul/debye {}\n", [""])
+    )
 
 # Interactions that change for different phases of SMC
 bridge_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_atp])
@@ -469,6 +475,11 @@ with open(path / "datafile_positions", "w", encoding="utf-8") as datafile:
 with open(path / "styles", "w", encoding="utf-8") as stylesfile:
     stylesfile.write(gen.get_atom_style_command())
     stylesfile.write(gen.get_BAI_styles_command())
+    pair_style = "pair_style hybrid/overlay lj/cut $(3.5) soft $(3.5)"
+    if gen.use_charges:
+        pair_style += " coul/debye $(5.0) $(5.0)"
+    stylesfile.write(pair_style)
+
 
 #################################################################################
 #                                Phases of SMC                                  #
