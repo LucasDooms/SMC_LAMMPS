@@ -92,14 +92,16 @@ class SMC:
         ]
 
     def _set_angles(self) -> None:
-        self.align_arms = BAI_Type(BAI_Kind.ANGLE, f"harmonic {self.k_elbow} {180.0}\n")
+        self.align_arms = BAI_Type(
+            BAI_Kind.ANGLE, "harmonic", f"{self.k_elbow} {180.0}\n"
+        )
         arms_bridge_angle = np.rad2deg(
             np.arccos(self.bridge_width / self.arm_length / 4.0)
         )
         self.arms_bridge = BAI_Type(
-            BAI_Kind.ANGLE, f"harmonic {self.k_arm} {arms_bridge_angle}\n"
+            BAI_Kind.ANGLE, "harmonic", f"{self.k_arm} {arms_bridge_angle}\n"
         )
-        self.hinge_arms = BAI_Type(BAI_Kind.ANGLE, f"harmonic {self.k_arm} {90.0}\n")
+        self.hinge_arms = BAI_Type(BAI_Kind.ANGLE, "harmonic", f"{self.k_arm} {90.0}\n")
 
         self.arms_close = Generator.DynamicCoeffs(
             BAI_Kind.ANGLE,
@@ -113,15 +115,22 @@ class SMC:
         )
 
     def _set_impropers(self) -> None:
-        self.imp_t1 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_align_site} {0.0}\n")
+        self.imp_t1 = BAI_Type(
+            BAI_Kind.IMPROPER, "harmonic", f"{self.k_align_site} {0.0}\n"
+        )
         self.imp_t2 = BAI_Type(
-            BAI_Kind.IMPROPER, f"{self.k_fold} {180.0 - self.folding_angle_APO}\n"
+            BAI_Kind.IMPROPER,
+            "harmonic",
+            f"{self.k_fold} {180.0 - self.folding_angle_APO}\n",
         )
         self.imp_t3 = BAI_Type(
             BAI_Kind.IMPROPER,
+            "harmonic",
             f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n",
         )
-        self.imp_t4 = BAI_Type(BAI_Kind.IMPROPER, f"{self.k_align_site / 5.0} {90.0}\n")
+        self.imp_t4 = BAI_Type(
+            BAI_Kind.IMPROPER, "harmonic", f"{self.k_align_site / 5.0} {90.0}\n"
+        )
 
         self.kleisin_folds1 = Generator.DynamicCoeffs(
             BAI_Kind.IMPROPER,
@@ -233,7 +242,8 @@ class SMC:
         # Every joint is kept in place through bonds
         attach = BAI_Type(
             BAI_Kind.BOND,
-            f"fene/expand {self.k_bond} {self.max_bond_length} {0.0} {0.0} {0.0}\n",
+            "fene/expand",
+            f"{self.k_bond} {self.max_bond_length} {0.0} {0.0} {0.0}\n",
         )
 
         bonds = [
@@ -265,7 +275,7 @@ class SMC:
         if not self.use_rigid_hinge or True:
             assert hinge_opening is not None
             hinge_bond = BAI_Type(
-                BAI_Kind.BOND, f"harmonic {self.k_hinge} {hinge_opening}\n"
+                BAI_Kind.BOND, "harmonic", f"{self.k_hinge} {hinge_opening}\n"
             )
             bonds += [
                 # connect Left and Right hinge pieces together

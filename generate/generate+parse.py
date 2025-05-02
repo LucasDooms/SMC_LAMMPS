@@ -252,10 +252,11 @@ smc_positions = smc_creator.get_smc(
 mol_DNA = MoleculeId.get_next()
 dna_bond = BAI_Type(
     BAI_Kind.BOND,
-    f"fene/expand {k_bond_DNA} {max_bond_length_DNA} {0.0} {0.0} {DNA_bond_length}\n",
+    "fene/expand",
+    f"{k_bond_DNA} {max_bond_length_DNA} {0.0} {0.0} {DNA_bond_length}\n",
 )
-dna_angle = BAI_Type(BAI_Kind.ANGLE, f"cosine {k_angle_DNA}\n")
-ssdna_angle = BAI_Type(BAI_Kind.ANGLE, f"cosine {k_angle_ssDNA}\n")
+dna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine", f"{k_angle_DNA}\n")
+ssdna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine", f"{k_angle_ssDNA}\n")
 dna_type = AtomType(DNA_bead_mass)
 
 dna_parameters = dna.DnaParameters(
@@ -326,7 +327,7 @@ if par.add_RNA_polymerase:
     bead_size = par.RNA_polymerase_size
     if par.RNA_polymerase_type == 0:
         bead_bond = BAI_Type(
-            BAI_Kind.BOND, f"harmonic {k_bond_DNA} {bead_size * DNA_bond_length}\n"
+            BAI_Kind.BOND, "harmonic", f"{k_bond_DNA} {bead_size * DNA_bond_length}\n"
         )
     elif par.RNA_polymerase_type == 1:
         bead_bond = None
@@ -465,6 +466,9 @@ with open(path / "datafile_coeffs", "w", encoding="utf-8") as datafile:
 with open(path / "datafile_positions", "w", encoding="utf-8") as datafile:
     gen.write_positions_and_bonds(datafile)
 
+with open(path / "styles", "w", encoding="utf-8") as stylesfile:
+    stylesfile.write(gen.get_atom_style_command())
+    stylesfile.write(gen.get_BAI_styles_command())
 
 #################################################################################
 #                                Phases of SMC                                  #

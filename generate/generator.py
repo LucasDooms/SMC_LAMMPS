@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from textwrap import dedent
 from typing import Any, Dict, List, Set, Tuple
+from warnings import warn
 
 import numpy as np
 
@@ -66,12 +68,13 @@ class BAI_Kind(Enum):
 class BAI_Type:
     indices = {kind: 1 for kind in BAI_Kind}
 
-    def __init__(self, kind: BAI_Kind, coefficients: str = "") -> None:
+    def __init__(self, kind: BAI_Kind, style: str, coefficients: str = "") -> None:
         """coefficients will be printed after the index in a datafile
         e.g. 3 harmonic 2 5
         (where 3 is the index and the rest is the coefficients string)"""
         self._index = None
         self.kind = kind
+        self.style = style
         self.coefficients = coefficients
 
     @property
@@ -80,6 +83,10 @@ class BAI_Type:
             self._index = self.indices[self.kind]
             self.indices[self.kind] += 1
         return self._index
+
+    def get_string(self, omit_style=False) -> str:
+        style = f" {self.style}" if not omit_style else ""
+        return f"{self.index}{style} {self.coefficients}"
 
 
 class AtomGroup:
@@ -227,6 +234,12 @@ class Generator:
         self.box_width = None
         self.molecule_override: Dict[AtomIdentifier, int] = {}
         self.charge_override: Dict[AtomIdentifier, float] = {}
+        self.use_charges = False
+        self.hybrid_styles = {
+            BAI_Kind.BOND: "hybrid",
+            BAI_Kind.ANGLE: "hybrid",
+            BAI_Kind.IMPROPER: "hybrid",
+        }
 
     def set_system_size(self, box_width: float) -> None:
         """Set the box size of the simulation."""
@@ -338,14 +351,46 @@ class Generator:
 
         file.write("\n")
 
-    @staticmethod
-    def get_BAI_coeffs_header(kind: BAI_Kind) -> str:
+    def get_all_BAI_styles(self) -> Dict[BAI_Kind, List[str]]:
+        def get_unique_styles(bai_types: List[BAI_Type]) -> List[str]:
+            return list(set(t.style for t in bai_types))
+
+        return {k: get_unique_styles(self.get_all_types(k)) for k in BAI_Kind}
+
+    def get_BAI_styles_command(self) -> str:
+        all_styles = self.get_all_BAI_styles()
+
+        def extract_command(k: BAI_Kind) -> str:
+            styles = all_styles[k]
+            if len(styles) == 1:
+                return styles[0]
+            styles_string = " ".join(styles)
+            return f"{self.hybrid_styles[k]} {styles_string}"
+
+        return dedent(f"""
+            bond_style {extract_command(BAI_Kind.BOND)}
+            angle_style {extract_command(BAI_Kind.ANGLE)}
+            improper_style {extract_command(BAI_Kind.IMPROPER)}
+           """)
+
+    def get_hybrid_or_single_style(self) -> Dict[BAI_Kind, str]:
+        def extract_style(k: BAI_Kind, styles: List[str]) -> str:
+            if len(styles) == 1:
+                return styles[0]
+            return self.hybrid_styles[k]
+
+        all_styles = self.get_all_BAI_styles()
+        return {k: extract_style(k, v) for k, v in all_styles.items()}
+
+    def get_BAI_coeffs_header(self, kind: BAI_Kind) -> str:
         """Get the header string corresponding to a Bond/Angle/Improper kind."""
         lookup = {
-            BAI_Kind.BOND: "Bond Coeffs # hybrid\n\n",
-            BAI_Kind.ANGLE: "Angle Coeffs # hybrid\n\n",
-            BAI_Kind.IMPROPER: "Improper Coeffs # harmonic\n\n",
+            BAI_Kind.BOND: "Bond Coeffs # {}\n\n",
+            BAI_Kind.ANGLE: "Angle Coeffs # {}\n\n",
+            BAI_Kind.IMPROPER: "Improper Coeffs # {}\n\n",
         }
+        style_strings = self.get_hybrid_or_single_style()
+        lookup = {k: v.format(style_strings[k]) for k, v in lookup.items()}
         return lookup[kind]
 
     def write_BAI_coeffs(self, file) -> None:
@@ -362,10 +407,12 @@ class Generator:
                 continue
 
             file.write(self.get_BAI_coeffs_header(kind))
-            for bai_type in self.get_all_types(kind):
+            all_types = self.get_all_types(kind)
+            for bai_type in all_types:
                 if not bai_type.coefficients:
                     continue
-                file.write(f"{bai_type.index} " + bai_type.coefficients)
+                omit_style = len(set(t.style for t in all_types)) == 1
+                file.write(bai_type.get_string(omit_style))
             file.write("\n")
 
     def write_pair_interactions(self, file) -> None:
@@ -392,9 +439,42 @@ class Generator:
             self.atom_group_map.append(index_offset)
             index_offset += len(atom_group.positions)
 
+    def get_atom_style(self) -> str:
+        if self.use_charges:
+            return "full"
+        else:
+            return "molecular"
+
+    def get_atoms_header(self) -> str:
+        return f"Atoms # {self.get_atom_style()}\n\n"
+
+    def get_atom_style_command(self) -> str:
+        return f"atom_style {self.get_atom_style()}\n"
+
+    def check_charges(self) -> None:
+        nonzero_charges = [grp.charge != 0.0 for grp in self.atom_groups]
+
+        if self.use_charges:
+            if not any(nonzero_charges):
+                warn(
+                    """
+                    Charges are enabled, but all atoms have zero charge, this may affect performance!
+                    Set use_charges=False to disable charges.
+                    """
+                )
+        else:
+            if any(nonzero_charges):
+                warn(
+                    """
+                    Charges are disabled, but some atoms have nonzero charge!
+                    Set use_charges=True to enable charges.
+                    """
+                )
+
     def write_atoms(self, file) -> None:
         """Write the Atoms header and all atom positions to a file."""
-        file.write("Atoms # full\n\n")
+        self.check_charges()
+        file.write(self.get_atoms_header())
 
         self._set_up_atom_group_map()
         molecule_override_ids = {
@@ -413,13 +493,17 @@ class Generator:
                     mol_id = molecule_override_ids[atom_id]
                 except KeyError:
                     mol_id = atom_group.molecule_index
-                try:
-                    charge = charge_override_values[atom_id]
-                except KeyError:
-                    charge = atom_group.charge
-                file.write(
-                    f"{atom_id} {mol_id} {atom_group.type.index} {charge} {position[0]} {position[1]} {position[2]}\n"
-                )
+
+                ids = f"{atom_id} {mol_id} {atom_group.type.index}"
+
+                if self.use_charges:
+                    try:
+                        charge = charge_override_values[atom_id]
+                    except KeyError:
+                        charge = atom_group.charge
+                    ids += f" {charge}"
+
+                file.write(ids + f" {position[0]} {position[1]} {position[2]}\n")
 
         file.write("\n")
 
@@ -561,7 +645,7 @@ def test_simple_atoms_polymer():
     positions = np.zeros(shape=(100, 3))
     gen = Generator()
     gen.atom_groups.append(
-        AtomGroup(positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND))
+        AtomGroup(positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND, "fene"))
     )
     gen.set_system_size(10)
     with open("test.gen", "w", encoding="utf-8") as file:
@@ -574,8 +658,8 @@ def test_with_bonds():
     gen = Generator()
     gen.set_system_size(10)
 
-    bt1 = BAI_Type(BAI_Kind.BOND)
-    bt2 = BAI_Type(BAI_Kind.BOND)
+    bt1 = BAI_Type(BAI_Kind.BOND, "harmonic")
+    bt2 = BAI_Type(BAI_Kind.BOND, "harmonic")
 
     group1 = AtomGroup(positions, AtomType(), 1, polymer_bond_type=bt2)
     gen.atom_groups.append(group1)
@@ -585,7 +669,7 @@ def test_with_bonds():
 
     gen.bais.append(BAI(bt1, (group1, 1), (group2, 0)))
 
-    gen.bais.append(BAI(BAI_Type(BAI_Kind.BOND), (group1, 5), (group1, 6)))
+    gen.bais.append(BAI(BAI_Type(BAI_Kind.BOND, "cosine"), (group1, 5), (group1, 6)))
 
     gen.bais.append(BAI(bt1, (group1, 9), (group1, 16)))
 
@@ -616,9 +700,9 @@ def test_with_pairs():
 
 
 def all_tests():
-    # test_simple_atoms()
-    # test_simple_atoms_polymer()
-    # test_with_bonds()
+    test_simple_atoms()
+    test_simple_atoms_polymer()
+    test_with_bonds()
     test_with_pairs()
 
 
