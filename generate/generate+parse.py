@@ -284,7 +284,7 @@ mSMC = smc_creator.get_mass_per_atom(SMC_total_mass)
 # SET UP DATAFILE GENERATOR
 gen = Generator()
 gen.set_system_size(box_width)
-gen.use_charges = True
+gen.use_charges = par.use_charges
 if gen.use_charges:
     # prevents inf/nan in coul calculations
     shift_rng = default_rng(par.seed)

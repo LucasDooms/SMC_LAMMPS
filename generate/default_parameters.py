@@ -148,5 +148,10 @@ class Parameters:
     asymmetry_stiffness = 100.0
     "Folding asymmetry stiffness of lower compartment (kT units)"
 
+    ################# Other #################
+
     smc_force = 0.0
     "Extra force on SMC in the -x direction and +y direction (left & up)"
+
+    use_charges = False
+    "Enable Coulomb interactions in LAMMPS"

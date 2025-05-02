@@ -34,4 +34,6 @@ p.dna_config = "obstacle"
 
 p.add_stopper_bead = True
 
+p.use_charges = False
+
 # p.smc_force = 0.01
