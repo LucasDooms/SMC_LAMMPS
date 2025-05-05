@@ -625,7 +625,7 @@ def get_string_def(name: str, value: str) -> str:
 
 def get_universe_def(name: str, values: Sequence[Any]) -> str:
     """define a LAMMPS universe"""
-    return f"variable {name} universe {list_to_space_str(values, surround='"')}\n"
+    return f"""variable {name} universe {list_to_space_str(values, surround='"')}\n"""
 
 
 def get_index_def(name: str, values: Sequence[Any]) -> str:
