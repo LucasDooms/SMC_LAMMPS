@@ -244,7 +244,7 @@ class Generator:
         }
         self.random_shift = lambda: np.array([0.0, 0.0, 0.0])
         """Function that returns a random shift vector.
-        This is useful to avoid exact overlap, which causes LAMMPS to crash during kspace calculations (e.g. with pair_style could)."""
+        This is useful to avoid exact overlap, which causes LAMMPS to crash during kspace calculations (e.g. with pair_style coul)."""
 
     def set_system_size(self, box_width: float) -> None:
         """Set the box size of the simulation."""

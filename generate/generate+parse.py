@@ -477,7 +477,7 @@ with open(path / "styles", "w", encoding="utf-8") as stylesfile:
     stylesfile.write(gen.get_BAI_styles_command())
     pair_style = "pair_style hybrid/overlay lj/cut $(3.5) soft $(3.5)"
     if gen.use_charges:
-        pair_style += " coul/debye $(5.0) $(5.0)"
+        pair_style += " coul/debye $(1.0/5.0) $(7.5)"
     stylesfile.write(pair_style)
 
 
