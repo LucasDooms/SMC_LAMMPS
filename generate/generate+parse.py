@@ -92,7 +92,7 @@ radius_DNA_DNA = 3.5
 
 # Bending stiffness (nm)
 DNA_persistence_length = 50.0
-ssDNA_persistence_length = 5.0
+ssDNA_persistence_length = 1.0
 
 # Base pair step (nm)
 basepair_size = 0.34
