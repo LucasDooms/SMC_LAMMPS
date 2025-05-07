@@ -413,10 +413,10 @@ def get_best_match_dna_bead_in_smc(folder_path):
 
         data = Parser.split_data(arr)
         # TODO: get range from post_processing_parameters.py
-        box = create_box(data, list(range(2, 11)))
+        box = create_box(data, parameters["SMC_types"])
 
         new_data = data.delete_outside_box(box)
-        new_data.filter_by_types([1])
+        new_data.filter_by_types(parameters["DNA_types"])
         # split, and call for each
         for i, (min_index, max_index) in enumerate(dna_indices_list):
             new_data_temp = deepcopy(new_data)
