@@ -80,6 +80,12 @@ class Parameters:
 
     RNA_polymerase_type = 1
 
+    spaced_beads_interval: int | None = None
+    "how many DNA beads to leave between small obstacles"
+
+    spaced_beads_size: float = 10.0
+    "size of beads along DNA (nm)"
+
     ##################### Geometry #####################
 
     arm_length = 50.0

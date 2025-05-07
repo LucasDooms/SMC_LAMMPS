@@ -25,7 +25,7 @@ from generate.generator import (
 from generate.structures.dna import dna
 from generate.structures.smc.smc import SMC
 from generate.structures.smc.smc_creator import SMC_Creator
-from generate.util import create_phase
+from generate.util import create_phase, get_closest
 
 if len(argv) < 2:
     raise ValueError("Provide a folder path")
@@ -349,6 +349,23 @@ if par.add_RNA_polymerase:
 
     if bead_bond is None:
         gen.molecule_override[dna_id] = mol_bead
+
+if par.spaced_beads_interval is not None:
+    spaced_bead_type = AtomType(DNA_bead_mass)
+
+    # get spacing
+
+    start_id = par.spaced_beads_interval
+    stop_id = get_closest(dna_config.dna_groups[0].positions, smc_positions.r_lower_site[1])
+    spaced_bead_ids = list(range(start_id, stop_id, par.spaced_beads_interval))
+    for dna_id in spaced_bead_ids:
+        mol_spaced_bead = MoleculeId.get_next()
+        extra_mols.append(mol_spaced_bead)
+        dna_id = (dna_config.dna_groups[0], dna_id)
+        dna_config.add_bead_to_dna(
+            spaced_bead_type, mol_spaced_bead, dna_id, None, par.spaced_beads_size / DNA_bond_length
+        )
+        gen.molecule_override[dna_id] = mol_spaced_bead
 
 if par.add_stopper_bead:
     mol_stopper = MoleculeId.get_next()
