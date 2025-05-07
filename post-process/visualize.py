@@ -59,7 +59,7 @@ class Molecules:
         self.create_new(file_name, "waitfor all")
         with open(self.path, 'a', encoding="utf-8") as file:
             # show everything, slightly smaller
-            file.write(f"mol modstyle 0 {self.index} cpk 0.9\n")
+            file.write(f"mol modstyle 0 {self.index} cpk 1.3\n")
 
             # remove from ranges
             selections = []
@@ -77,6 +77,7 @@ class Molecules:
             self.rep_index += 1
             file.write(f"mol modselect {self.rep_index} {self.index} index >= {piece[0] - 1} and index <= {piece[1] - 1}\n")
             file.write(f"mol modcolor {self.rep_index} {self.index} colorID {self.get_color_id()}\n")
+            file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
     def add_piece(self, rng: Tuple[int, int]) -> None:
         with open(self.path, 'a', encoding="utf-8") as file:
@@ -85,6 +86,7 @@ class Molecules:
             self.rep_index += 1
             file.write(f"mol modselect {self.rep_index} {self.index} index >= {rng[0] - 1} and index <= {rng[1] - 1}\n")
             file.write(f"mol modcolor {self.rep_index} {self.index} colorID {self.get_color_id()}\n")
+            file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
 
 mol = Molecules(path)
