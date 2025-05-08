@@ -107,7 +107,7 @@ def post_process(args, path):
         return
 
     print("running post processing...")
-    run_and_handle_error(lambda: subprocess.run(python_run + ["post-process/process_displacement", f"{path}"], check=False), args.ignore_errors)
+    run_and_handle_error(lambda: subprocess.run(python_run + ["post-process.process_displacement", f"{path}"], check=False), args.ignore_errors)
     print("succesfully ran post processing")
 
 
