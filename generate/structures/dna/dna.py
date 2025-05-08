@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import product
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -426,8 +427,8 @@ class DnaConfiguration:
         )
 
         # every bead should repel every SMC group
-        for bead, bead_size, smc_grp in zip(
-            self.beads, self.bead_sizes, self.smc.get_groups()
+        for (bead, bead_size), smc_grp in product(
+            zip(self.beads, self.bead_sizes), self.smc.get_groups()
         ):
             pair_inter.add_interaction(
                 bead.type,

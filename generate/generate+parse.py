@@ -377,7 +377,7 @@ if par.add_stopper_bead:
     mol_stopper = MoleculeId.get_next()
     extra_mols.append(mol_stopper)
     stopper_type = AtomType(0.01 * DNA_bead_mass)
-    stopper_size = DNA_bond_length * 15.0
+    stopper_size = 15.0 # multiple of DNA_bond_length
 
     stopper_ids = dna_config.get_stopper_ids()
     for dna_id in stopper_ids:
