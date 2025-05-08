@@ -20,9 +20,10 @@ def parse() -> argparse.Namespace:
     parser.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
     parser.add_argument('-f', '--force', action='store_true', help='don\'t prompt before overwriting existing files / continuing empty simulation')
     parser.add_argument('-c', '--continue', dest='continue_flag', action='store_true', help='continue from restart file and append to existing simulation')
-    parser.add_argument('-e', '--executable', help='name of the LAMMPS executable to use', default="lmp")
-    parser.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default="lammps/input.lmp")
+    parser.add_argument('-e', '--executable', help='name of the LAMMPS executable to use', default='lmp')
+    parser.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default='lammps/input.lmp')
     parser.add_argument('-o', '--output', help='path to dump LAMMPS output to (prints to terminal by default)')
+    parser.add_argument('-sf', '--suffix', help='variant of LAMMPS styles to use, defaults to \'opt\' (see https://docs.lammps.org/Run_options.html#suffix)', default='opt')
 
     return parser.parse_args()
 
@@ -58,7 +59,7 @@ def get_lammps_args_list(lammps_vars):
 
 
 def perform_run(args, path, lammps_vars=()):
-    run_with_output = partial(subprocess.run, [f"{args.executable}", "-sf", "opt", "-in", f"{Path(args.input).absolute()}"] + get_lammps_args_list(lammps_vars), cwd=path.absolute())
+    run_with_output = partial(subprocess.run, [f"{args.executable}", "-sf", f"{args.suffix}", "-in", f"{Path(args.input).absolute()}"] + get_lammps_args_list(lammps_vars), cwd=path.absolute())
 
     if args.output:
         with open(args.output, 'w', encoding="utf-8") as output_file:
