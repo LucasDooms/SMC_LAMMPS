@@ -59,14 +59,30 @@ def get_lammps_args_list(lammps_vars):
 
 
 def perform_run(args, path, lammps_vars=()):
-    run_with_output = partial(subprocess.run, [f"{args.executable}", "-sf", f"{args.suffix}", "-in", f"{Path(args.input).absolute()}"] + get_lammps_args_list(lammps_vars), cwd=path.absolute())
+    command = [
+        f"{args.executable}",
+        "-sf",
+        f"{args.suffix}",
+        "-in",
+        f"{Path(args.input).absolute()}",
+    ] + get_lammps_args_list(lammps_vars)
+    if args.suffix == "kk":
+        command += ["-kokkos", "on"]
+
+    run_with_output = partial(subprocess.run, command, cwd=path.absolute())
 
     if args.output:
-        with open(args.output, 'w', encoding="utf-8") as output_file:
-            print(f"running LAMMPS file {args.input}, output redirected to {args.output}")
-            run_and_handle_error(lambda: run_with_output(stdout=output_file), args.ignore_errors)
+        with open(args.output, "w", encoding="utf-8") as output_file:
+            print(
+                f"running LAMMPS file {args.input}, output redirected to {args.output}"
+            )
+            print(command)
+            run_and_handle_error(
+                lambda: run_with_output(stdout=output_file), args.ignore_errors
+            )
     else:
         print(f"running LAMMPS file {args.input}, printing output to terminal")
+        print(command)
         run_and_handle_error(run_with_output, args.ignore_errors)
 
 
