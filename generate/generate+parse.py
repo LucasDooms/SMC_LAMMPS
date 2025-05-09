@@ -479,7 +479,7 @@ gen.bais += smc_1.get_angles()
 gen.bais += smc_1.get_impropers()
 
 # Override molecule ids to form rigid safety-belt bond
-if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety)):  # TODO
+if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.Safety)):  # TODO
     safety_index = dna_config.dna_safety_belt_index
     gen.molecule_override[(dna_config.dna_groups[0], safety_index)] = (
         smc_1.mol_lower_site

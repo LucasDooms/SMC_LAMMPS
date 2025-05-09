@@ -500,6 +500,7 @@ class DnaConfiguration:
             "folded": Folded,
             "right_angle": RightAngle,
             "doubled": Doubled,
+            "safety": Safety,
             "obstacle": Obstacle,
             "obstacle_safety": ObstacleSafety,
             "advanced_obstacle_safety": AdvancedObstacleSafety,
@@ -816,6 +817,59 @@ class Obstacle(DnaConfiguration):
             ((dna_grp, 0), (dna_grp, self.dna_start_index))
             for dna_grp in self.dna_groups
         ]
+
+        return ppp
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [(self.dna_groups[0], -1)]
+
+
+class Safety(DnaConfiguration):
+    def __init__(
+        self,
+        dna_groups,
+        dna_parameters: DnaParameters,
+        dna_safety_belt_index,
+    ):
+        super().__init__(dna_groups, dna_parameters)
+        self.dna_safety_belt_index = dna_safety_belt_index
+
+    @classmethod
+    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> Safety:
+        # 1.
+        [r_DNA], belt_location, dna_safety_belt_index, _ = (
+            dna_creator.get_dna_coordinates_safety_belt(
+                dna_parameters.nDNA, dna_parameters.DNA_bond_length
+            )
+        )
+
+        # 2.
+        # make sure SMC contains DNA
+        shift = r_lower_site[1] - belt_location
+        shift[1] -= 0.65 * par.cutoff6 + 0.5 * par.cutoff6  # TODO: if siteDup
+        r_DNA += shift
+
+        dna_groups = dna_parameters.create_dna([r_DNA])
+
+        return cls(dna_groups, dna_parameters, dna_safety_belt_index)
+
+    def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
+        ppp = super().get_post_process_parameters()
+        par = self.par
+
+        if par.force:
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+        else:
+            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+
+        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+
+        # prevent breaking of safety belt
+        # ppp.freeze_indices += [
+        #     *[(self.dna_groups[0], self.dna_safety_belt_index + i) for i in range(-6, 6)],
+        #     *[(self.smc.siteD_group, i) for i in range(len(self.smc.siteD_group.positions))]
+        # ]
 
         return ppp
 
