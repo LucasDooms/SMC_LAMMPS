@@ -366,6 +366,36 @@ class DnaConfiguration:
     def get_all_groups(self) -> List[AtomGroup]:
         return self.dna_groups + self.beads
 
+    @property
+    def dna_full_list(self) -> List[List[float]]:
+        return np.concatenate([grp.positions for grp in self.dna_groups])
+
+    @property
+    def dna_full_list_length(self) -> int:
+        return sum(len(grp.positions) for grp in self.dna_groups)
+
+    def get_dna_id_from_list_index(self, index: int) -> AtomIdentifier:
+        if index < 0:
+            index += self.dna_full_list_length
+        assert index >= 0
+
+        for grp in self.dna_groups:
+            if index < len(grp.positions):
+                return (grp, index)
+            index -= len(grp.positions)
+        raise IndexError(f"index {index} out of bounds for DNA groups.")
+
+    @property
+    def first_dna_id(self) -> AtomIdentifier:
+        return self.get_dna_id_from_list_index(0)
+
+    @property
+    def last_dna_id(self) -> AtomIdentifier:
+        return self.get_dna_id_from_list_index(-1)
+
+    def get_percent_dna_id(self, ratio: float) -> AtomIdentifier:
+        return self.get_dna_id_from_list_index(int(ratio * self.dna_full_list_length))
+
     @classmethod
     def get_dna_config(
         cls, dna_parameters: DnaParameters, r_lower_site, par
@@ -542,22 +572,18 @@ class Line(DnaConfiguration):
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.freeze_indices += [
-            (
-                self.dna_groups[0],
-                get_closest(self.dna_groups[0].positions, self.smc.pos.r_lower_site[1]),
+            self.get_dna_id_from_list_index(
+                get_closest(self.dna_full_list, self.smc.pos.r_lower_site[1]),
             ),  # closest to bottom -> r_lower_site[1]
-            (
-                self.dna_groups[0],
-                get_closest(
-                    self.dna_groups[0].positions, self.smc.pos.r_middle_site[1]
-                ),
-            ),  # closest to middle -> r_lower_site[1]
+            self.get_dna_id_from_list_index(
+                get_closest(self.dna_full_list, self.smc.pos.r_middle_site[1]),
+            ),  # closest to middle -> r_middle_site[1]
         ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
@@ -565,7 +591,7 @@ class Line(DnaConfiguration):
         return ppp
 
     def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [(self.dna_groups[0], -1)]
+        return [self.last_dna_id]
 
 
 class Folded(DnaConfiguration):
@@ -600,23 +626,19 @@ class Folded(DnaConfiguration):
 
         if par.force:
             ppp.stretching_forces_array[(par.force, 0, 0)] = [
-                (self.dna_groups[0], 0),
-                (self.dna_groups[0], -1),
+                self.first_dna_id,
+                self.last_dna_id,
             ]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.freeze_indices += [
-            (
-                self.dna_groups[0],
-                get_closest(self.dna_groups[0].positions, self.smc.pos.r_lower_site[1]),
+            self.get_dna_id_from_list_index(
+                get_closest(self.dna_full_list, self.smc.pos.r_lower_site[1]),
             ),  # closest to bottom -> r_lower_site[1]
-            (
-                self.dna_groups[0],
-                get_closest(
-                    self.dna_groups[0].positions, self.smc.pos.r_middle_site[1]
-                ),
-            ),  # closest to middle -> r_lower_site[1]
+            self.get_dna_id_from_list_index(
+                get_closest(self.dna_full_list, self.smc.pos.r_middle_site[1]),
+            ),  # closest to middle -> r_middle_site[1]
         ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
@@ -661,14 +683,15 @@ class RightAngle(DnaConfiguration):
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(0, par.force, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(0, par.force, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
+
         # find closest DNA bead to siteD
         # closest_DNA_index = get_closest(self.dna_groups[0].positions, r_lower_site[1])
 
-        ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
+        ppp.dna_indices_list += [(self.first_dna_id, self.get_percent_dna_id(0.5))]
 
         return ppp
 
@@ -808,10 +831,10 @@ class Obstacle(DnaConfiguration):
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.dna_indices_list += [
             ((dna_grp, 0), (dna_grp, self.dna_start_index))
@@ -821,7 +844,7 @@ class Obstacle(DnaConfiguration):
         return ppp
 
     def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [(self.dna_groups[0], -1)]
+        return [self.last_dna_id]
 
 
 class Safety(DnaConfiguration):
@@ -858,10 +881,10 @@ class Safety(DnaConfiguration):
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
@@ -874,7 +897,7 @@ class Safety(DnaConfiguration):
         return ppp
 
     def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [(self.dna_groups[0], -1)]
+        return [self.last_dna_id]
 
 
 @with_tether
@@ -932,10 +955,10 @@ class ObstacleSafety(DnaConfiguration):
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
@@ -948,7 +971,7 @@ class ObstacleSafety(DnaConfiguration):
         return ppp
 
     def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [(self.dna_groups[0], -1)]
+        return [self.last_dna_id]
 
 
 @with_tether
@@ -1008,10 +1031,10 @@ class AdvancedObstacleSafety(DnaConfiguration):
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
@@ -1024,4 +1047,4 @@ class AdvancedObstacleSafety(DnaConfiguration):
         return ppp
 
     def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [(self.dna_groups[0], -1)]
+        return [self.last_dna_id]
