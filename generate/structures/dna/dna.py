@@ -360,7 +360,7 @@ class DnaConfiguration:
         self.dna_parameters = dna_parameters
         self.kBT = self.par.kB * self.par.T
         self.beads: List[AtomGroup] = []
-        self.bead_sizes: List[int] = []
+        self.bead_sizes: List[float] = []
         self.bead_bonds: List[BAI] = []
 
     def get_all_groups(self) -> List[AtomGroup]:
@@ -464,14 +464,15 @@ class DnaConfiguration:
                 bead.type,
                 smc_grp.type,
                 ip.epsilon_SMC_DNA * kBT,
-                bead_size * self.dna_parameters.DNA_bond_length,
-                bead_size * self.dna_parameters.DNA_bond_length * (2 ** (1 / 6)),
+                bead_size,
+                bead_size * (2 ** (1 / 6)),
             )
 
     def get_bonds(self) -> List[BAI]:
         return self.bead_bonds
 
     def split_dna(self, split: AtomIdentifier) -> Tuple[AtomGroup, AtomGroup]:
+        """split DNA in two pieces, with the split atom id part of the second group."""
         self.dna_groups.remove(split[0])
         pos1 = split[0].positions[: split[1]]
         pos2 = split[0].positions[split[1] :]
@@ -495,13 +496,13 @@ class DnaConfiguration:
         mol_index: int,
         dna_atom: AtomIdentifier,
         bond: None | BAI_Type,  # if None -> rigid attachment to dna_atom
-        offset: int,
+        bead_size: float,
     ) -> None:
         # place on a DNA bead
-        location = dna_atom[0].positions[dna_atom[1]]
+        location = np.copy(dna_atom[0].positions[dna_atom[1]])
 
         # create a bead
-        bead = AtomGroup([location], bead_type, mol_index)
+        bead = AtomGroup(location.reshape(1, 3), bead_type, mol_index)
 
         bais = []
         if bond is None:
@@ -509,14 +510,19 @@ class DnaConfiguration:
             # gen.molecule_override[dna_atom] = mol_index
             pass
         else:
+            first_group, second_group = self.split_dna(dna_atom)
             # add interactions/exceptions
             bais += [
-                BAI(bond, (dna_atom[0], dna_atom[1] - offset), (bead, 0)),
-                BAI(bond, (dna_atom[0], dna_atom[1] + offset), (bead, 0)),
+                BAI(bond, (first_group, -1), (bead, 0)),
+                BAI(bond, (second_group, 0), (bead, 0)),
             ]
+            bead.positions[0, 0] += bead_size
+            first_group.positions[:, 0] += (
+                2 * bead_size - self.dna_parameters.DNA_bond_length
+            )
 
         self.beads.append(bead)
-        self.bead_sizes.append(offset)
+        self.bead_sizes.append(bead_size)
         self.bead_bonds += bais
 
     def get_stopper_ids(self) -> List[AtomIdentifier]:

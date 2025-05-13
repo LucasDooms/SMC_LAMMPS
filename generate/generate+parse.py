@@ -323,21 +323,23 @@ smc_1 = SMC(
 
 dna_config.set_smc(smc_1)
 
-extra_mols: List[int] = []
+extra_mols_smc: List[int] = []
+extra_mols_dna: List[int] = []
 
 if par.add_RNA_polymerase:
     mol_bead = MoleculeId.get_next()
-    extra_mols.append(mol_bead)
     bead_type = AtomType(10.0 * DNA_bead_mass)
     bead_size = par.RNA_polymerase_size
+
     if par.RNA_polymerase_type == 0:
-        bead_bond = BAI_Type(
-            BAI_Kind.BOND, "harmonic", f"{k_bond_DNA} {bead_size * DNA_bond_length}\n"
-        )
+        bead_bond = BAI_Type(BAI_Kind.BOND, "harmonic", f"{k_bond_DNA} {bead_size}\n")
+        extra_mols_dna.append(mol_bead)
     elif par.RNA_polymerase_type == 1:
         bead_bond = None
+        extra_mols_smc.append(mol_bead)
     else:
-        raise ValueError(f"unknown RNAPolymeraseType, {par.RNA_polymerase_type}")
+        raise ValueError(f"unknown RNA_polymerase_type, {par.RNA_polymerase_type}")
+
     if hasattr(dna_config, "tether"):
         dna_id = dna_config.tether.dna_tether_id
     else:
@@ -354,30 +356,30 @@ if par.spaced_beads_interval is not None:
     spaced_bead_type = AtomType(DNA_bead_mass)
 
     # get spacing
-
     start_id = par.spaced_beads_interval
     stop_id = get_closest(
         dna_config.dna_groups[0].positions, smc_positions.r_lower_site[1]
     )
     spaced_bead_ids = list(range(start_id, stop_id, par.spaced_beads_interval))
+
     for dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
-        extra_mols.append(mol_spaced_bead)
+        extra_mols_smc.append(mol_spaced_bead)
         dna_id = (dna_config.dna_groups[0], dna_id)
         dna_config.add_bead_to_dna(
             spaced_bead_type,
             mol_spaced_bead,
             dna_id,
             None,
-            par.spaced_beads_size / DNA_bond_length,
+            par.spaced_beads_size,
         )
         gen.molecule_override[dna_id] = mol_spaced_bead
 
 if par.add_stopper_bead:
     mol_stopper = MoleculeId.get_next()
-    extra_mols.append(mol_stopper)
+    extra_mols_smc.append(mol_stopper)
     stopper_type = AtomType(0.01 * DNA_bead_mass)
-    stopper_size = 15.0 # multiple of DNA_bond_length
+    stopper_size = 25.0
 
     stopper_ids = dna_config.get_stopper_ids()
     for dna_id in stopper_ids:
@@ -479,7 +481,9 @@ gen.bais += smc_1.get_angles()
 gen.bais += smc_1.get_impropers()
 
 # Override molecule ids to form rigid safety-belt bond
-if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.Safety)):  # TODO
+if isinstance(
+    dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.Safety)
+):  # TODO
     safety_index = dna_config.dna_safety_belt_index
     gen.molecule_override[(dna_config.dna_groups[0], safety_index)] = (
         smc_1.mol_lower_site
@@ -603,8 +607,12 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     file.write("\n")
     file.write(f"dna_spacing = {max_bond_length_DNA}\n")
     file.write("\n")
-    file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.dna_groups))}\n")
-    file.write(f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n")
+    file.write(
+        f"DNA_types = {list(set(grp.type.index for grp in dna_config.dna_groups))}\n"
+    )
+    file.write(
+        f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n"
+    )
 
 
 #################################################################################
@@ -728,13 +736,14 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
                         grp.molecule_index for grp in dna_config.beads
                     )  # do not include RNA beads
                 )
+                + extra_mols_dna
             ),
         )
     )
     parameterfile.write(
         get_string_def(
             "SMC_mols",
-            list_to_space_str(smc_1.get_molecule_ids() + extra_mols),
+            list_to_space_str(smc_1.get_molecule_ids() + extra_mols_smc),
         )
     )
 

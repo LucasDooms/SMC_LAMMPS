@@ -76,15 +76,16 @@ class Parameters:
     add_RNA_polymerase = True
     "adds 10 nm bead at DNA-tether site"
 
-    RNA_polymerase_size: float = 3
+    RNA_polymerase_size: float = 5.0
+    "radius of RNA polymerase (nm)"
 
     RNA_polymerase_type = 1
 
     spaced_beads_interval: int | None = None
     "how many DNA beads to leave between small obstacles"
 
-    spaced_beads_size: float = 10.0
-    "size of beads along DNA (nm)"
+    spaced_beads_size: float = 5.0
+    "radius of beads along DNA (nm)"
 
     ##################### Geometry #####################
 
