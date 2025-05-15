@@ -496,6 +496,7 @@ class DnaConfiguration:
         mol_index: int,
         dna_atom: AtomIdentifier,
         bond: None | BAI_Type,  # if None -> rigid attachment to dna_atom
+        angle: None | BAI_Type,  # only used if bond is not None
         bead_size: float,
     ) -> None:
         # place on a DNA bead
@@ -516,6 +517,14 @@ class DnaConfiguration:
                 BAI(bond, (first_group, -1), (bead, 0)),
                 BAI(bond, (second_group, 0), (bead, 0)),
             ]
+            if angle is not None:
+                bais += [
+                    BAI(angle, (first_group, -2), (first_group, -1), (bead, 0)),
+                    BAI(angle, (first_group, -1), (bead, 0), (second_group, 0)),
+                    BAI(angle, (bead, 0), (second_group, 0), (second_group, 1)),
+                ]
+
+            # move to correct distances
             bead.positions[0, 0] += bead_size
             first_group.positions[:, 0] += (
                 2 * bead_size - self.dna_parameters.DNA_bond_length

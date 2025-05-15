@@ -333,9 +333,11 @@ if par.add_RNA_polymerase:
 
     if par.RNA_polymerase_type == 0:
         bead_bond = BAI_Type(BAI_Kind.BOND, "harmonic", f"{k_bond_DNA} {bead_size}\n")
+        bead_angle = dna_angle
         extra_mols_dna.append(mol_bead)
     elif par.RNA_polymerase_type == 1:
         bead_bond = None
+        bead_angle = None
         extra_mols_smc.append(mol_bead)
     else:
         raise ValueError(f"unknown RNA_polymerase_type, {par.RNA_polymerase_type}")
@@ -347,7 +349,9 @@ if par.add_RNA_polymerase:
             dna_config.dna_groups[0],
             int(len(dna_config.dna_groups[0].positions) // 2),
         )
-    dna_config.add_bead_to_dna(bead_type, mol_bead, dna_id, bead_bond, bead_size)
+    dna_config.add_bead_to_dna(
+        bead_type, mol_bead, dna_id, bead_bond, bead_angle, bead_size
+    )
 
     if bead_bond is None:
         gen.molecule_override[dna_id] = mol_bead
@@ -371,6 +375,7 @@ if par.spaced_beads_interval is not None:
             mol_spaced_bead,
             dna_id,
             None,
+            None,
             par.spaced_beads_size,
         )
         gen.molecule_override[dna_id] = mol_spaced_bead
@@ -384,7 +389,7 @@ if par.add_stopper_bead:
     stopper_ids = dna_config.get_stopper_ids()
     for dna_id in stopper_ids:
         dna_config.add_bead_to_dna(
-            stopper_type, mol_stopper, dna_id, None, stopper_size
+            stopper_type, mol_stopper, dna_id, None, None, stopper_size
         )
         gen.molecule_override[dna_id] = mol_stopper
 
