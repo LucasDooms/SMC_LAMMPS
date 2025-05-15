@@ -471,6 +471,25 @@ class DnaConfiguration:
     def get_bonds(self) -> List[BAI]:
         return self.bead_bonds
 
+    def update_tether_bond(self, old_id: AtomIdentifier, new_groups, bead: None | AtomIdentifier) -> None:
+        if not hasattr(self, "tether"):
+            return
+        assert isinstance(self.tether, Tether)
+
+        def move(old):
+            new = self.tether.dna_tether_id[0].positions[self.tether.dna_tether_id[1]]
+            self.tether.move(new - old)
+
+        if self.tether.dna_tether_id[0] is old_id[0]:
+            if self.tether.dna_tether_id[1] < old_id[1]:
+                self.tether.dna_tether_id = (new_groups[0], self.tether.dna_tether_id[1])
+            elif self.tether.dna_tether_id[1] == old_id[1] and bead is not None:
+                self.tether.dna_tether_id = bead
+            else:
+                self.tether.dna_tether_id = (new_groups[1], self.tether.dna_tether_id[1] - old_id[1])
+
+        move(old_id[0].positions[old_id[1]])
+
     def split_dna(self, split: AtomIdentifier) -> Tuple[AtomGroup, AtomGroup]:
         """split DNA in two pieces, with the split atom id part of the second group."""
         self.dna_groups.remove(split[0])
@@ -512,6 +531,7 @@ class DnaConfiguration:
             pass
         else:
             first_group, second_group = self.split_dna(dna_atom)
+
             # add interactions/exceptions
             bais += [
                 BAI(bond, (first_group, -1), (bead, 0)),
@@ -529,6 +549,8 @@ class DnaConfiguration:
             first_group.positions[:, 0] += (
                 2 * bead_size - self.dna_parameters.DNA_bond_length
             )
+
+            self.update_tether_bond(dna_atom, (first_group, second_group), (bead, 0))
 
         self.beads.append(bead)
         self.bead_sizes.append(bead_size)
