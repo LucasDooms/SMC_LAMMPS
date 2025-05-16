@@ -173,7 +173,7 @@ class Tether:
             molecule_index=MoleculeId.get_next(),
             polymer_bond_type=bond_type,
             polymer_angle_type=angle_type,
-            charge=1.0,
+            charge=0.2,
         )
 
         return Tether(

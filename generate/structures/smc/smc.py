@@ -181,13 +181,13 @@ class SMC:
             self.pos.r_hinge[: len(self.pos.r_hinge) // 2],
             self.t_hinge,
             self.mol_hinge_l,
-            charge=-1.0,
+            charge=-0.1,
         )
         self.hinge_r_grp = AtomGroup(
             self.pos.r_hinge[len(self.pos.r_hinge) // 2 :],
             self.t_hinge,
             self.mol_hinge_r,
-            charge=-1.0,
+            charge=-0.1,
         )
         self.upper_site_grp = AtomGroup(
             self.pos.r_upper_site, self.t_upper_site, self.mol_hinge_l
