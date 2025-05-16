@@ -3,7 +3,7 @@ from typing import Any, List
 
 import numpy as np
 
-from generate.generator import Generator
+from generate.generator import AtomIdentifier, Generator
 
 
 def create_phase(
@@ -24,3 +24,8 @@ def get_closest(array, position) -> int:
 
     distances = np.linalg.norm(array - position, axis=1)
     return int(np.argmin(distances))
+
+
+def pos_from_id(atom_id: AtomIdentifier):
+    """get the position of an atom from its identifier"""
+    return np.copy(atom_id[0].positions[atom_id[1]])

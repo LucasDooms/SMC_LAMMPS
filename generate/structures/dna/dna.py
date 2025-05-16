@@ -24,7 +24,7 @@ from generate.generator import (
 from generate.structures import structure_creator
 from generate.structures.dna import dna_creator
 from generate.structures.smc.smc import SMC
-from generate.util import get_closest
+from generate.util import get_closest, pos_from_id
 
 
 @dataclass
@@ -476,10 +476,6 @@ class DnaConfiguration:
             return
         assert isinstance(self.tether, Tether)
 
-        def move(old):
-            new = self.tether.dna_tether_id[0].positions[self.tether.dna_tether_id[1]]
-            self.tether.move(new - old)
-
         if self.tether.dna_tether_id[0] is old_id[0]:
             if self.tether.dna_tether_id[1] < old_id[1]:
                 self.tether.dna_tether_id = (new_groups[0], self.tether.dna_tether_id[1])
@@ -488,7 +484,9 @@ class DnaConfiguration:
             else:
                 self.tether.dna_tether_id = (new_groups[1], self.tether.dna_tether_id[1] - old_id[1])
 
-        move(old_id[0].positions[old_id[1]])
+        old = pos_from_id(old_id)
+        new = pos_from_id(self.tether.dna_tether_id)
+        self.tether.move(new - old)
 
     def split_dna(self, split: AtomIdentifier) -> Tuple[AtomGroup, AtomGroup]:
         """split DNA in two pieces, with the split atom id part of the second group."""
@@ -519,7 +517,7 @@ class DnaConfiguration:
         bead_size: float,
     ) -> None:
         # place on a DNA bead
-        location = np.copy(dna_atom[0].positions[dna_atom[1]])
+        location = pos_from_id(dna_atom)
 
         # create a bead
         bead = AtomGroup(location.reshape(1, 3), bead_type, mol_index)
