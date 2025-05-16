@@ -2,12 +2,13 @@
 
 import math
 from dataclasses import dataclass, fields
-from typing import Any, List, Tuple, TypeVar
+from typing import Any, List, Tuple
 
 import numpy as np
 from numpy.random import default_rng
 from scipy.spatial.transform import Rotation
 
+from generate.generator import Nx3Array
 from generate.structures.structure_creator import (
     attach_chain,
     get_circle_segment_unit_radius,
@@ -17,16 +18,16 @@ from generate.structures.structure_creator import (
 
 @dataclass
 class SMC_Pos:
-    r_arm_dl: ...
-    r_arm_ul: ...
-    r_arm_ur: ...
-    r_arm_dr: ...
-    r_ATP: ...
-    r_kleisin: ...
-    r_upper_site: ...
-    r_middle_site: ...
-    r_lower_site: ...
-    r_hinge: ...
+    r_arm_dl: Nx3Array
+    r_arm_ul: Nx3Array
+    r_arm_ur: Nx3Array
+    r_arm_dr: Nx3Array
+    r_ATP: Nx3Array
+    r_kleisin: Nx3Array
+    r_upper_site: Nx3Array
+    r_middle_site: Nx3Array
+    r_lower_site: Nx3Array
+    r_hinge: Nx3Array
 
     def iter(self) -> List[Any]:
         """Returns a list of all fields"""
@@ -72,7 +73,9 @@ class SMC_Creator:
 
     small_noise: float = 1e-5
 
-    def get_arms(self, seed: int = 8671288977726523465):
+    def get_arms(
+        self, seed: int = 8671288977726523465
+    ) -> Tuple[Nx3Array, Nx3Array, Nx3Array, Nx3Array]:
         # Number of beads forming each arm segment (err on the high side)
         n_arm_segments = math.ceil(self.arm_length / (2 * self.SMC_spacing))
 
@@ -115,7 +118,7 @@ class SMC_Creator:
 
         return r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr
 
-    def get_bridge(self, seed: int = 4685150768879447999):
+    def get_bridge(self, seed: int = 4685150768879447999) -> Nx3Array:
         # Number of beads forming the ATP ring (err on the high side)
         n_ATP = math.ceil(self.bridge_width / self.SMC_spacing)
 
@@ -138,7 +141,7 @@ class SMC_Creator:
 
         return r_ATP
 
-    def get_heads_kleisin(self, seed: int = 8305832029550348799):
+    def get_heads_kleisin(self, seed: int = 8305832029550348799) -> Nx3Array:
         # Circle-arc radius
         # radius = (self.HKradius**2 + (self.bridgeWidth / 2.0)**2) / (2.0 * self.HKradius)
         bridge_radius = self.bridge_width / 2.0
@@ -189,7 +192,7 @@ class SMC_Creator:
         n_outer_beads_per_inner_bead: int,
         inner_spacing: float,
         outer_spacing: float,
-    ):
+    ) -> Nx3Array:
         """create a line of beads surrounded by a protective shell/shield"""
         axis = np.array([1, 0, 0])
         # Inner/Attractive beads
@@ -221,15 +224,13 @@ class SMC_Creator:
 
         return np.concatenate([inner_beads, *shells, end_first, end_last])
 
-    T = TypeVar("T")
-
     @staticmethod
-    def transpose_rotate_transpose(rotation, *arrays: T) -> Tuple[T]:
+    def transpose_rotate_transpose(rotation, *arrays: Nx3Array) -> Tuple[Nx3Array]:
         return tuple(rotation.dot(arr.transpose()).transpose() for arr in arrays)
 
     def get_interaction_sites(
         self, lower_site_points_down: bool, seed: int = 8343859591397577529
-    ):
+    ) -> Tuple[Nx3Array, Nx3Array, Nx3Array]:
         # U = upper  interaction site
         # M = middle interaction site
         # D = lower  interaction site
@@ -265,19 +266,13 @@ class SMC_Creator:
 
         # Add randomness
         rng_sites = default_rng(seed=seed)
-        r_upper_site += (
-            rng_sites.standard_normal() * self.small_noise
-        )
-        r_middle_site += (
-            rng_sites.standard_normal() * self.small_noise
-        )
-        r_lower_site += (
-            rng_sites.standard_normal() * self.small_noise
-        )
+        r_upper_site += rng_sites.standard_normal() * self.small_noise
+        r_middle_site += rng_sites.standard_normal() * self.small_noise
+        r_lower_site += rng_sites.standard_normal() * self.small_noise
 
         return r_upper_site, r_middle_site, r_lower_site
 
-    def get_hinge(self):
+    def get_hinge(self) -> Nx3Array:
         radius = self.hinge_radius
 
         spacing = self.SMC_spacing * 0.8
@@ -312,7 +307,7 @@ class SMC_Creator:
 
         return r_hinge
 
-    def get_smc(self, lower_site_points_down: bool, extra_rotation=None):
+    def get_smc(self, lower_site_points_down: bool, extra_rotation=None) -> SMC_Pos:
         r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr = self.get_arms()
         r_ATP = self.get_bridge()
         r_kleisin = self.get_heads_kleisin()

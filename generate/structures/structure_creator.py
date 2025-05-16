@@ -1,9 +1,15 @@
+from typing import List
+
 import numpy as np
+import numpy.typing as npt
 from scipy import interpolate
+from scipy.stats import trapezoid
 from scipy.spatial.transform import Rotation
 
+from generate.generator import Nx3Array
 
-def get_interpolated(spacing: float, values):
+
+def get_interpolated(spacing: float, values) -> Nx3Array:
     """spacing: distance between points along curve
     values: list of 3d points to use in the interpolation
     returns n equidistant points on an interpolated curve"""
@@ -18,7 +24,7 @@ def get_interpolated(spacing: float, values):
     integrands = np.sqrt(np.sum(derivatives_along_curve**2, axis=1))
     lengths = np.array(
         [
-            np.trapz(integrands[: i + 1], x=sampling[: i + 1])
+            trapezoid(integrands[: i + 1], x=sampling[: i + 1])
             for i in range(len(integrands))
         ]
     )
@@ -38,11 +44,12 @@ def get_interpolated(spacing: float, values):
 # print(get_interpolated(100, np.array([[0, 0, 0], [1, 0, 0], [0.5, 0.5, 0], [0, 1, 0], [-4, 1, 0]])))
 
 
-def get_straight_segment(n: int, direction=(1, 0, 0)):
+def get_straight_segment(n: int, direction=(1, 0, 0)) -> Nx3Array:
     """returns a straight segment of n beads with unit spacing starting at
     the origin and going the in provided direction (positive x-axis by default)"""
-    direction = np.array(direction, dtype=float)
-    normalized_direction = direction / np.linalg.norm(direction)
+    direction = np.array(direction, dtype=np.float32)
+    length: np.float32 = np.linalg.norm(direction)
+    normalized_direction: npt.NDArray[np.float32] = direction / length
     segment = np.repeat(normalized_direction, n).reshape(3, n) * np.arange(n)
     return segment.transpose()
 
@@ -53,7 +60,7 @@ def get_circle_segment_unit_radius(
     theta_start: float = 0,
     theta_end: float = 2 * np.pi,
     normal_direction=(0, 0, 1),
-):
+) -> Nx3Array:
     normal_direction = np.array(normal_direction, dtype=float)
 
     arange = np.arange(n) / (n - 1 if end_inclusive else n)
@@ -82,7 +89,7 @@ def get_circle_segment(
     theta_start: float = 0,
     theta_end: float = 2 * np.pi,
     normal_direction=(0, 0, 1),
-):
+) -> Nx3Array:
     """returns a segment of a circle of n beads with unit spacing centered at the origin
     within the plane perpendical to the given normal_direction (in the x-y plane by default)"""
     segment = get_circle_segment_unit_radius(
@@ -90,13 +97,16 @@ def get_circle_segment(
     )
     if n < 2:
         return segment
-    distance = np.linalg.norm(segment[0] - segment[1])
+    distance: np.float32 = np.linalg.norm(segment[0] - segment[1])
     return segment / distance
 
 
 def attach(
-    reference_segment, other_segment, delete_overlap: bool, extra_distance: float = 0.0
-):
+    reference_segment: Nx3Array,
+    other_segment: Nx3Array,
+    delete_overlap: bool,
+    extra_distance: float = 0.0,
+) -> Nx3Array:
     """attaches the other_segment by moving its beginning to the end of the reference_segment"""
     extra_vector = np.zeros(len(reference_segment[0]))
     if isinstance(extra_distance, float):
@@ -116,7 +126,7 @@ def attach(
     return other_segment
 
 
-def attach_chain(reference_segment, list_of_args):
+def attach_chain(reference_segment: Nx3Array, list_of_args) -> List[Nx3Array]:
     """returns a list of the updated segments"""
     first_segment = reference_segment
     for i in range(len(list_of_args)):

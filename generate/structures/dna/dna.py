@@ -19,6 +19,7 @@ from generate.generator import (
     BAI_Kind,
     BAI_Type,
     MoleculeId,
+    Nx3Array,
     PairWise,
 )
 from generate.structures import structure_creator
@@ -367,7 +368,7 @@ class DnaConfiguration:
         return self.dna_groups + self.beads
 
     @property
-    def dna_full_list(self) -> List[List[float]]:
+    def dna_full_list(self) -> Nx3Array:
         return np.concatenate([grp.positions for grp in self.dna_groups])
 
     @property
@@ -471,18 +472,26 @@ class DnaConfiguration:
     def get_bonds(self) -> List[BAI]:
         return self.bead_bonds
 
-    def update_tether_bond(self, old_id: AtomIdentifier, new_groups, bead: None | AtomIdentifier) -> None:
+    def update_tether_bond(
+        self, old_id: AtomIdentifier, new_groups, bead: None | AtomIdentifier
+    ) -> None:
         if not hasattr(self, "tether"):
             return
         assert isinstance(self.tether, Tether)
 
         if self.tether.dna_tether_id[0] is old_id[0]:
             if self.tether.dna_tether_id[1] < old_id[1]:
-                self.tether.dna_tether_id = (new_groups[0], self.tether.dna_tether_id[1])
+                self.tether.dna_tether_id = (
+                    new_groups[0],
+                    self.tether.dna_tether_id[1],
+                )
             elif self.tether.dna_tether_id[1] == old_id[1] and bead is not None:
                 self.tether.dna_tether_id = bead
             else:
-                self.tether.dna_tether_id = (new_groups[1], self.tether.dna_tether_id[1] - old_id[1])
+                self.tether.dna_tether_id = (
+                    new_groups[1],
+                    self.tether.dna_tether_id[1] - old_id[1],
+                )
 
         old = pos_from_id(old_id)
         new = pos_from_id(self.tether.dna_tether_id)

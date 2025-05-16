@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Set, Tuple
 from warnings import warn
 
 import numpy as np
+import numpy.typing as npt
 
 
 class AtomType:
@@ -88,9 +89,13 @@ class BAI_Type:
         return f"{self.index}{style} {self.coefficients}"
 
 
+Nx3Array = npt.NDArray[np.float32]
+"""An (N, 3) array of positions"""
+
+
 class AtomGroup:
     """
-    positions: list of 3d positions of (n) atoms [[x, y, z], ...]
+    positions: numpy array with shape (n, 3) of 3d positions of (n) atoms [[x, y, z], ...]
     atom_type: type of the atoms
     molecule_index (int): the molecule index which is needed for atom_style molecule
     polymer_bond_type: if None -> no bonds, otherwise all atoms will form bonds as a polymer
@@ -98,7 +103,7 @@ class AtomGroup:
 
     def __init__(
         self,
-        positions: List[List[float]],
+        positions: Nx3Array,
         atom_type: AtomType,
         molecule_index: int,
         polymer_bond_type: BAI_Type | None = None,
@@ -122,6 +127,7 @@ class AtomGroup:
 
 
 AtomIdentifier = Tuple[AtomGroup, int]
+"A unique identifier of an atom in a group"
 
 
 class BAI:
@@ -656,7 +662,7 @@ class Generator:
 
 
 def test_simple_atoms():
-    positions = np.zeros(shape=(100, 3))
+    positions = np.zeros(shape=(100, 3), dtype=np.float32)
     gen = Generator()
     gen.atom_groups.append(AtomGroup(positions, AtomType(), 1))
     gen.set_system_size(10)
@@ -665,7 +671,7 @@ def test_simple_atoms():
 
 
 def test_simple_atoms_polymer():
-    positions = np.zeros(shape=(100, 3))
+    positions = np.zeros(shape=(100, 3), dtype=np.float32)
     gen = Generator()
     gen.atom_groups.append(
         AtomGroup(
@@ -678,7 +684,7 @@ def test_simple_atoms_polymer():
 
 
 def test_with_bonds():
-    positions = np.zeros(shape=(25, 3))
+    positions = np.zeros(shape=(25, 3), dtype=np.float32)
 
     gen = Generator()
     gen.set_system_size(10)
@@ -703,7 +709,7 @@ def test_with_bonds():
 
 
 def test_with_pairs():
-    positions = np.zeros(shape=(25, 3))
+    positions = np.zeros(shape=(25, 3), dtype=np.float32)
 
     gen = Generator()
     gen.set_system_size(10)

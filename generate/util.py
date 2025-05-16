@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, List
 
 import numpy as np
+import numpy.typing as npt
 
 from generate.generator import AtomIdentifier, Generator
 
@@ -26,6 +27,6 @@ def get_closest(array, position) -> int:
     return int(np.argmin(distances))
 
 
-def pos_from_id(atom_id: AtomIdentifier):
+def pos_from_id(atom_id: AtomIdentifier) -> npt.NDArray[np.float32]:
     """get the position of an atom from its identifier"""
     return np.copy(atom_id[0].positions[atom_id[1]])
