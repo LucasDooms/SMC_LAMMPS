@@ -365,6 +365,7 @@ if par.spaced_beads_interval is not None:
         dna_config.dna_groups[0].positions, smc_positions.r_lower_site[1]
     )
     spaced_bead_ids = list(range(start_id, stop_id, par.spaced_beads_interval))
+    spaced_bead_ids += list(range(stop_id + par.spaced_beads_interval, len(dna_config.dna_groups[0].positions), par.spaced_beads_interval))
 
     for dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
