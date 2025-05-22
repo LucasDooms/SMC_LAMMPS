@@ -190,6 +190,10 @@ def main():
     args = parse()
     path = Path(args.directory)
 
+    # --continue flag implies the --run flag
+    if args.continue_flag:
+        args.run = True
+
     tasks = [
         generate(args, path),
         run(args, path),

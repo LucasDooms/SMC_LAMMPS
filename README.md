@@ -69,10 +69,11 @@ Note: the docker image does not include VMD.
 3. Run `python run.py [flags] hinge`, providing the directory of the parameters file. Use the `-g` flag to generate the required parameterfile and datafile.
 
 examples:
-- `python run.py hinge -g`   to generate and run
-- `python run.py hinge -gpv` to generate, run, post-process, and visualize
-- `python run.py hinge -gvn` to generate, run, and visualize while ignoring errors
-- `python run.py hinge -c`   to continue a run from a restart file
+- `python run.py hinge -gr`   to generate and run
+- `python run.py hinge -grpv` to generate, run, post-process, and visualize
+- `python run.py hinge -grvn` to generate, run, and visualize while ignoring errors
+- `python run.py hinge -v`    to visualize
+- `python run.py hinge -c`    to continue a run from a restart file
 
 help:  
 `python run.py --help`
