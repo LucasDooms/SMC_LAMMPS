@@ -15,6 +15,7 @@ tmp.lammps.variable
 
 # vmd
 */vmd.init
+*/vmd.tcl
 
 # other saved data
 *.npz

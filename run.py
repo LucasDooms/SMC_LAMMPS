@@ -27,7 +27,10 @@ def parse() -> argparse.Namespace:
 
     post_processing = parser.add_argument_group(title='post-processing')
     post_processing.add_argument('-p', '--post-process', action='store_true', help='run the post-processing scripts after running LAMMPS')
-    post_processing.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
+    pp_vis = post_processing.add_mutually_exclusive_group()
+    pp_vis.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
+    pp_vis.add_argument('-vd', '--visualize-datafile', action='store_true', help='shows the initial structure in VMD')
+    pp_vis.add_argument('-vf', '--visualize-follow', action='store_true', help='same as --visualize, but follows the SMC')
 
     other = parser.add_argument_group(title='other options')
     other.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
@@ -54,7 +57,7 @@ class TaskDone:
         self.skipped = skipped
 
 
-def generate(args, path) -> TaskDone:
+def generate(args, path: Path) -> TaskDone:
     if not args.generate:
         if args.seed is not None:
             warn("seed argument is ignored when -g flag is not used!")
@@ -83,7 +86,7 @@ def get_lammps_args_list(lammps_vars):
     return out
 
 
-def perform_run(args, path, lammps_vars=()):
+def perform_run(args, path: Path, lammps_vars=()):
     command = [
         f"{args.executable}",
         "-sf",
@@ -111,7 +114,7 @@ def perform_run(args, path, lammps_vars=()):
         run_and_handle_error(run_with_output, args.ignore_errors)
 
 
-def restart_run(args, path, output_file) -> TaskDone:
+def restart_run(args, path: Path, output_file: Path) -> TaskDone:
     if not args.continue_flag:
         return TaskDone(skipped=True)
 
@@ -128,7 +131,7 @@ def restart_run(args, path, output_file) -> TaskDone:
     return TaskDone()
 
 
-def run(args, path) -> TaskDone:
+def run(args, path: Path) -> TaskDone:
     if not args.run:
         return TaskDone(skipped=True)
 
@@ -141,6 +144,7 @@ def run(args, path) -> TaskDone:
     if args.force:
         output_file.unlink(missing_ok=True)
         (path / "restartfile").unlink(missing_ok=True)
+        (path / "perspective.output.lammpstrj").unlink(missing_ok=True)
 
     if output_file.exists():
         warn(
@@ -154,7 +158,7 @@ def run(args, path) -> TaskDone:
     return TaskDone()
 
 
-def post_process(args, path) -> TaskDone:
+def post_process(args, path: Path) -> TaskDone:
     if not args.post_process:
         return TaskDone(skipped=True)
 
@@ -170,7 +174,75 @@ def post_process(args, path) -> TaskDone:
     return TaskDone()
 
 
-def visualize(args, path) -> TaskDone:
+def visualize_datafile(args, path: Path) -> TaskDone:
+    if not args.visualize_datafile:
+        return TaskDone(skipped=True)
+
+    print("starting VMD")
+    run_and_handle_error(
+        lambda: subprocess.run(
+            ["vmd", "-e", f"{path}/vmd.tcl"], check=False
+        ),
+        args.ignore_errors,
+    )
+    print("VMD exited")
+
+    return TaskDone()
+
+
+def create_perspective_file(args, path: Path, force=False):
+    if not force and (path / "perspective.output.lammpstrj").exists():
+        print("found perspective.output.lammpstrj")
+        return
+
+    print("creating new lammpstrj file")
+    run_and_handle_error(
+        lambda: subprocess.run(
+            python_run
+            + [
+                "post-process.smc_perspective",
+                f"{path / 'output.lammpstrj'}",
+                f"{path / 'post_processing_parameters.py'}",
+            ],
+            check=False,
+        ),
+        args.ignore_errors,
+    )
+    print("created perspective.output.lammpstrj")
+
+
+def visualize_follow(args, path: Path) -> TaskDone:
+    if not args.visualize_follow:
+        return TaskDone(skipped=True)
+
+    create_perspective_file(args, path)
+
+    print("starting VMD")
+    run_and_handle_error(
+        lambda: subprocess.run(
+            python_run
+            + [
+                "post-process.visualize",
+                f"{path}",
+                "--file_name",
+                "perspective.output.lammpstrj",
+            ],
+            check=False,
+        ),
+        args.ignore_errors,
+    )
+    print("VMD exited")
+
+    return TaskDone()
+
+
+def visualize(args, path: Path) -> TaskDone:
+    if not visualize_datafile(args, path).skipped:
+        return TaskDone()
+
+    if not visualize_follow(args, path).skipped:
+        return TaskDone()
+
     if not args.visualize:
         return TaskDone(skipped=True)
 

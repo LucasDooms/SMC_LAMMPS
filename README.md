@@ -73,6 +73,7 @@ examples:
 - `python run.py hinge -grpv` to generate, run, post-process, and visualize
 - `python run.py hinge -grvn` to generate, run, and visualize while ignoring errors
 - `python run.py hinge -v`    to visualize
+- `python run.py hinge -vf`   to visualize a perspective following the SMC
 - `python run.py hinge -c`    to continue a run from a restart file
 
 help:  

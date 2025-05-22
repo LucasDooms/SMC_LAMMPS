@@ -365,7 +365,13 @@ if par.spaced_beads_interval is not None:
         dna_config.dna_groups[0].positions, smc_positions.r_lower_site[1]
     )
     spaced_bead_ids = list(range(start_id, stop_id, par.spaced_beads_interval))
-    spaced_bead_ids += list(range(stop_id + par.spaced_beads_interval, len(dna_config.dna_groups[0].positions), par.spaced_beads_interval))
+    spaced_bead_ids += list(
+        range(
+            stop_id + par.spaced_beads_interval,
+            len(dna_config.dna_groups[0].positions),
+            par.spaced_beads_interval,
+        )
+    )
 
     for dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
@@ -499,7 +505,6 @@ if isinstance(
     # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = smc_1.mol_lower_site
 
 with open(path / "datafile_coeffs", "w", encoding="utf-8") as datafile:
-    # gen.write_full(datafile)
     gen.write_coeffs(datafile)
 
 with open(path / "datafile_positions", "w", encoding="utf-8") as datafile:
@@ -513,6 +518,9 @@ with open(path / "styles", "w", encoding="utf-8") as stylesfile:
         pair_style += " coul/debye $(1.0/5.0) $(7.5)"
     stylesfile.write(pair_style)
 
+# VMD visualization of initial configuration
+with open(path / "vmd.tcl", "w", encoding="utf-8") as vmdfile:
+    vmdfile.write(f"topo readlammpsdata {path / 'datafile_positions'}")
 
 #################################################################################
 #                                Phases of SMC                                  #

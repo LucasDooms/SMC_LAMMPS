@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser(
 
 
 parser.add_argument('directory', help='the directory containing LAMMPS output files')
+fn_arg = parser.add_argument('-f', '--file_name', help='name of file, default: \'output.lammpstrj\'', default='output.lammpstrj')
 
 args = parser.parse_args()
 path = Path(args.directory)
@@ -91,12 +92,13 @@ class Molecules:
 
 mol = Molecules(path)
 
-for p in path.glob("marked_bead*.lammpstrj"):
-    mol.create_new_marked(p.name)
+if args.file_name == fn_arg.default:
+    for p in path.glob("marked_bead*.lammpstrj"):
+        mol.create_new_marked(p.name)
 
 kleisins = parameters["kleisin_ids"]
 kleisin_rng = (min(kleisins), max(kleisins))
-mol.create_new_dna("output.lammpstrj", parameters["dna_indices_list"], [kleisin_rng])
+mol.create_new_dna(args.file_name, parameters["dna_indices_list"], [kleisin_rng])
 mol.add_piece(kleisin_rng)
 
 cmd = ["vmd", "-e", f"{mol.path.absolute()}"]
