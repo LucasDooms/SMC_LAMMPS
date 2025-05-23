@@ -68,7 +68,7 @@ Note: the docker image does not include VMD.
 2. Define all parameters in `hinge/parameters.py` (see `generate/default_parameters.py` for all options)
 3. Run `python run.py [flags] hinge`, providing the directory of the parameters file. Use the `-g` flag to generate the required parameterfile and datafile.
 
-examples:
+#### Examples
 - `python run.py hinge -gr`   to generate and run
 - `python run.py hinge -grpv` to generate, run, post-process, and visualize
 - `python run.py hinge -grvn` to generate, run, and visualize while ignoring errors
@@ -76,8 +76,11 @@ examples:
 - `python run.py hinge -vf`   to visualize a perspective following the SMC
 - `python run.py hinge -c`    to continue a run from a restart file
 
-help:  
-`python run.py --help`
+#### Help
+Show help with `python run.py --help`
+
+#### Shell completion
+For bash or zsh, you can use `eval "$(register-python-argcomplete run)"` to get shell completion when using `python run.py` or `./run.py`.
 
 
 ## Authors
