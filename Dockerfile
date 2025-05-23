@@ -19,8 +19,10 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 # setup uv and create venv (used by lammps to install python packages)
 COPY uv.lock uv.lock
 COPY pyproject.toml pyproject.toml
+COPY README.md README.md
+COPY src/smc_lammps src/smc_lammps
 
-RUN uv venv ${VENV_DIR} && uv sync \
+RUN uv venv ${VENV_DIR} && uv sync --no-editable \
     && find ${VENV_DIR} \( -type d -a -name test -o -name tests \) -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) -exec rm -rf '{}' \+
 
 # activate venv
