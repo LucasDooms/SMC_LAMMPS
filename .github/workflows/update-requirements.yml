@@ -1,0 +1,41 @@
+name: Update requirements.txt on uv change
+
+on:
+  push:
+    paths:
+      - pyproject.toml
+      - uv.lock
+
+permissions:
+  contents: write
+
+jobs:
+  update-requirements:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Update lockfile
+        run: uv lock
+
+      - name: Export requirements.txt
+        run: uv export > requirements.txt
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add requirements.txt
+          echo "CHANGED=$(git diff --cached --quiet && echo 'false' || echo 'true')" >> $GITHUB_ENV
+
+      - name: Commit and push if changed
+        if: env.CHANGED == 'true'
+        run: |
+          git commit -m "update requirements.txt after uv change"
+          git push
