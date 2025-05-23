@@ -12,8 +12,8 @@ from typing import Any, List
 import numpy as np
 from numpy.random import default_rng
 
-from generate.default_parameters import Parameters
-from generate.generator import (
+from smc_lammps.generate.default_parameters import Parameters
+from smc_lammps.generate.generator import (
     AtomIdentifier,
     AtomType,
     BAI_Kind,
@@ -22,10 +22,10 @@ from generate.generator import (
     MoleculeId,
     PairWise,
 )
-from generate.structures.dna import dna
-from generate.structures.smc.smc import SMC
-from generate.structures.smc.smc_creator import SMC_Creator
-from generate.util import create_phase, get_closest
+from smc_lammps.generate.structures.dna import dna
+from smc_lammps.generate.structures.smc.smc import SMC
+from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator
+from smc_lammps.generate.util import create_phase, get_closest
 
 if len(argv) < 2:
     raise ValueError("Provide a folder path")

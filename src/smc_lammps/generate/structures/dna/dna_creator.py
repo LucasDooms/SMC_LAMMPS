@@ -4,14 +4,14 @@ import math
 
 import numpy as np
 
-from generate.structures.structure_creator import (
+from smc_lammps.generate.structures.structure_creator import (
     attach,
     attach_chain,
     get_circle_segment,
     get_interpolated,
     get_straight_segment,
 )
-from generate.util import get_closest
+from smc_lammps.generate.util import get_closest
 
 
 def get_dna_coordinates_straight(nDNA: int, DNAbondLength: float):

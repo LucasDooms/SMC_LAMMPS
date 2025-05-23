@@ -4,7 +4,11 @@ from typing import Any, List
 import numpy as np
 import numpy.typing as npt
 
-from generate.generator import AtomIdentifier, Generator
+from smc_lammps.generate.generator import AtomIdentifier, Generator
+
+
+def get_project_root() -> Path:
+    return Path(__file__).parent.parent
 
 
 def create_phase(

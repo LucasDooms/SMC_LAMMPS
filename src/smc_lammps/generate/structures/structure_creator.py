@@ -6,7 +6,7 @@ from scipy import interpolate
 from scipy.stats import trapezoid
 from scipy.spatial.transform import Rotation
 
-from generate.generator import Nx3Array
+from smc_lammps.generate.generator import Nx3Array
 
 
 def get_interpolated(spacing: float, values) -> Nx3Array:

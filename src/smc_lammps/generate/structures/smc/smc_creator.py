@@ -8,8 +8,8 @@ import numpy as np
 from numpy.random import default_rng
 from scipy.spatial.transform import Rotation
 
-from generate.generator import Nx3Array
-from generate.structures.structure_creator import (
+from smc_lammps.generate.generator import Nx3Array
+from smc_lammps.generate.structures.structure_creator import (
     attach_chain,
     get_circle_segment_unit_radius,
     get_straight_segment,

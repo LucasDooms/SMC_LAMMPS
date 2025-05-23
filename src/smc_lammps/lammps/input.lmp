@@ -13,6 +13,9 @@ include parameterfile
 if $(!is_defined(variable,is_restart)) then &
     "variable is_restart equal 0"
 
+if $(!is_defined(variable,lammps_root_dir)) then &
+    "variable lammps_root_dir string ../lammps"
+
 # Fixed boundaries in all dimensions
 boundary f f f
 
@@ -117,7 +120,7 @@ timestep ${timestep}
 #----------------------------------------------Run-------------------------------------------------#
 
 if $(!v_is_restart) then &
-    "include ../lammps/equilibrate.lmp"
+    "include ${lammps_root_dir}/equilibrate.lmp"
 
 # collect msd for obstacle
 if $(is_defined(variable,obstacle_id)) then &

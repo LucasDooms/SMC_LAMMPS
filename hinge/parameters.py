@@ -1,5 +1,5 @@
 #### DO NOT EDIT THIS BLOCK ####
-from generate.default_parameters import Parameters
+from smc_lammps.generate.default_parameters import Parameters
 
 p = Parameters()
 #### END OF BLOCK ####
