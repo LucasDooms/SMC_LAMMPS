@@ -1,8 +1,12 @@
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 import argparse
 import subprocess
 from functools import partial
 from pathlib import Path
 from warnings import warn
+
+import argcomplete
 
 
 def parse() -> argparse.Namespace:
@@ -38,6 +42,9 @@ def parse() -> argparse.Namespace:
     other.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default='lammps/input.lmp')
 
     # fmt: on
+
+    # shell autocompletion
+    argcomplete.autocomplete(parser)
 
     return parser.parse_args()
 
