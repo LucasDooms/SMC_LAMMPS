@@ -6,6 +6,7 @@ from warnings import warn
 
 
 def parse() -> argparse.Namespace:
+    # fmt: off
     parser = argparse.ArgumentParser(
         description='runs setup scripts, LAMMPS script, post-processing, and visualization',
         epilog='visit https://github.com/LucasDooms/SMC_LAMMPS for more info'
@@ -16,12 +17,12 @@ def parse() -> argparse.Namespace:
     generate_and_run = parser.add_argument_group(title='generate & run')
     generate_and_run.add_argument('-g', '--generate', action='store_true', help='run the python setup scripts before executing LAMMPS')
     generate_and_run.add_argument('-r', '--run', action='store_true', help='run the LAMMPS script')
-    generate_and_run.add_argument('-s', '--seed', help='set the seed to be used by LAMMPS, this takes precedence over the seed in default_parameters.py and parameters.py')
+    generate_and_run.add_argument('-c', '--continue', dest='continue_flag', action='store_true', help='continue from restart file and append to existing simulation')
 
     gar_mods = parser.add_argument_group(title='modifiers')
+    gar_mods.add_argument('-s', '--seed', help='set the seed to be used by LAMMPS, this takes precedence over the seed in default_parameters.py and parameters.py (Note: currently only works with the --generate flag)')
     gar_mods.add_argument('-e', '--executable', help='name of the LAMMPS executable to use, default: \'lmp\'', default='lmp')
     gar_mods.add_argument('-f', '--force', action='store_true', help='don\'t prompt before overwriting existing files / continuing empty simulation')
-    gar_mods.add_argument('-c', '--continue', dest='continue_flag', action='store_true', help='continue from restart file and append to existing simulation')
     gar_mods.add_argument('-o', '--output', help='path to dump LAMMPS output to (prints to terminal by default)')
     gar_mods.add_argument('-sf', '--suffix', help='variant of LAMMPS styles to use, default: \'opt\' (see https://docs.lammps.org/Run_options.html#suffix)', default='opt')
 
@@ -35,6 +36,8 @@ def parse() -> argparse.Namespace:
     other = parser.add_argument_group(title='other options')
     other.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
     other.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default='lammps/input.lmp')
+
+    # fmt: on
 
     return parser.parse_args()
 
@@ -180,9 +183,7 @@ def visualize_datafile(args, path: Path) -> TaskDone:
 
     print("starting VMD")
     run_and_handle_error(
-        lambda: subprocess.run(
-            ["vmd", "-e", f"{path}/vmd.tcl"], check=False
-        ),
+        lambda: subprocess.run(["vmd", "-e", f"{path}/vmd.tcl"], check=False),
         args.ignore_errors,
     )
     print("VMD exited")
