@@ -79,5 +79,9 @@ ARG DATA_DIR=/data
 VOLUME ${DATA_DIR}
 WORKDIR ${DATA_DIR}
 
+# enable shell autocompletion in bash
+SHELL ["/bin/bash", "-c"]
+RUN echo 'eval "$(register-python-argcomplete smc-lammps)"' >> /etc/bash.bashrc
+
 # run in bash by default
 CMD ["/bin/bash"]
