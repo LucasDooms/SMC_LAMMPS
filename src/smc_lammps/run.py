@@ -5,10 +5,10 @@ import subprocess
 from functools import partial
 from pathlib import Path
 from typing import List
-from warnings import warn
 
 import argcomplete
 
+from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
 
 PYRUN = ["python", "-m"]
