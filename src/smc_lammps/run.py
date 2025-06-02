@@ -72,6 +72,25 @@ class TaskDone:
         self.skipped = skipped
 
 
+def initialize(path: Path) -> TaskDone:
+    destination = path / "parameters.py"
+    if destination.exists():
+        return TaskDone(skipped=True)
+
+    if not path.exists():
+        path.mkdir(parents=True)
+        print(f"created new directory: {path.absolute()}")
+
+    root = get_project_root()
+    template_path = root / "generate" / "parameters_template.py"
+
+    # copy file
+    destination.write_bytes(template_path.read_bytes())
+    print(f"created template parameters file: {destination.absolute()}")
+
+    return TaskDone()
+
+
 def generate(args, path: Path) -> TaskDone:
     if not args.generate:
         if args.seed is not None:
@@ -291,6 +310,7 @@ def main():
         args.run = True
 
     tasks = [
+        initialize(path),
         generate(args, path),
         run(args, path),
         post_process(args, path),
