@@ -3,40 +3,52 @@
 # File containing different initial DNA configurations
 
 from __future__ import annotations
-from typing import List, Tuple, Dict
+
 from dataclasses import dataclass
-from generator import BAI, BAI_Kind, BAI_Type, AtomGroup, AtomType, MoleculeId, AtomIdentifier, PairWise
-from structures.dna import dna_creator
-from structures import structure_creator
-from structures.smc.smc import SMC
+from itertools import product
+from typing import Dict, List, Tuple
+
 import numpy as np
 
-
-def get_closest(array, position) -> int:
-    """returns the index of the array that is closest to the given position"""
-    distances = np.linalg.norm(array - position, axis=1)
-    return int(np.argmin(distances))
+from generate.default_parameters import Parameters
+from generate.generator import (
+    BAI,
+    AtomGroup,
+    AtomIdentifier,
+    AtomType,
+    BAI_Kind,
+    BAI_Type,
+    MoleculeId,
+    Nx3Array,
+    PairWise,
+)
+from generate.structures import structure_creator
+from generate.structures.dna import dna_creator
+from generate.structures.smc.smc import SMC
+from generate.util import get_closest, pos_from_id
 
 
 @dataclass
 class DnaParameters:
     nDNA: int
-    DNAbondLength: float
-    mDNA: float
+    DNA_bond_length: float
+    DNA_mass: float
     type: AtomType
-    molDNA: int
+    mol_DNA: int
     bond: BAI_Type
     angle: BAI_Type
-    
+    ssangle: BAI_Type
+
     def create_dna(self, dna_positions) -> List[AtomGroup]:
         return [
             AtomGroup(
-                positions=rDNA,
+                positions=r_DNA,
                 atom_type=self.type,
-                molecule_index=self.molDNA,
+                molecule_index=self.mol_DNA,
                 polymer_bond_type=self.bond,
-                polymer_angle_type=self.angle
-            ) for rDNA in dna_positions
+                polymer_angle_type=self.angle,
+            )
+            for r_DNA in dna_positions
         ]
 
 
@@ -46,44 +58,39 @@ class InteractionParameters:
     # DNA-DNA #
     ###########
 
-    sigmaDNAvsDNA: float
-    epsilonDNAvsDNA: float
-    rcutDNAvsDNA: float
-
+    sigma_DNA_DNA: float
+    epsilon_DNA_DNA: float
+    rcut_DNA_DNA: float
 
     ###########
     # SMC-DNA #
     ###########
 
-    sigmaSMCvsDNA: float
-    epsilonSMCvsDNA: float
-    rcutSMCvsDNA: float
-
+    sigma_SMC_DNA: float
+    epsilon_SMC_DNA: float
+    rcut_SMC_DNA: float
 
     #############
     # Sites-DNA #
     #############
 
     # Sigma of LJ attraction (same as those of the repulsive SMC sites)
-    sigmaSiteDvsDNA: float
+    sigma_upper_site_DNA: float
 
     # Cutoff distance of LJ attraction
-    rcutSiteDvsDNA: float
+    rcut_lower_site_DNA: float
 
     # Epsilon parameter of LJ attraction
-    epsilonSiteDvsDNA: float
+    epsilon_upper_site_DNA: float
 
 
 @dataclass
 class Tether:
-
     class Obstacle:
-        
         def move(self, vector) -> None:
-            raise Exception("don't use Tether.Obstacle directly")
+            raise NotImplementedError("don't use Tether.Obstacle directly")
 
     class Wall(Obstacle):
-        
         def __init__(self, y_pos: float) -> None:
             super().__init__()
             self.y_pos = y_pos
@@ -92,8 +99,9 @@ class Tether:
             self.y_pos += vector[1]
 
     class Gold(Obstacle):
-        
-        def __init__(self, group: AtomGroup, radius: float, cut: float, tether_bond: BAI) -> None:
+        def __init__(
+            self, group: AtomGroup, radius: float, cut: float, tether_bond: BAI
+        ) -> None:
             super().__init__()
             self.group = group
             self.radius = radius
@@ -110,44 +118,67 @@ class Tether:
     @staticmethod
     def get_gold_mass(radius: float) -> float:
         """radius in nanometers, returns attograms"""
-        density = 0.0193 # attograms per nanometer^3
-        volume = 4.0/3.0 * np.pi * radius**3
+        density = 0.0193  # attograms per nanometer^3
+        volume = 4.0 / 3.0 * np.pi * radius**3
         return density * volume
 
     @classmethod
-    def get_obstacle(cls, real_obstacle: bool, ip: InteractionParameters, tether_group: AtomGroup) -> Tether.Obstacle:
+    def get_obstacle(
+        cls, real_obstacle: bool, ip: InteractionParameters, tether_group: AtomGroup
+    ) -> Tether.Obstacle:
         if real_obstacle:
-            obstacle_radius = 100 # nanometers
-            obstacle_cut = obstacle_radius * 2**(1/6)
-            pos = tether_group.positions[0] - np.array([0, obstacle_radius - ip.sigmaDNAvsDNA, 0], dtype=float)
+            obstacle_radius = 100  # nanometers
+            obstacle_cut = obstacle_radius * 2 ** (1 / 6)
+            pos = tether_group.positions[0] - np.array(
+                [0, obstacle_radius - ip.sigma_DNA_DNA, 0], dtype=float
+            )
             obstacle_type = AtomType(cls.get_gold_mass(obstacle_radius))
             obstacle_group = AtomGroup(
                 positions=np.array([pos]),
                 atom_type=obstacle_type,
-                molecule_index=tether_group.molecule_index
+                molecule_index=tether_group.molecule_index,
             )
 
-            obstacle_bond = BAI_Type(BAI_Kind.BOND, "fene/expand %s %s %s %s %s\n" %(1, obstacle_radius, 0, 0, ip.sigmaDNAvsDNA))
-            tether_obstacle_bond = BAI(obstacle_bond, (tether_group, 0), (obstacle_group, 0))
-            return Tether.Gold(obstacle_group, obstacle_radius, obstacle_cut, tether_obstacle_bond)
+            obstacle_bond = BAI_Type(
+                BAI_Kind.BOND,
+                "fene/expand",
+                f"{1.0} {obstacle_radius} {0.0} {0.0} {ip.sigma_DNA_DNA}\n",
+            )
+            tether_obstacle_bond = BAI(
+                obstacle_bond, (tether_group, 0), (obstacle_group, 0)
+            )
+            return Tether.Gold(
+                obstacle_group, obstacle_radius, obstacle_cut, tether_obstacle_bond
+            )
         else:
             return Tether.Wall(tether_group.positions[0][1])
 
     @classmethod
-    def create_tether(cls, dna_tether_id: AtomIdentifier, tether_length: int, bond_length: float, mass: float, bond_type: BAI_Type, angle_type: BAI_Type, obstacle: Tether.Obstacle) -> Tether:
-        tether_positions = structure_creator.get_straight_segment(tether_length, [0, 1, 0]) * bond_length
+    def create_tether(
+        cls,
+        dna_tether_id: AtomIdentifier,
+        tether_length: int,
+        bond_length: float,
+        mass: float,
+        bond_type: BAI_Type,
+        angle_type: BAI_Type,
+        obstacle: Tether.Obstacle,
+    ) -> Tether:
+        tether_positions = (
+            structure_creator.get_straight_segment(tether_length, [0, 1, 0])
+            * bond_length
+        )
         tether_group = AtomGroup(
             positions=tether_positions,
             atom_type=AtomType(mass),
             molecule_index=MoleculeId.get_next(),
             polymer_bond_type=bond_type,
-            polymer_angle_type=angle_type
+            polymer_angle_type=angle_type,
+            charge=0.2,
         )
 
         return Tether(
-            group=tether_group,
-            dna_tether_id=dna_tether_id,
-            obstacle=obstacle
+            group=tether_group, dna_tether_id=dna_tether_id, obstacle=obstacle
         )
 
     def move(self, vector) -> None:
@@ -165,20 +196,43 @@ class Tether:
         if isinstance(self.obstacle, Tether.Wall):
             end_points += [(self.group, 0)]
 
-    def add_interactions(self, pair_inter: PairWise, ip: InteractionParameters, dna_type: AtomType, smc: SMC, kBT: float) -> None:
+    def add_interactions(
+        self,
+        pair_inter: PairWise,
+        ip: InteractionParameters,
+        dna_type: AtomType,
+        smc: SMC,
+        kBT: float,
+    ) -> None:
         tether_type = self.group.type
         # tether
         pair_inter.add_interaction(
-            tether_type, tether_type,
-            ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA
+            tether_type,
+            tether_type,
+            ip.epsilon_DNA_DNA * kBT,
+            ip.sigma_DNA_DNA,
+            ip.rcut_DNA_DNA,
         )
         pair_inter.add_interaction(
-            tether_type, dna_type,
-            ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA
+            tether_type,
+            dna_type,
+            ip.epsilon_DNA_DNA * kBT,
+            ip.sigma_DNA_DNA,
+            ip.rcut_DNA_DNA,
         )
         pair_inter.add_interaction(
-            tether_type, smc.armHK_type,
-            ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA
+            tether_type,
+            smc.t_arms_heads_kleisin,
+            ip.epsilon_SMC_DNA * kBT,
+            ip.sigma_SMC_DNA,
+            ip.rcut_SMC_DNA,
+        )
+        pair_inter.add_interaction(
+            tether_type,
+            smc.t_hinge,
+            ip.epsilon_SMC_DNA * kBT,
+            ip.sigma_SMC_DNA / 2.0,
+            ip.rcut_SMC_DNA / 2.0,
         )
         # Optional: don't allow bridge to go through tether
         # pair_inter.add_interaction(
@@ -191,9 +245,34 @@ class Tether:
         #     ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA
         # )
         if isinstance(self.obstacle, Tether.Gold):
-            pair_inter.add_interaction(self.obstacle.group.type, dna_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
-            pair_inter.add_interaction(self.obstacle.group.type, smc.armHK_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
-            pair_inter.add_interaction(self.obstacle.group.type, tether_type, ip.epsilonDNAvsDNA * kBT, self.obstacle.radius, self.obstacle.cut)
+            pair_inter.add_interaction(
+                self.obstacle.group.type,
+                dna_type,
+                ip.epsilon_DNA_DNA * kBT,
+                self.obstacle.radius,
+                self.obstacle.cut,
+            )
+            pair_inter.add_interaction(
+                self.obstacle.group.type,
+                smc.t_arms_heads_kleisin,
+                ip.epsilon_DNA_DNA * kBT,
+                self.obstacle.radius,
+                self.obstacle.cut,
+            )
+            pair_inter.add_interaction(
+                self.obstacle.group.type,
+                smc.t_hinge,
+                ip.epsilon_DNA_DNA * kBT,
+                self.obstacle.radius,
+                self.obstacle.cut,
+            )
+            pair_inter.add_interaction(
+                self.obstacle.group.type,
+                tether_type,
+                ip.epsilon_DNA_DNA * kBT,
+                self.obstacle.radius,
+                self.obstacle.cut,
+            )
 
     def get_bonds(self, bond_type: BAI_Type) -> List[BAI]:
         bonds = [BAI(bond_type, (self.group, -1), self.dna_tether_id)]
@@ -207,7 +286,9 @@ def with_tether(cls):
     def new1(f):
         def get_all_groups(self) -> List[AtomGroup]:
             return f(self) + self.tether.get_all_groups()
+
         return get_all_groups
+
     cls.get_all_groups = new1(cls.get_all_groups)
 
     def new2(f):
@@ -215,27 +296,38 @@ def with_tether(cls):
             ppp = f(self)
             self.tether.handle_end_points(ppp.end_points)
             return ppp
+
         return get_post_process_parameters
+
     cls.get_post_process_parameters = new2(cls.get_post_process_parameters)
 
     def new3(f):
         def add_interactions(self, pair_inter: PairWise) -> None:
             f(self, pair_inter)
-            self.tether.add_interactions(pair_inter, self.inter_par, self.dna_parameters.type, self.smc, self.par.kB * self.par.T)
+            self.tether.add_interactions(
+                pair_inter,
+                self.inter_par,
+                self.dna_parameters.type,
+                self.smc,
+                self.par.kB * self.par.T,
+            )
+
         return add_interactions
+
     cls.add_interactions = new3(cls.add_interactions)
 
     def new4(f):
         def get_bonds(self) -> List[BAI]:
             return f(self) + self.tether.get_bonds(self.dna_parameters.bond)
+
         return get_bonds
+
     cls.get_bonds = new4(cls.get_bonds)
 
     return cls
 
 
 class DnaConfiguration:
-
     @dataclass
     class PostProcessParameters:
         # LAMMPS DATA
@@ -247,14 +339,14 @@ class DnaConfiguration:
         # forces to apply:
         # the keys are the forces (3d vectors), and the value is a list of indices to which the force will be applied
         stretching_forces_array: Dict[Tuple[float, float, float], List[AtomIdentifier]]
-        
+
         # POST PROCESSING
 
         # indices to use for marked bead tracking
         dna_indices_list: List[Tuple[AtomIdentifier, AtomIdentifier]]
 
     @classmethod
-    def set_parameters(cls, par, inter_par: InteractionParameters) -> None:
+    def set_parameters(cls, par: Parameters, inter_par: InteractionParameters) -> None:
         cls.par = par
         cls.inter_par = inter_par
 
@@ -262,16 +354,53 @@ class DnaConfiguration:
     def set_smc(cls, smc: SMC) -> None:
         cls.smc = smc
 
-    def __init__(self, dna_groups: List[AtomGroup], dna_parameters: DnaParameters) -> None:
+    def __init__(
+        self, dna_groups: List[AtomGroup], dna_parameters: DnaParameters
+    ) -> None:
         self.dna_groups = dna_groups
         self.dna_parameters = dna_parameters
         self.kBT = self.par.kB * self.par.T
+        self.beads: List[AtomGroup] = []
+        self.bead_sizes: List[float] = []
+        self.bead_bonds: List[BAI] = []
 
     def get_all_groups(self) -> List[AtomGroup]:
-        return self.dna_groups
+        return self.dna_groups + self.beads
+
+    @property
+    def dna_full_list(self) -> Nx3Array:
+        return np.concatenate([grp.positions for grp in self.dna_groups])
+
+    @property
+    def dna_full_list_length(self) -> int:
+        return sum(len(grp.positions) for grp in self.dna_groups)
+
+    def get_dna_id_from_list_index(self, index: int) -> AtomIdentifier:
+        if index < 0:
+            index += self.dna_full_list_length
+        assert index >= 0
+
+        for grp in self.dna_groups:
+            if index < len(grp.positions):
+                return (grp, index)
+            index -= len(grp.positions)
+        raise IndexError(f"index {index} out of bounds for DNA groups.")
+
+    @property
+    def first_dna_id(self) -> AtomIdentifier:
+        return self.get_dna_id_from_list_index(0)
+
+    @property
+    def last_dna_id(self) -> AtomIdentifier:
+        return self.get_dna_id_from_list_index(-1)
+
+    def get_percent_dna_id(self, ratio: float) -> AtomIdentifier:
+        return self.get_dna_id_from_list_index(int(ratio * self.dna_full_list_length))
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> DnaConfiguration:
+    def get_dna_config(
+        cls, dna_parameters: DnaParameters, r_lower_site, par
+    ) -> DnaConfiguration:
         return NotImplemented
 
     def get_post_process_parameters(self) -> PostProcessParameters:
@@ -279,24 +408,19 @@ class DnaConfiguration:
             end_points=[],
             freeze_indices=[],
             stretching_forces_array=dict(),
-            dna_indices_list=[]
+            dna_indices_list=[],
         )
-    
-    def dna_indices_list_get_all_dna(self) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
-        return [
-            (
-                (dna_grp, 0),
-                (dna_grp, -1)
-            )
-            for dna_grp in self.dna_groups
-        ]
 
-    def dna_indices_list_get_dna_to(self, ratio: float) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+    def dna_indices_list_get_all_dna(
+        self,
+    ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+        return [((dna_grp, 0), (dna_grp, -1)) for dna_grp in self.dna_groups]
+
+    def dna_indices_list_get_dna_to(
+        self, ratio: float
+    ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
         return [
-            (
-                (dna_grp, 0),
-                (dna_grp, int(len(dna_grp.positions) * ratio))
-            )
+            ((dna_grp, 0), (dna_grp, int(len(dna_grp.positions) * ratio)))
             for dna_grp in self.dna_groups
         ]
 
@@ -304,11 +428,142 @@ class DnaConfiguration:
         dna_type = self.dna_parameters.type
         ip = self.inter_par
         kBT = self.par.kB * self.par.T
-        pair_inter.add_interaction(dna_type, dna_type, ip.epsilonDNAvsDNA * kBT, ip.sigmaDNAvsDNA, ip.rcutDNAvsDNA)
-        pair_inter.add_interaction(dna_type, self.smc.armHK_type, ip.epsilonSMCvsDNA * kBT, ip.sigmaSMCvsDNA, ip.rcutSMCvsDNA)
-        pair_inter.add_interaction(dna_type, self.smc.siteD_type, ip.epsilonSiteDvsDNA * kBT, ip.sigmaSiteDvsDNA, ip.rcutSiteDvsDNA)
-    
+        pair_inter.add_interaction(
+            dna_type,
+            dna_type,
+            ip.epsilon_DNA_DNA * kBT,
+            ip.sigma_DNA_DNA,
+            ip.rcut_DNA_DNA,
+        )
+        pair_inter.add_interaction(
+            dna_type,
+            self.smc.t_arms_heads_kleisin,
+            ip.epsilon_SMC_DNA * kBT,
+            ip.sigma_SMC_DNA,
+            ip.rcut_SMC_DNA,
+        )
+        pair_inter.add_interaction(
+            dna_type,
+            self.smc.t_hinge,
+            ip.epsilon_SMC_DNA * kBT,
+            ip.sigma_SMC_DNA,
+            ip.rcut_SMC_DNA,
+        )
+        pair_inter.add_interaction(
+            dna_type,
+            self.smc.t_lower_site,
+            ip.epsilon_upper_site_DNA * kBT,
+            ip.sigma_upper_site_DNA,
+            ip.rcut_lower_site_DNA,
+        )
+
+        # every bead should repel every SMC group
+        for (bead, bead_size), smc_grp in product(
+            zip(self.beads, self.bead_sizes), self.smc.get_groups()
+        ):
+            pair_inter.add_interaction(
+                bead.type,
+                smc_grp.type,
+                ip.epsilon_SMC_DNA * kBT,
+                bead_size,
+                bead_size * (2 ** (1 / 6)),
+            )
+
     def get_bonds(self) -> List[BAI]:
+        return self.bead_bonds
+
+    def update_tether_bond(
+        self, old_id: AtomIdentifier, new_groups, bead: None | AtomIdentifier
+    ) -> None:
+        if not hasattr(self, "tether"):
+            return
+        assert isinstance(self.tether, Tether)
+
+        if self.tether.dna_tether_id[0] is old_id[0]:
+            if self.tether.dna_tether_id[1] < old_id[1]:
+                self.tether.dna_tether_id = (
+                    new_groups[0],
+                    self.tether.dna_tether_id[1],
+                )
+            elif self.tether.dna_tether_id[1] == old_id[1] and bead is not None:
+                self.tether.dna_tether_id = bead
+            else:
+                self.tether.dna_tether_id = (
+                    new_groups[1],
+                    self.tether.dna_tether_id[1] - old_id[1],
+                )
+
+        old = pos_from_id(old_id)
+        new = pos_from_id(self.tether.dna_tether_id)
+        self.tether.move(new - old)
+
+    def split_dna(self, split: AtomIdentifier) -> Tuple[AtomGroup, AtomGroup]:
+        """split DNA in two pieces, with the split atom id part of the second group."""
+        self.dna_groups.remove(split[0])
+        pos1 = split[0].positions[: split[1]]
+        pos2 = split[0].positions[split[1] :]
+
+        args = (
+            split[0].type,
+            split[0].molecule_index,
+            split[0].polymer_bond_type,
+            split[0].polymer_angle_type,
+        )
+        groups = (
+            AtomGroup(pos1, *args),
+            AtomGroup(pos2, *args),
+        )
+        self.dna_groups += groups
+        return groups
+
+    def add_bead_to_dna(
+        self,
+        bead_type: AtomType,
+        mol_index: int,
+        dna_atom: AtomIdentifier,
+        bond: None | BAI_Type,  # if None -> rigid attachment to dna_atom
+        angle: None | BAI_Type,  # only used if bond is not None
+        bead_size: float,
+    ) -> None:
+        # place on a DNA bead
+        location = pos_from_id(dna_atom)
+
+        # create a bead
+        bead = AtomGroup(location.reshape(1, 3), bead_type, mol_index)
+
+        bais = []
+        if bond is None:
+            # TODO:
+            # gen.molecule_override[dna_atom] = mol_index
+            pass
+        else:
+            first_group, second_group = self.split_dna(dna_atom)
+
+            # add interactions/exceptions
+            bais += [
+                BAI(bond, (first_group, -1), (bead, 0)),
+                BAI(bond, (second_group, 0), (bead, 0)),
+            ]
+            if angle is not None:
+                bais += [
+                    BAI(angle, (first_group, -2), (first_group, -1), (bead, 0)),
+                    BAI(angle, (first_group, -1), (bead, 0), (second_group, 0)),
+                    BAI(angle, (bead, 0), (second_group, 0), (second_group, 1)),
+                ]
+
+            # move to correct distances
+            bead.positions[0, 0] += bead_size
+            first_group.positions[:, 0] += (
+                2 * bead_size - self.dna_parameters.DNA_bond_length
+            )
+
+            self.update_tether_bond(dna_atom, (first_group, second_group), (bead, 0))
+
+        self.beads.append(bead)
+        self.bead_sizes.append(bead_size)
+        self.bead_bonds += bais
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
         return []
 
     @staticmethod
@@ -319,154 +574,207 @@ class DnaConfiguration:
             "folded": Folded,
             "right_angle": RightAngle,
             "doubled": Doubled,
+            "safety": Safety,
             "obstacle": Obstacle,
             "obstacle_safety": ObstacleSafety,
             "advanced_obstacle_safety": AdvancedObstacleSafety,
         }[string]
 
+
 class Line(DnaConfiguration):
+    """Straight line of DNA"""
 
     def __init__(self, dna_groups, dna_parameters: DnaParameters):
         super().__init__(dna_groups, dna_parameters)
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> Line:
-        default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
+    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> Line:
+        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
 
         # 1.
-        [rDNA] = dna_creator.get_dna_coordinates_straight(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+        [r_DNA] = dna_creator.get_dna_coordinates_straight(
+            dna_parameters.nDNA, dna_parameters.DNA_bond_length
+        )
 
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        start = np.array([rDNA[int(len(rDNA) / 1.3)][0] + 10.0 * dna_parameters.DNAbondLength, rDNA[-1][1], 0])
+        start = np.array(
+            [
+                r_DNA[int(len(r_DNA) / 1.3)][0] + 10.0 * dna_parameters.DNA_bond_length,
+                r_DNA[-1][1],
+                0,
+            ]
+        )
         shift = (goal - start).reshape(1, 3)
-        rDNA += shift
+        r_DNA += shift
 
-        return cls(dna_parameters.create_dna([rDNA]), dna_parameters)
+        return cls(dna_parameters.create_dna([r_DNA]), dna_parameters)
 
     def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
         ppp = super().get_post_process_parameters()
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.freeze_indices += [
-            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteD[1])), # closest to bottom -> rSiteD[1]
-            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteM[1])), # closest to middle -> rSiteM[1]
+            self.get_dna_id_from_list_index(
+                get_closest(self.dna_full_list, self.smc.pos.r_lower_site[1]),
+            ),  # closest to bottom -> r_lower_site[1]
+            self.get_dna_id_from_list_index(
+                get_closest(self.dna_full_list, self.smc.pos.r_middle_site[1]),
+            ),  # closest to middle -> r_middle_site[1]
         ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
         return ppp
 
-class Folded(DnaConfiguration):
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [self.last_dna_id]
 
-    def __init__(self, dna_groups, dna_parameters: DnaParameters, dnaCenter):
+
+class Folded(DnaConfiguration):
+    def __init__(self, dna_groups, dna_parameters: DnaParameters, dna_center):
         super().__init__(dna_groups, dna_parameters)
-        self.dnaCenter = dnaCenter
+        self.dna_center = dna_center
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> Folded:
+    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> Folded:
         # place your DNA here, inside the SMC
-        default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
-        
+        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
+
         # 1.
-        [rDNA], dnaCenter = dna_creator.get_dna_coordinates_twist(dna_parameters.nDNA, dna_parameters.DNAbondLength, 17)
+        [r_DNA], dna_center = dna_creator.get_dna_coordinates_twist(
+            dna_parameters.nDNA, dna_parameters.DNA_bond_length, 17
+        )
 
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        start = np.array([dnaCenter[0] + 10.0 * dna_parameters.DNAbondLength, rDNA[-1][1], 0])
+        start = np.array(
+            [dna_center[0] + 10.0 * dna_parameters.DNA_bond_length, r_DNA[-1][1], 0]
+        )
         shift = (goal - start).reshape(1, 3)
-        rDNA += shift
+        r_DNA += shift
 
-        return cls(dna_parameters.create_dna([rDNA]), dna_parameters, dnaCenter)
+        return cls(dna_parameters.create_dna([r_DNA]), dna_parameters, dna_center)
 
     def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
         ppp = super().get_post_process_parameters()
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [
+                self.first_dna_id,
+                self.last_dna_id,
+            ]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.freeze_indices += [
-            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteD[1])), # closest to bottom -> rSiteD[1]
-            (self.dna_groups[0], get_closest(self.dna_groups[0].positions, self.smc.rSiteM[1])), # closest to middle -> rSiteM[1]
+            self.get_dna_id_from_list_index(
+                get_closest(self.dna_full_list, self.smc.pos.r_lower_site[1]),
+            ),  # closest to bottom -> r_lower_site[1]
+            self.get_dna_id_from_list_index(
+                get_closest(self.dna_full_list, self.smc.pos.r_middle_site[1]),
+            ),  # closest to middle -> r_middle_site[1]
         ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
 
         return ppp
 
-class RightAngle(DnaConfiguration):
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        # TODO: maybe add bead at halfway point (left most point)?
+        return []
 
-    def __init__(self, dna_groups, dna_parameters: DnaParameters, dnaCenter):
+
+class RightAngle(DnaConfiguration):
+    def __init__(self, dna_groups, dna_parameters: DnaParameters, dna_center):
         super().__init__(dna_groups, dna_parameters)
-        self.dnaCenter = dnaCenter
+        self.dna_center = dna_center
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> RightAngle:
+    def get_dna_config(
+        cls, dna_parameters: DnaParameters, r_lower_site, par
+    ) -> RightAngle:
         # place your DNA here, inside the SMC
-        default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
+        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
 
         # 1.
-        [rDNA], dnaCenter = dna_creator.get_dna_coordinates(dna_parameters.nDNA, dna_parameters.DNAbondLength, 14, 10)
+        [r_DNA], dna_center = dna_creator.get_dna_coordinates(
+            dna_parameters.nDNA, dna_parameters.DNA_bond_length, 14, 10
+        )
 
         # 2.
         # make sure SMC touches the DNA at the lower site (siteD)
         goal = default_dna_pos
-        start = np.array([dnaCenter[0] - 10.0 * dna_parameters.DNAbondLength, dnaCenter[1], 0])
+        start = np.array(
+            [dna_center[0] - 10.0 * dna_parameters.DNA_bond_length, dna_center[1], 0]
+        )
         shift = (goal - start).reshape(1, 3)
-        rDNA += shift
+        r_DNA += shift
 
-        return cls(dna_parameters.create_dna([rDNA]), dna_parameters, dnaCenter)
+        return cls(dna_parameters.create_dna([r_DNA]), dna_parameters, dna_center)
 
     def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
         ppp = super().get_post_process_parameters()
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(0, par.force, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(0, par.force, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
-        # find closest DNA bead to siteD
-        # closest_DNA_index = get_closest(self.dna_groups[0].positions, rSiteD[1])
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
-        ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
+        # find closest DNA bead to siteD
+        # closest_DNA_index = get_closest(self.dna_groups[0].positions, r_lower_site[1])
+
+        ppp.dna_indices_list += [(self.first_dna_id, self.get_percent_dna_id(0.5))]
 
         return ppp
 
-class Doubled(DnaConfiguration):
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return []
 
-    def __init__(self, dna_groups, dna_parameters: DnaParameters, dnaCenter):
+
+class Doubled(DnaConfiguration):
+    def __init__(self, dna_groups, dna_parameters: DnaParameters, dna_center):
         super().__init__(dna_groups, dna_parameters)
-        self.dnaCenter = dnaCenter
+        self.dna_center = dna_center
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> Doubled:
+    def get_dna_config(
+        cls, dna_parameters: DnaParameters, r_lower_site, par
+    ) -> Doubled:
         # place your DNA here, inside the SMC
-        default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
+        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
 
         # 1.
-        rDNAlist, dnaCenter = dna_creator.get_dna_coordinates_doubled(dna_parameters.nDNA, dna_parameters.DNAbondLength, 24)
+        r_DNA_list, dna_center = dna_creator.get_dna_coordinates_doubled(
+            dna_parameters.nDNA, dna_parameters.DNA_bond_length, 24
+        )
 
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        start = np.array([dnaCenter[0] + 30.0 * dna_parameters.DNAbondLength, rDNAlist[0][-1][1], 0])
+        start = np.array(
+            [
+                dna_center[0] + 30.0 * dna_parameters.DNA_bond_length,
+                r_DNA_list[0][-1][1],
+                0,
+            ]
+        )
         shift = (goal - start).reshape(1, 3)
-        rDNAlist[0] += shift
-        rDNAlist[1] += shift
+        r_DNA_list[0] += shift
+        r_DNA_list[1] += shift
 
-        return cls(dna_parameters.create_dna(rDNAlist), dna_parameters, dnaCenter)
+        return cls(dna_parameters.create_dna(r_DNA_list), dna_parameters, dna_center)
 
     def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
         ppp = super().get_post_process_parameters()
@@ -475,55 +783,90 @@ class Doubled(DnaConfiguration):
         # get dna beads to freeze
         for dna_grp in self.dna_groups:
             if par.force:
-                ppp.stretching_forces_array[(par.force, 0, 0)] = [(dna_grp, 0), (dna_grp, -1)]
+                ppp.stretching_forces_array[(par.force, 0, 0)] = [
+                    (dna_grp, 0),
+                    (dna_grp, -1),
+                ]
             else:
                 ppp.end_points += [(dna_grp, 0), (dna_grp, -1)]
             # TODO: fix for DOUBLED DNA, gives same bead twice
             ppp.freeze_indices += [
-                (dna_grp, get_closest(dna_grp.positions, self.smc.rSiteD[1])), # closest to bottom
-                (dna_grp, get_closest(dna_grp.positions, self.smc.rSiteM[1])), # closest to middle
+                (
+                    dna_grp,
+                    get_closest(dna_grp.positions, self.smc.pos.r_lower_site[1]),
+                ),  # closest to bottom
+                (
+                    dna_grp,
+                    get_closest(dna_grp.positions, self.smc.pos.r_middle_site[1]),
+                ),  # closest to middle
             ]
 
         ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
 
         return ppp
 
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        # TODO: see todo for folded config
+        return []
+
+
 @with_tether
 class Obstacle(DnaConfiguration):
-
-    def __init__(self, dna_groups, dna_parameters: DnaParameters, tether: Tether, dna_start_index: int):
+    def __init__(
+        self,
+        dna_groups,
+        dna_parameters: DnaParameters,
+        tether: Tether,
+        dna_start_index: int,
+    ):
         super().__init__(dna_groups, dna_parameters)
         self.tether = tether
         self.dna_start_index = dna_start_index
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> Obstacle:
+    def get_dna_config(
+        cls, dna_parameters: DnaParameters, r_lower_site, par
+    ) -> Obstacle:
         # place your DNA here, inside the SMC
-        default_dna_pos = rSiteD[1] + np.array([0, par.cutoff6, 0])
+        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
 
         # 1.
-        [rDNA] = dna_creator.get_dna_coordinates_straight(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+        [r_DNA] = dna_creator.get_dna_coordinates_straight(
+            dna_parameters.nDNA, dna_parameters.DNA_bond_length
+        )
 
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        dna_start_index = int(len(rDNA)*14/15)
-        start = np.array([rDNA[dna_start_index][0] - 10.0 * dna_parameters.DNAbondLength, rDNA[dna_start_index][1], 0])
+        dna_start_index = int(len(r_DNA) * 9 / 15)
+        start = np.array(
+            [
+                r_DNA[dna_start_index][0] - 10.0 * dna_parameters.DNA_bond_length,
+                r_DNA[dna_start_index][1],
+                0,
+            ]
+        )
         shift = (goal - start).reshape(1, 3)
-        rDNA += shift
+        r_DNA += shift
 
-        dna_groups = dna_parameters.create_dna([rDNA])
+        dna_groups = dna_parameters.create_dna([r_DNA])
 
-        dna_bead_to_tether_id = int(len(rDNA)*7.5/15)
+        dna_bead_to_tether_id = int(len(r_DNA) * 7.5 / 15)
         tether = Tether.create_tether(
-            (dna_groups[0], dna_bead_to_tether_id), 25, dna_parameters.DNAbondLength, dna_parameters.mDNA, dna_parameters.bond, dna_parameters.angle, Tether.Obstacle()
+            (dna_groups[0], dna_bead_to_tether_id),
+            25,
+            dna_parameters.DNA_bond_length,
+            dna_parameters.DNA_mass,
+            dna_parameters.bond,
+            dna_parameters.ssangle,
+            Tether.Obstacle(),
         )
         obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
         tether.obstacle = obstacle
         # place the tether next to the DNA bead
-        tether.move(rDNA[dna_bead_to_tether_id] - tether.group.positions[-1])
+        tether.move(r_DNA[dna_bead_to_tether_id] - tether.group.positions[-1])
         # move down a little
-        tether.move(np.array([0, -dna_parameters.DNAbondLength, 0], dtype=float))
+        tether.move(np.array([0, -dna_parameters.DNA_bond_length, 0], dtype=float))
 
         return cls(dna_groups, dna_parameters, tether, dna_start_index)
 
@@ -532,61 +875,60 @@ class Obstacle(DnaConfiguration):
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.dna_indices_list += [
-            (
-                (dna_grp, 0),
-                (dna_grp, self.dna_start_index)
-            )
+            ((dna_grp, 0), (dna_grp, self.dna_start_index))
             for dna_grp in self.dna_groups
         ]
 
         return ppp
 
-@with_tether
-class ObstacleSafety(DnaConfiguration):
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [self.last_dna_id]
 
-    def __init__(self, dna_groups, dna_parameters: DnaParameters, tether: Tether, dna_safety_belt_index: int):
+
+class Safety(DnaConfiguration):
+    def __init__(
+        self,
+        dna_groups,
+        dna_parameters: DnaParameters,
+        dna_safety_belt_index,
+    ):
         super().__init__(dna_groups, dna_parameters)
-        self.tether = tether
         self.dna_safety_belt_index = dna_safety_belt_index
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> ObstacleSafety:
+    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> Safety:
         # 1.
-        [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
-        
+        [r_DNA], belt_location, dna_safety_belt_index, _ = (
+            dna_creator.get_dna_coordinates_safety_belt(
+                dna_parameters.nDNA, dna_parameters.DNA_bond_length
+            )
+        )
+
         # 2.
         # make sure SMC contains DNA
-        shift = rSiteD[1] - belt_location
-        shift[1] -= 0.65 * par.cutoff6 + 0.5 * par.cutoff6 # TODO: if siteDup
-        rDNA += shift
+        shift = r_lower_site[1] - belt_location
+        shift[1] -= 0.65 * par.cutoff6 + 0.5 * par.cutoff6  # TODO: if siteDup
+        r_DNA += shift
 
-        dna_groups = dna_parameters.create_dna([rDNA])
+        dna_groups = dna_parameters.create_dna([r_DNA])
 
-        tether = Tether.create_tether((dna_groups[0], dna_bead_to_tether_id), 35, dna_parameters.DNAbondLength, dna_parameters.mDNA, dna_parameters.bond, dna_parameters.angle, Tether.Obstacle())
-        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
-        tether.obstacle = obstacle
-
-        tether.move(rDNA[dna_bead_to_tether_id] - tether.group.positions[-1])
-        # move down a little
-        tether.move(np.array([0, -dna_parameters.DNAbondLength, 0], dtype=float))
-
-        return cls(dna_groups, dna_parameters, tether, dna_safety_belt_index)
+        return cls(dna_groups, dna_parameters, dna_safety_belt_index)
 
     def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
         ppp = super().get_post_process_parameters()
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
@@ -598,36 +940,133 @@ class ObstacleSafety(DnaConfiguration):
 
         return ppp
 
-@with_tether
-class AdvancedObstacleSafety(DnaConfiguration):
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [self.last_dna_id]
 
-    def __init__(self, dna_groups, dna_parameters: DnaParameters, tether: Tether, dna_safety_belt_index: int):
+
+@with_tether
+class ObstacleSafety(DnaConfiguration):
+    def __init__(
+        self,
+        dna_groups,
+        dna_parameters: DnaParameters,
+        tether: Tether,
+        dna_safety_belt_index: int,
+    ):
         super().__init__(dna_groups, dna_parameters)
         self.tether = tether
         self.dna_safety_belt_index = dna_safety_belt_index
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, rSiteD, par) -> AdvancedObstacleSafety:
+    def get_dna_config(
+        cls, dna_parameters: DnaParameters, r_lower_site, par
+    ) -> ObstacleSafety:
         # 1.
-        # [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_advanced_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
-        [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_advanced_safety_belt_plus_loop(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+        [r_DNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = (
+            dna_creator.get_dna_coordinates_safety_belt(
+                dna_parameters.nDNA, dna_parameters.DNA_bond_length
+            )
+        )
 
         # 2.
         # make sure SMC contains DNA
-        shift = rSiteD[1] - belt_location
-        shift[1] -= 1.35 * par.cutoff6 + 0.5 * par.cutoff6 # TODO: if siteDup
-        rDNA += shift
+        shift = r_lower_site[1] - belt_location
+        shift[1] -= 0.65 * par.cutoff6 + 0.5 * par.cutoff6  # TODO: if siteDup
+        r_DNA += shift
 
-        dna_groups = dna_parameters.create_dna([rDNA])
+        dna_groups = dna_parameters.create_dna([r_DNA])
 
-        tether = Tether.create_tether((dna_groups[0], dna_bead_to_tether_id), 35, dna_parameters.DNAbondLength, dna_parameters.mDNA, dna_parameters.bond, dna_parameters.angle, Tether.Obstacle())
+        tether = Tether.create_tether(
+            (dna_groups[0], dna_bead_to_tether_id),
+            35,
+            dna_parameters.DNA_bond_length,
+            dna_parameters.DNA_mass,
+            dna_parameters.bond,
+            dna_parameters.ssangle,
+            Tether.Obstacle(),
+        )
+        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
+        tether.obstacle = obstacle
+
+        tether.move(r_DNA[dna_bead_to_tether_id] - tether.group.positions[-1])
+        # move down a little
+        tether.move(np.array([0, -dna_parameters.DNA_bond_length, 0], dtype=float))
+
+        return cls(dna_groups, dna_parameters, tether, dna_safety_belt_index)
+
+    def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
+        ppp = super().get_post_process_parameters()
+        par = self.par
+
+        if par.force:
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
+        else:
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
+
+        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+
+        # prevent breaking of safety belt
+        # ppp.freeze_indices += [
+        #     *[(self.dna_groups[0], self.dna_safety_belt_index + i) for i in range(-6, 6)],
+        #     *[(self.smc.siteD_group, i) for i in range(len(self.smc.siteD_group.positions))]
+        # ]
+
+        return ppp
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [self.last_dna_id]
+
+
+@with_tether
+class AdvancedObstacleSafety(DnaConfiguration):
+    def __init__(
+        self,
+        dna_groups,
+        dna_parameters: DnaParameters,
+        tether: Tether,
+        dna_safety_belt_index: int,
+    ):
+        super().__init__(dna_groups, dna_parameters)
+        self.tether = tether
+        self.dna_safety_belt_index = dna_safety_belt_index
+
+    @classmethod
+    def get_dna_config(
+        cls, dna_parameters: DnaParameters, r_lower_site, par
+    ) -> AdvancedObstacleSafety:
+        # 1.
+        # [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_advanced_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
+        [r_DNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = (
+            dna_creator.get_dna_coordinates_advanced_safety_belt_plus_loop(
+                dna_parameters.nDNA, dna_parameters.DNA_bond_length
+            )
+        )
+
+        # 2.
+        # make sure SMC contains DNA
+        shift = r_lower_site[1] - belt_location
+        shift[1] -= 1.35 * par.cutoff6 + 0.5 * par.cutoff6  # TODO: if siteDup
+        r_DNA += shift
+
+        dna_groups = dna_parameters.create_dna([r_DNA])
+
+        tether = Tether.create_tether(
+            (dna_groups[0], dna_bead_to_tether_id),
+            35,
+            dna_parameters.DNA_bond_length,
+            dna_parameters.DNA_mass,
+            dna_parameters.bond,
+            dna_parameters.ssangle,
+            Tether.Obstacle(),
+        )
         obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
         tether.obstacle = obstacle
 
         # place the tether next to the DNA bead
-        tether.move(rDNA[dna_bead_to_tether_id] - tether.group.positions[-1])
+        tether.move(r_DNA[dna_bead_to_tether_id] - tether.group.positions[-1])
         # move down a little
-        tether.move(np.array([0, -dna_parameters.DNAbondLength, 0], dtype=float))
+        tether.move(np.array([0, -dna_parameters.DNA_bond_length, 0], dtype=float))
 
         return cls(dna_groups, dna_parameters, tether, dna_safety_belt_index)
 
@@ -636,10 +1075,10 @@ class AdvancedObstacleSafety(DnaConfiguration):
         par = self.par
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [(self.dna_groups[0], 0)]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [(self.dna_groups[0], -1)]
+            ppp.stretching_forces_array[(par.force, 0, 0)] = [self.first_dna_id]
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [self.last_dna_id]
         else:
-            ppp.end_points += [(self.dna_groups[0], 0), (self.dna_groups[0], -1)]
+            ppp.end_points += [self.first_dna_id, self.last_dna_id]
 
         ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
 
@@ -650,3 +1089,6 @@ class AdvancedObstacleSafety(DnaConfiguration):
         # ]
 
         return ppp
+
+    def get_stopper_ids(self) -> List[AtomIdentifier]:
+        return [self.last_dna_id]

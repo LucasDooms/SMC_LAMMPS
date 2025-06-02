@@ -1,125 +1,164 @@
-################ General parameters ################
-
-# Initial loop size (DNA beads)
-loop = 100
-
-# Diameter of initial loop (nm)
-diameter = 20
-
-# Simulation temperature (K)
-T = 300.
-
-# Boltzmann's constant (pN nm / K)
-kB = 0.013806504
-
-# Inverse of friction coefficient (ns)
-gamma = 0.5
-
-# Printing period (time steps)
-output_steps = 10000
-#output_steps = 200000
-
-# Simulation timestep (ns)
-timestep = 2e-4
-
-# Seed
-seed = 123
-
-# Number of DNA beads
-N = 501
-
-# Number of base pairs per DNA bead
-n = 5
-
-# Stretching forces (pN) (set to any falsy value for no forces)
-# WARNING: currently: if no forces -> ends are frozen
-
-#forces = 0.100 0.800 1.500 2.200 2.900 3.600 4.300 5.000
-force = 0.800
-
-# Number of independent runs
-runs = 10
-
-# Number of SMC cycles
-cycles = 2
-
-# Average number of steps for ATP binding
-stepsATP = 2000000
-
-# Average number of steps for ATP hydrolysis
-stepsADP = 8000000
-
-# Average number of steps for returning to APO
-stepsAPO = 2000000
+from dataclasses import dataclass
+from typing import Any
 
 
-##################### Geometry #####################
+@dataclass
+class Parameters:
+    def __setattr__(self, name: str, value: Any, /) -> None:
+        if not hasattr(self, name):
+            raise AttributeError("You cannot define new parameters.")
+        super().__setattr__(name, value)
 
+    ################ General parameters ################
 
-# Length of each coiled-coil arm (nm)
-armLength = 50.
+    loop = 100
+    "Initial loop size (DNA beads)"
 
-# Width of ATP bridge (nm)
-bridgeWidth = 7.5
+    diameter = 20
+    "Diameter of initial loop (nm)"
 
-# Radius of lower circular-arc compartment (nm)
-HKradius = 7.
+    T = 300.0
+    "Simulation temperature (K)"
 
-# SMC-DNA hard-core repulsion radius = LJ sigma (nm)
-intRadSMCvsDNA = 2.5 
-sigma = 2.5
+    kB = 0.013806504
+    "Boltzmann's constant (pN nm / K)"
 
-# Folding angles of lower compartment (degrees)
-foldingAngleAPO = 45.
-foldingAngleATP = 160.
+    gamma = 0.5
+    "Inverse of friction coefficient (ns)"
 
-# Opening angle of arms in ATP-bound state (degrees)
-armsAngleATP = 130.
+    output_steps = 10000
+    "Printing period (time steps)"
 
-# configuration to generate
-dnaConfig = "folded"
+    timestep = 2e-4
+    "Simulation timestep (ns)"
 
-#################### LJ energies ###################
+    seed = 123
+    "Random number seed"
 
+    N: int = 501
+    "Number of DNA beads"
 
-# 3 = Repulsion
-# 4 = Upper site
-# 5 = Middle site
-# 6 = Lower site
+    n = 5
+    "Number of base pairs per DNA bead"
 
-# LJ energy (kT units)
-# DE for a cutoff of 3.0 nm: 0.11e
-# DE for a cutoff of 3.5 nm: 0.54e
+    force = 0.800
+    """Stretching forces (pN) (set to any falsy value for no forces)
+    WARNING: currently: if no forces -> ends are frozen"""
 
-epsilon3 = 3.
-epsilon4 = 6.
-epsilon5 = 6.
-epsilon6 = 100.
+    runs = 10
+    "Number of independent runs"
 
-# LJ cutoff (nm)
-cutoff4 = 3.5
-cutoff5 = 3.5
-cutoff6 = 3.
+    cycles: int | None = 2
+    """Number of SMC cycles (if set to None, will find approximate value using max_steps)
+    Note: cycles are stochastic, so time per cycle is variable"""
 
+    max_steps: int | None = None
+    """Max steps for run (None -> no maximum, will complete every cycle)
+    Note: this is not a hard limit, some extra steps may be performed to complete a cycle"""
 
-################# Bending energies #################
+    steps_ATP = 2000000
+    "Average number of steps for ATP binding"
 
+    steps_ADP = 8000000
+    "Average number of steps for ATP hydrolysis"
 
-# Bending stiffness of arm-bridge angle (kT units)
-armsStiffness = 100.
+    steps_APO = 2000000
+    "Average number of steps for returning to APO"
 
-# Bending stiffness of elbows (kT units)
-elbowsStiffness = 30.
+    ##################### DNA #######################
 
-# Alignment stiffness of binding sites (kT units)
-siteStiffness = 100.
+    dna_config = "folded"
+    "configuration to generate"
 
-# Folding stiffness of lower compartment (kT units)
-foldingStiffness = 60.
+    add_stopper_bead = False
+    "add a bead that prevents the SMC from slipping off of the wrong end of the DNA"
 
-# Folding asymmetry stiffness of lower compartment (kT units)
-asymmetryStiffness = 100.
+    add_RNA_polymerase = True
+    "adds 10 nm bead at DNA-tether site"
 
+    RNA_polymerase_size: float = 5.0
+    "radius of RNA polymerase (nm)"
 
-# Extra force on SMC in the -x direction and +y direction (left & up)
-smc_force = 0.0
+    RNA_polymerase_type = 1
+
+    spaced_beads_interval: int | None = None
+    "how many DNA beads to leave between small obstacles"
+
+    spaced_beads_size: float = 5.0
+    "radius of beads along DNA (nm)"
+
+    ##################### Geometry #####################
+
+    arm_length = 50.0
+    "Length of each coiled-coil arm (nm)"
+
+    bridge_width = 7.5
+    "Width of ATP bridge (nm)"
+
+    hinge_radius = 1.5
+    "Hinge radius (nm)"
+
+    rigid_hinge = True
+
+    kleisin_radius = 7.0
+    "Radius of lower circular-arc compartment (nm)"
+
+    sigma_SMC_DNA = 2.5
+    "SMC-DNA hard-core repulsion radius = LJ sigma (nm)"
+
+    sigma = 2.5
+
+    folding_angle_APO = 45.0
+    "Folding angle of lower compartment (degrees)"
+
+    folding_angle_ATP = 160.0
+    "Folding angle of lower compartment (degrees)"
+
+    arms_angle_ATP = 130.0
+    "Opening angle of arms in ATP-bound state (degrees)"
+
+    #################### LJ energies ###################
+
+    # 3 = Repulsion
+    # 4 = Upper site
+    # 5 = Middle site
+    # 6 = Lower site
+
+    # LJ energy (kT units)
+    # DE for a cutoff of 3.0 nm: 0.11e
+    # DE for a cutoff of 3.5 nm: 0.54e
+
+    epsilon3 = 3.0
+    epsilon4 = 6.0
+    epsilon5 = 6.0
+    epsilon6 = 100.0
+
+    # LJ cutoff (nm)
+    cutoff4 = 3.5
+    cutoff5 = 3.5
+    cutoff6 = 3.0
+
+    ################# Bending energies #################
+
+    arms_stiffness = 100.0
+    "Bending stiffness of arm-bridge angle (kT units)"
+
+    elbows_stiffness = 30.0
+    "Bending stiffness of elbows (kT units)"
+
+    site_stiffness = 100.0
+    "Alignment stiffness of binding sites (kT units)"
+
+    folding_stiffness = 60.0
+    "Folding stiffness of lower compartment (kT units)"
+
+    asymmetry_stiffness = 100.0
+    "Folding asymmetry stiffness of lower compartment (kT units)"
+
+    ################# Other #################
+
+    smc_force = 0.0
+    "Extra force on SMC in the -x direction and +y direction (left & up)"
+
+    use_charges = False
+    "Enable Coulomb interactions in LAMMPS"
