@@ -19,10 +19,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Set, Tuple
-from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
+
+from smc_lammps.console import warn
 
 
 class AtomType:
@@ -485,18 +486,14 @@ class Generator:
         if self.use_charges:
             if not any(nonzero_charges):
                 warn(
-                    """
-                    Charges are enabled, but all atoms have zero charge, this may affect performance!
-                    Set use_charges=False to disable charges.
-                    """
+                    "Charges are enabled, but all atoms have zero charge, this may affect performance!\n"
+                    "Set use_charges=False to disable charges."
                 )
         else:
             if any(nonzero_charges):
                 warn(
-                    """
-                    Charges are disabled, but some atoms have nonzero charge!
-                    Set use_charges=True to enable charges.
-                    """
+                    "Charges are disabled, but some atoms have nonzero charge!\n"
+                    "Set use_charges=True to enable charges."
                 )
 
     def write_atoms(self, file) -> None:

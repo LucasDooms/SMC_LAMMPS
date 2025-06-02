@@ -5,7 +5,7 @@ from typing import List
 
 import numpy as np
 
-from generate.generator import (
+from smc_lammps.generate.generator import (
     BAI,
     AtomGroup,
     AtomType,
@@ -15,7 +15,7 @@ from generate.generator import (
     MoleculeId,
     PairWise,
 )
-from generate.structures.smc.smc_creator import SMC_Pos
+from smc_lammps.generate.structures.smc.smc_creator import SMC_Pos
 
 
 @dataclass

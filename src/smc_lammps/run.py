@@ -4,9 +4,14 @@ import argparse
 import subprocess
 from functools import partial
 from pathlib import Path
-from warnings import warn
+from typing import List
 
 import argcomplete
+
+from smc_lammps.console import warn
+from smc_lammps.generate.util import get_project_root
+
+PYRUN = ["python", "-m"]
 
 
 def parse() -> argparse.Namespace:
@@ -39,7 +44,7 @@ def parse() -> argparse.Namespace:
 
     other = parser.add_argument_group(title='other options')
     other.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
-    other.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS', default='lammps/input.lmp')
+    other.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS')
 
     # fmt: on
 
@@ -67,6 +72,25 @@ class TaskDone:
         self.skipped = skipped
 
 
+def initialize(path: Path) -> TaskDone:
+    destination = path / "parameters.py"
+    if destination.exists():
+        return TaskDone(skipped=True)
+
+    if not path.exists():
+        path.mkdir(parents=True)
+        print(f"created new directory: {path.absolute()}")
+
+    root = get_project_root()
+    template_path = root / "generate" / "parameters_template.py"
+
+    # copy file
+    destination.write_bytes(template_path.read_bytes())
+    print(f"created template parameters file: {destination.absolute()}")
+
+    return TaskDone()
+
+
 def generate(args, path: Path) -> TaskDone:
     if not args.generate:
         if args.seed is not None:
@@ -79,7 +103,7 @@ def generate(args, path: Path) -> TaskDone:
     print("running setup file...")
     run_and_handle_error(
         lambda: subprocess.run(
-            python_run + ["generate.generate+parse", f"{path}"] + extra_args,
+            PYRUN + ["smc_lammps.generate.generate+parse", f"{path}"] + extra_args,
             check=False,
         ),
         args.ignore_errors,
@@ -89,20 +113,30 @@ def generate(args, path: Path) -> TaskDone:
     return TaskDone()
 
 
-def get_lammps_args_list(lammps_vars):
+def get_lammps_args_list(lammps_vars: List[List[str]]):
     out = []
     for var in lammps_vars:
         out += ["-var"] + var
     return out
 
 
-def perform_run(args, path: Path, lammps_vars=()):
+def perform_run(args, path: Path, lammps_vars: List[List[str]] | None = None):
+    if lammps_vars is None:
+        lammps_vars = []
+
+    if args.input is None:
+        project_root = get_project_root()
+        args.input = project_root / "lammps" / "input.lmp"
+
+    lammps_script = Path(args.input)
+    lammps_vars.append(["lammps_root_dir", f"{lammps_script.parent.absolute()}"])
+
     command = [
         f"{args.executable}",
         "-sf",
         f"{args.suffix}",
         "-in",
-        f"{Path(args.input).absolute()}",
+        f"{lammps_script.absolute()}",
     ] + get_lammps_args_list(lammps_vars)
     if args.suffix == "kk":
         command += ["-kokkos", "on"]
@@ -175,7 +209,8 @@ def post_process(args, path: Path) -> TaskDone:
     print("running post processing...")
     run_and_handle_error(
         lambda: subprocess.run(
-            python_run + ["post-process.process_displacement", f"{path}"], check=False
+            PYRUN + ["smc_lammps.post-process.process_displacement", f"{path}"],
+            check=False,
         ),
         args.ignore_errors,
     )
@@ -206,9 +241,9 @@ def create_perspective_file(args, path: Path, force=False):
     print("creating new lammpstrj file")
     run_and_handle_error(
         lambda: subprocess.run(
-            python_run
+            PYRUN
             + [
-                "post-process.smc_perspective",
+                "smc_lammps.post-process.smc_perspective",
                 f"{path / 'output.lammpstrj'}",
                 f"{path / 'post_processing_parameters.py'}",
             ],
@@ -228,9 +263,9 @@ def visualize_follow(args, path: Path) -> TaskDone:
     print("starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
-            python_run
+            PYRUN
             + [
-                "post-process.visualize",
+                "smc_lammps.post-process.visualize",
                 f"{path}",
                 "--file_name",
                 "perspective.output.lammpstrj",
@@ -257,7 +292,7 @@ def visualize(args, path: Path) -> TaskDone:
     print("starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
-            python_run + ["post-process.visualize", f"{path}"], check=False
+            PYRUN + ["smc_lammps.post-process.visualize", f"{path}"], check=False
         ),
         args.ignore_errors,
     )
@@ -275,6 +310,7 @@ def main():
         args.run = True
 
     tasks = [
+        initialize(path),
         generate(args, path),
         run(args, path),
         post_process(args, path),
@@ -289,5 +325,4 @@ def main():
 
 if __name__ == "__main__":
     # set PYTHONUNBUFFERED=1 if python is not printing correctly
-    python_run = ["python", "-m"]
     main()

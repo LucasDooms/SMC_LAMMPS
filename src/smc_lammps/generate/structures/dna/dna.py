@@ -10,8 +10,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from generate.default_parameters import Parameters
-from generate.generator import (
+from smc_lammps.generate.default_parameters import Parameters
+from smc_lammps.generate.generator import (
     BAI,
     AtomGroup,
     AtomIdentifier,
@@ -22,10 +22,10 @@ from generate.generator import (
     Nx3Array,
     PairWise,
 )
-from generate.structures import structure_creator
-from generate.structures.dna import dna_creator
-from generate.structures.smc.smc import SMC
-from generate.util import get_closest, pos_from_id
+from smc_lammps.generate.structures import structure_creator
+from smc_lammps.generate.structures.dna import dna_creator
+from smc_lammps.generate.structures.smc.smc import SMC
+from smc_lammps.generate.util import get_closest, pos_from_id
 
 
 @dataclass

@@ -19,8 +19,10 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 # setup uv and create venv (used by lammps to install python packages)
 COPY uv.lock uv.lock
 COPY pyproject.toml pyproject.toml
+COPY README.md README.md
+COPY src/smc_lammps src/smc_lammps
 
-RUN uv venv ${VENV_DIR} && uv sync \
+RUN uv venv ${VENV_DIR} && uv sync --no-editable \
     && find ${VENV_DIR} \( -type d -a -name test -o -name tests \) -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) -exec rm -rf '{}' \+
 
 # activate venv
@@ -76,6 +78,10 @@ COPY --from=build ${LAMMPS_PYTHON_DIR} ${LAMMPS_PYTHON_DIR}
 ARG DATA_DIR=/data
 VOLUME ${DATA_DIR}
 WORKDIR ${DATA_DIR}
+
+# enable shell autocompletion in bash
+SHELL ["/bin/bash", "-c"]
+RUN echo 'eval "$(register-python-argcomplete smc-lammps)"' >> /etc/bash.bashrc
 
 # run in bash by default
 CMD ["/bin/bash"]
