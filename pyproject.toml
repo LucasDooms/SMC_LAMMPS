@@ -5,6 +5,22 @@ description = "Simulate DNA loop extrusion by SMCs using LAMMPS"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13"
+keywords = [
+  "simulation",
+  "Molecular Dynamics",
+  "coarse-grained",
+  "LAMMPS",
+  "DNA",
+  "loop extrusion",
+  "Structural Maintance of Chromosomes",
+]
+authors = [
+  { name = "Stefanos Nomidis" },
+  { name = "Lucas Dooms", email = "lucas.dooms@kuleuven.be" },
+]
+maintainers = [
+  { name = "Lucas Dooms", email = "lucas.dooms@kuleuven.be" },
+]
 classifiers = [ "Programming Language :: Python :: 3 :: Only", "Programming Language :: Python :: 3.13" ]
 dependencies = [
   "argcomplete>=3.6.2",
