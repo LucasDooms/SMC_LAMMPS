@@ -64,20 +64,20 @@ Note: the docker image does not include VMD.
 
 ## Usage
 
-1. Create a directory for your simulation, e.g. `hinge`
-2. Define all parameters in `hinge/parameters.py` (see `src/smc_lammps/generate/default_parameters.py` for all options)
-3. Run `smc-lammps [flags] hinge`, providing the directory of the parameters file. Use the `-g` flag to generate the required parameterfile and datafile.
+1. Create a directory for your simulation using `smc-lammps mysim`.
+2. Define all parameters in `mysim/parameters.py` (see `src/smc_lammps/generate/default_parameters.py` for all options).
+3. Run `smc-lammps [flags] mysim`, providing the directory of the parameters file. Use the `-g` flag to generate the required parameterfile and datafile.
 
 #### Examples
-- `smc-lammps hinge -gr`   to generate and run
-- `smc-lammps hinge -grpv` to generate, run, post-process, and visualize
-- `smc-lammps hinge -grvn` to generate, run, and visualize while ignoring errors
-- `smc-lammps hinge -v`    to visualize
-- `smc-lammps hinge -vf`   to visualize a perspective following the SMC
-- `smc-lammps hinge -c`    to continue a run from a restart file
+- `smc-lammps mysim -gr`   to generate and run.
+- `smc-lammps mysim -grpv` to generate, run, post-process, and visualize.
+- `smc-lammps mysim -grvn` to generate, run, and visualize while ignoring errors.
+- `smc-lammps mysim -v`    to visualize.
+- `smc-lammps mysim -vf`   to visualize a perspective following the SMC.
+- `smc-lammps mysim -c`    to continue a run from a restart file.
 
 #### Help
-Show help with `smc-lammps --help`
+Show help with `smc-lammps --help`.
 
 #### Shell completion
 To get shell completion when using `smc-lammps` on the command-line run the following:
