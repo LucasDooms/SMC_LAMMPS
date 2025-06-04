@@ -4,7 +4,14 @@
 
 ### Python
 
-#### Using [uv](https://docs.astral.sh/uv/getting-started/installation/) (recommended)
+#### From PyPI
+
+The code is available as a [package on PyPI](https://pypi.org/project/smc-lammps/).
+```sh
+pip install smc-lammps
+```
+
+#### From Source Using [uv](https://docs.astral.sh/uv/getting-started/installation/) (recommended)
 ```sh
 git clone https://github.com/LucasDooms/SMC_LAMMPS.git
 cd SMC_LAMMPS
@@ -13,7 +20,7 @@ source .venv/bin/activate
 ```
 or use `uv run <command>` without activating the environment.
 
-#### Using pip
+#### From Source Using pip
 ```sh
 git clone https://github.com/LucasDooms/SMC_LAMMPS.git
 cd SMC_LAMMPS
@@ -79,7 +86,7 @@ Note: the docker image does not include VMD.
 #### Help
 Show help with `smc-lammps --help`.
 
-#### Shell completion
+#### Shell Completion
 To get shell completion when using `smc-lammps` on the command-line run the following:
  - For bash or zsh, use `eval "$(register-python-argcomplete smc-lammps)"`
  - For fish, use `register-python-argcomplete --shell fish smc-lammps | source`
