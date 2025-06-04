@@ -4,9 +4,11 @@ import argparse
 import subprocess
 from functools import partial
 from pathlib import Path
+from re import compile as compile_regex
 from typing import List
 
 import argcomplete
+from click import confirm
 
 from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
@@ -45,6 +47,7 @@ def parse() -> argparse.Namespace:
     other = parser.add_argument_group(title='other options')
     other.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
     other.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS')
+    other.add_argument('--clean', action='store_true', help='remove all files except parameters.py from the directory')
 
     # fmt: on
 
@@ -87,6 +90,52 @@ def initialize(path: Path) -> TaskDone:
     # copy file
     destination.write_bytes(template_path.read_bytes())
     print(f"created template parameters file: {destination.absolute()}")
+
+    return TaskDone()
+
+
+def clean(args, path: Path) -> TaskDone:
+    if not args.clean:
+        return TaskDone(skipped=True)
+
+    warn(f'--clean will delete all files in "{path}" except parameters.py')
+    if not confirm("Are you sure?", default=False):
+        return TaskDone()
+
+    safe_to_delete = [
+        r".*\.lammpstrj",
+        r"log\.lammps",
+        r"parameterfile",
+        r"datafile.*",
+        r"post_processing_parameters\.py",
+        r"styles",
+        r"tmp\.lammps\.variable",
+        r"vmd\.tcl",
+        r"states",
+    ]
+    safe_to_delete = [compile_regex(string) for string in safe_to_delete]
+
+    def is_safe_to_delete(path: Path) -> bool:
+        name = path.name
+        return any(regex.match(name) for regex in safe_to_delete)
+
+    def remove_recursively(path: Path):
+        try:
+            path.unlink()
+        except IsADirectoryError:
+            for child in path.iterdir():
+                remove_recursively(child)
+            path.rmdir()
+
+    for child in path.iterdir():
+        if child.name == "parameters.py":
+            continue
+        if not is_safe_to_delete(child):
+            print(f"unrecognized file or folder '{child}', skipping...")
+            continue
+
+        remove_recursively(child)
+        print(f"deleted '{child}' succesfully")
 
     return TaskDone()
 
@@ -311,6 +360,7 @@ def main():
 
     tasks = [
         initialize(path),
+        clean(args, path),
         generate(args, path),
         run(args, path),
         post_process(args, path),
