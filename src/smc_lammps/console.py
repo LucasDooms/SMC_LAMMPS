@@ -7,7 +7,6 @@ console = Console()
 
 def warn(message):
     """Prints the warning message in a panel."""
-    console = Console()
     console.print(
         Panel(
             Text(message, style="bold yellow"),
