@@ -268,11 +268,8 @@ class SMC:
             BAI(attach, (self.atp_grp, -1), (self.hk_grp, 0)),
             BAI(attach, (self.hk_grp, -1), (self.atp_grp, 0)),
         ]
-        # work-around for crash caused by
-        # `bond_style     hybrid fene/expand harmonic`
-        # in input.lmp
-        # always add bond for now, even if it is rigid
-        if not self.use_rigid_hinge or True:
+
+        if not self.use_rigid_hinge:
             assert hinge_opening is not None
             hinge_bond = BAI_Type(
                 BAI_Kind.BOND, "harmonic", f"{self.k_hinge} {hinge_opening}\n"
