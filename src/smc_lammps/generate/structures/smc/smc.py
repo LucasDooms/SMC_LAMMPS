@@ -422,19 +422,23 @@ class SMC:
     def add_repel_interactions(
         self, pair_inter: PairWise, eps: float, sigma: float, r_cut: float
     ) -> None:
+        # short-range repulsion
+        sigma_short = sigma / 10.0
+        r_cut_short = r_cut / 10.0
+
         # prevent hinges from overlapping
         pair_inter.add_interaction(
             self.t_hinge,
             self.t_hinge,
             eps,
-            sigma,
-            r_cut,
+            sigma_short,
+            r_cut_short,
         )
         # prevent upper site from overlapping with arms
         pair_inter.add_interaction(
             self.t_arms_heads_kleisin,
             self.t_upper_site,
             eps,
-            sigma,
-            r_cut,
+            sigma_short,
+            r_cut_short,
         )
