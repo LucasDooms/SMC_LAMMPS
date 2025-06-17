@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.1.1] - 2025-06-17
 
+### Added
+
+- LAMMPS script now print the SMC state (`APO`, `ATP`, `ADP`) to the screen.
+
 ### Changed
 
 - Removed work-around for hybrid bond_style when selecting rigid vs non-rigid hinge.
