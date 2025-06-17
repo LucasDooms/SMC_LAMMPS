@@ -1,6 +1,6 @@
 [project]
 name = "smc-lammps"
-version = "0.1.0"
+version = "0.1.1"
 description = "Simulate DNA loop extrusion by SMCs using LAMMPS"
 readme = "README.md"
 license = "MIT"
@@ -15,8 +15,8 @@ keywords = [
   "Structural Maintance of Chromosomes",
 ]
 authors = [
-  { name = "Stefanos Nomidis" },
   { name = "Lucas Dooms", email = "lucas.dooms@kuleuven.be" },
+  { name = "Stefanos Nomidis" },
 ]
 maintainers = [
   { name = "Lucas Dooms", email = "lucas.dooms@kuleuven.be" },

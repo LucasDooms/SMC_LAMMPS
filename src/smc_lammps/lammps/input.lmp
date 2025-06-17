@@ -136,11 +136,13 @@ if $(is_defined(variable,smc_force)) then &
 label main_loop
 
 # APO state
+print "----------- STARTING APO STATE -----------" screen yes
 include states/apo
 run ${runtimes}
 next runtimes
 
 # ATP-bound state
+print "----------- STARTING ATP STATE -----------" screen yes
 include states/atp_bound_1
 run ${runtimes}
 next runtimes
@@ -150,6 +152,7 @@ run ${runtimes}
 next runtimes
 
 # ADP-bound state
+print "----------- STARTING ADP STATE -----------" screen yes
 include states/adp_bound
 run ${runtimes}
 next runtimes
