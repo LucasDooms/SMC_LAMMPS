@@ -56,14 +56,14 @@ class Parameters:
     """Max steps for run (None -> no maximum, will complete every cycle)
     Note: this is not a hard limit, some extra steps may be performed to complete a cycle"""
 
-    steps_ATP = 2000000
-    "Average number of steps for ATP binding"
-
-    steps_ADP = 8000000
-    "Average number of steps for ATP hydrolysis"
-
     steps_APO = 2000000
-    "Average number of steps for returning to APO"
+    "Average number of steps spent in APO state (waiting for ATP binding)"
+
+    steps_ATP = 8000000
+    "Average number of steps spent in ATP state (waiting for ATP hydrolysis)"
+
+    steps_ADP = 2000000
+    "Average number of steps spent in ADP state (waiting for return to APO)"
 
     ##################### DNA #######################
 
