@@ -365,7 +365,7 @@ def main():
     if all(map(lambda task: task.skipped, tasks)):
         print("nothing to do, use -gr to generate and run")
 
-    print("end of run.py")
+    print("end of smc-lammps (run.py)")
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- LAMMPS script now print the SMC state (`APO`, `ATP`, `ADP`) to the screen.
+- LAMMPS script now prints the SMC state (`APO`, `ATP`, `ADP`) to the screen.
 
 ### Changed
 
