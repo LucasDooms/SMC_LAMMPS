@@ -150,7 +150,7 @@ def generate(args, path: Path) -> TaskDone:
     print("running setup file...")
     run_and_handle_error(
         lambda: subprocess.run(
-            PYRUN + ["smc_lammps.generate.generate+parse", f"{path}"] + extra_args,
+            PYRUN + ["smc_lammps.generate.generate", f"{path}"] + extra_args,
             check=False,
         ),
         args.ignore_errors,
@@ -252,7 +252,7 @@ def post_process(args, path: Path) -> TaskDone:
     print("running post processing...")
     run_and_handle_error(
         lambda: subprocess.run(
-            PYRUN + ["smc_lammps.post-process.process_displacement", f"{path}"],
+            PYRUN + ["smc_lammps.post_process.process_displacement", f"{path}"],
             check=False,
         ),
         args.ignore_errors,
@@ -286,7 +286,7 @@ def create_perspective_file(args, path: Path, force=False):
         lambda: subprocess.run(
             PYRUN
             + [
-                "smc_lammps.post-process.smc_perspective",
+                "smc_lammps.post_process.smc_perspective",
                 f"{path / 'output.lammpstrj'}",
                 f"{path / 'post_processing_parameters.py'}",
                 f"{args.visualize_follow}",
@@ -309,7 +309,7 @@ def visualize_follow(args, path: Path) -> TaskDone:
         lambda: subprocess.run(
             PYRUN
             + [
-                "smc_lammps.post-process.visualize",
+                "smc_lammps.post_process.visualize",
                 f"{path}",
                 "--file_name",
                 "perspective.output.lammpstrj",
@@ -336,7 +336,7 @@ def visualize(args, path: Path) -> TaskDone:
     print("starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
-            PYRUN + ["smc_lammps.post-process.visualize", f"{path}"], check=False
+            PYRUN + ["smc_lammps.post_process.visualize", f"{path}"], check=False
         ),
         args.ignore_errors,
     )
