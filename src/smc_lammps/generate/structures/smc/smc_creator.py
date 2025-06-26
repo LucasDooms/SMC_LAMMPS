@@ -26,20 +26,33 @@ class SMC_Pos:
     r_upper_site: Nx3Array
     r_middle_site: Nx3Array
     r_lower_site: Nx3Array
-    r_hinge: Nx3Array
+    # None when using non-toroidal hinge!
+    r_hinge: Nx3Array | None
 
     def iter(self) -> List[Any]:
         """Returns a list of all fields"""
         return [getattr(self, field.name) for field in fields(SMC_Pos)]
 
+    @staticmethod
+    def none_wrapper(func):
+        """Handle None values in the first argument by returning None."""
+
+        def new_func(*args, **kwargs):
+            if args[0] is None:
+                return None
+            return func(*args, **kwargs)
+
+        return new_func
+
     def apply(self, func) -> None:
         """Update the object inplace by applying a function to every field"""
+        func = self.none_wrapper(func)
         for field in fields(self.__class__):
             setattr(self, field.name, func(getattr(self, field.name)))
 
     def map(self, func) -> List[Any]:
         """Apply a function to every field and return the resulting list"""
-        return [func(x) for x in self.iter()]
+        return [func(x) for x in self.iter() if x is not None]
 
 
 @dataclass
@@ -63,6 +76,8 @@ class SMC_Creator:
 
     arm_length: float
     bridge_width: float
+    use_toroidal_hinge: bool
+    # Not used if use_toroidal_hinge = False
     hinge_radius: float
     hinge_opening: float
 
@@ -215,9 +230,15 @@ class SMC_Creator:
         # D = lower  interaction site
 
         # UPPER SITE
-
-        r_upper_site = get_straight_segment(3)
-        r_upper_site -= r_upper_site[1]
+        if self.use_toroidal_hinge:
+            r_upper_site = get_straight_segment(3)
+            r_upper_site -= r_upper_site[1]
+        else:
+            r_upper_site = self.shielded_site_template(3, 4, self.upper_site_h, 1)
+            # Inert bead connecting site to arms at top
+            r_upper_site = np.concatenate(
+                [r_upper_site, np.array([0.0, self.upper_site_v, 0.0]).reshape(1, 3)]
+            )
 
         rotate_around_x_axis = Rotation.from_rotvec(math.pi * np.array([1.0, 0.0, 0.0])).as_matrix()
 
@@ -279,7 +300,10 @@ class SMC_Creator:
         r_upper_site, r_middle_site, r_lower_site = self.get_interaction_sites(
             lower_site_points_down
         )
-        r_hinge = self.get_hinge()
+        if self.use_toroidal_hinge:
+            r_hinge = self.get_hinge()
+        else:
+            r_hinge = np.empty(shape=(0, 3), dtype=r_ATP.dtype)
 
         # Inert bead, used for breaking folding symmetry
         r_middle_site = np.concatenate([r_middle_site, np.array([1.0, -1.0, 0.0]).reshape(1, 3)])
@@ -294,25 +318,29 @@ class SMC_Creator:
         r_middle_site *= self.SMC_spacing
         r_lower_site *= self.SMC_spacing
 
-        # place hinge at center of top
-        r_hinge += r_arm_ur[0]
-        # place bead slightly below
-        r_upper_site += r_arm_ur[0]
-        r_upper_site[:, 1] -= self.SMC_spacing
+        if self.use_toroidal_hinge:
+            # place hinge at center of top
+            r_hinge += r_arm_ur[0]
+            # place bead slightly below
+            r_upper_site += r_arm_ur[0]
+            r_upper_site[:, 1] -= self.SMC_spacing
+        else:
+            r_upper_site += r_arm_ur[0] - r_upper_site[-1]
 
-        # rotate upper arms away to attach to hinge properly
-        left_attach_hinge = len(r_hinge) // 4
-        rot = Rotation.align_vectors(
-            r_arm_ul[-1] - r_arm_ul[0], r_hinge[left_attach_hinge] - r_arm_ul[0]
-        )[0]
-        r_arm_ur = (
-            self.transpose_rotate_transpose(rot.as_matrix(), r_arm_ur - r_arm_ur[-1])[0]
-            + r_arm_ur[-1]
-        )
-        r_arm_ul = (
-            self.transpose_rotate_transpose(rot.inv().as_matrix(), r_arm_ul - r_arm_ul[0])[0]
-            + r_arm_ul[0]
-        )
+        if self.use_toroidal_hinge:
+            # rotate upper arms away to attach to hinge properly
+            left_attach_hinge = len(r_hinge) // 4
+            rot = Rotation.align_vectors(
+                r_arm_ul[-1] - r_arm_ul[0], r_hinge[left_attach_hinge] - r_arm_ul[0]
+            )[0]
+            r_arm_ur = (
+                self.transpose_rotate_transpose(rot.as_matrix(), r_arm_ur - r_arm_ur[-1])[0]
+                + r_arm_ur[-1]
+            )
+            r_arm_ul = (
+                self.transpose_rotate_transpose(rot.inv().as_matrix(), r_arm_ul - r_arm_ul[0])[0]
+                + r_arm_ul[0]
+            )
 
         # move into the correct location
         r_middle_site += r_ATP[len(r_ATP) // 2]
@@ -349,7 +377,7 @@ class SMC_Creator:
             r_upper_site=r_upper_site,
             r_middle_site=r_middle_site,
             r_lower_site=r_lower_site,
-            r_hinge=r_hinge,
+            r_hinge=r_hinge if self.use_toroidal_hinge else None,
         )
 
         # apply extra rotation to entire SMC

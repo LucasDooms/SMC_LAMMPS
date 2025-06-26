@@ -184,7 +184,10 @@ bond_max_extension = 1.0
 # Spring constant obeying equilibrium relative bond fluctuations
 k_bond_DNA = 3 * kBT / (DNA_bond_length * bond_fluctuation_DNA) ** 2
 k_bond_SMC = 3 * kBT / (SMC_spacing * bond_fluctuation_SMC) ** 2
-k_bond_hinge = 3 * kBT / (SMC_spacing * bond_fluctuation_hinge) ** 2
+if par.use_toroidal_hinge:
+    k_bond_hinge = 3 * kBT / (SMC_spacing * bond_fluctuation_hinge) ** 2
+else:
+    k_bond_hinge = 10 * kBT / SMC_spacing**2
 
 
 # Maximum bond length
@@ -222,6 +225,7 @@ smc_creator = SMC_Creator(
     #
     arm_length=par.arm_length,
     bridge_width=par.bridge_width,
+    use_toroidal_hinge=par.use_toroidal_hinge,
     hinge_radius=par.hinge_radius,
     # SMCspacing half of the minimal required spacing of ssDNA
     # so between 2*SMCspacing and 4*SMCspacing should
@@ -269,9 +273,7 @@ dna_parameters = dna.DnaParameters(
     angle=dna_angle,
     ssangle=ssdna_angle,
 )
-dna_config = dna_config_class.get_dna_config(
-    dna_parameters, smc_positions.r_lower_site, par
-)
+dna_config = dna_config_class.get_dna_config(dna_parameters, smc_positions.r_lower_site, par)
 
 #################################################################################
 #                                Print to file                                  #
@@ -315,7 +317,7 @@ smc_1 = SMC(
     #
     bridge_width=par.bridge_width,
     arm_length=par.arm_length,
-    hinge_radius=par.hinge_radius,
+    _hinge_radius=par.hinge_radius,
     arms_angle_ATP=par.arms_angle_ATP,
     folding_angle_ATP=par.folding_angle_ATP,
     folding_angle_APO=par.folding_angle_APO,
@@ -349,9 +351,7 @@ if par.add_RNA_polymerase:
             dna_config.dna_groups[0],
             int(len(dna_config.dna_groups[0].positions) // 2),
         )
-    dna_config.add_bead_to_dna(
-        bead_type, mol_bead, dna_id, bead_bond, bead_angle, bead_size
-    )
+    dna_config.add_bead_to_dna(bead_type, mol_bead, dna_id, bead_bond, bead_angle, bead_size)
 
     if bead_bond is None:
         gen.molecule_override[dna_id] = mol_bead
@@ -361,9 +361,7 @@ if par.spaced_beads_interval is not None:
 
     # get spacing
     start_id = par.spaced_beads_interval
-    stop_id = get_closest(
-        dna_config.dna_groups[0].positions, smc_positions.r_lower_site[1]
-    )
+    stop_id = get_closest(dna_config.dna_groups[0].positions, smc_positions.r_lower_site[1])
     spaced_bead_ids = list(range(start_id, stop_id, par.spaced_beads_interval))
     spaced_bead_ids += list(
         range(
@@ -395,9 +393,7 @@ if par.add_stopper_bead:
 
     stopper_ids = dna_config.get_stopper_ids()
     for dna_id in stopper_ids:
-        dna_config.add_bead_to_dna(
-            stopper_type, mol_stopper, dna_id, None, None, stopper_size
-        )
+        dna_config.add_bead_to_dna(stopper_type, mol_stopper, dna_id, None, None, stopper_size)
         gen.molecule_override[dna_id] = mol_stopper
 
 
@@ -408,14 +404,10 @@ gen.atom_groups += [
 
 
 # Pair coefficients
-pair_inter = PairWise(
-    "PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0]
-)
+pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0.0, 0.0])
 
 dna_config.add_interactions(pair_inter)
-smc_1.add_repel_interactions(
-    pair_inter, epsilon_SMC_DNA * kBT, sigma_SMC_DNA, rcut_SMC_DNA
-)
+smc_1.add_repel_interactions(pair_inter, epsilon_SMC_DNA * kBT, sigma_SMC_DNA, rcut_SMC_DNA)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
@@ -423,9 +415,7 @@ pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0
 gen.pair_interactions.append(pair_inter)
 gen.pair_interactions.append(pair_soft_inter)
 if gen.use_charges:
-    gen.pair_interactions.append(
-        PairWise("PairIJ Coeffs # hybrid\n\n", "coul/debye {}\n", [""])
-    )
+    gen.pair_interactions.append(PairWise("PairIJ Coeffs # hybrid\n\n", "coul/debye {}\n", [""]))
 
 # Interactions that change for different phases of SMC
 bridge_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_atp])
@@ -459,27 +449,21 @@ if False:  # isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafe
         [dna_type, smc_1.t_lower_site],
     )
 else:
-    lower_site_off = Generator.DynamicCoeffs(
-        None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_lower_site]
-    )
+    lower_site_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_lower_site])
 lower_site_on = Generator.DynamicCoeffs(
     None,
     f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n",
     [dna_type, smc_1.t_lower_site],
 )
 
-middle_site_off = Generator.DynamicCoeffs(
-    None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_middle_site]
-)
+middle_site_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_middle_site])
 middle_site_on = Generator.DynamicCoeffs(
     None,
     f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n",
     [dna_type, smc_1.t_middle_site],
 )
 
-middle_site_soft_off = Generator.DynamicCoeffs(
-    None, "soft 0 0\n", [dna_type, smc_1.t_middle_site]
-)
+middle_site_soft_off = Generator.DynamicCoeffs(None, "soft 0 0\n", [dna_type, smc_1.t_middle_site])
 middle_site_soft_on = Generator.DynamicCoeffs(
     None,
     "soft " + f"{par.epsilon5 * kBT} {par.sigma * 2 ** (1 / 6)}\n",
@@ -493,13 +477,9 @@ gen.bais += smc_1.get_angles()
 gen.bais += smc_1.get_impropers()
 
 # Override molecule ids to form rigid safety-belt bond
-if isinstance(
-    dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.Safety)
-):  # TODO
+if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.Safety)):  # TODO
     safety_index = dna_config.dna_safety_belt_index
-    gen.molecule_override[(dna_config.dna_groups[0], safety_index)] = (
-        smc_1.mol_lower_site
-    )
+    gen.molecule_override[(dna_config.dna_groups[0], safety_index)] = smc_1.mol_lower_site
     # add neighbors to prevent rotation
     # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = smc_1.mol_lower_site
     # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = smc_1.mol_lower_site
@@ -612,21 +592,14 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     )
     file.write("\n")
     kleisin_ids_list = [
-        gen.get_atom_index((smc_1.hk_grp, i))
-        for i in range(len(smc_1.hk_grp.positions))
+        gen.get_atom_index((smc_1.hk_grp, i)) for i in range(len(smc_1.hk_grp.positions))
     ]
-    file.write(
-        f"# use to form plane of SMC kleisin\nkleisin_ids = {kleisin_ids_list}\n"
-    )
+    file.write(f"# use to form plane of SMC kleisin\nkleisin_ids = {kleisin_ids_list}\n")
     file.write("\n")
     file.write(f"dna_spacing = {max_bond_length_DNA}\n")
     file.write("\n")
-    file.write(
-        f"DNA_types = {list(set(grp.type.index for grp in dna_config.dna_groups))}\n"
-    )
-    file.write(
-        f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n"
-    )
+    file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.dna_groups))}\n")
+    file.write(f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n")
 
 
 #################################################################################
@@ -681,9 +654,7 @@ def get_index_def(name: str, values: Sequence[Any]) -> str:
     return f"variable {name} index {list_to_space_str(values)}\n"
 
 
-def get_times(
-    apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Generator
-) -> List[int]:
+def get_times(apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Generator) -> List[int]:
     # get run times for each SMC state
     # APO -> ATP1 -> ATP2 -> ADP -> ...
 
@@ -694,9 +665,7 @@ def get_times(
     return [math.ceil(mult(x)) for x in (apo, atp1, atp2, adp)]
 
 
-def get_times_with_max_steps(
-    parameters: Parameters, rng_gen: np.random.Generator
-) -> List[int]:
+def get_times_with_max_steps(parameters: Parameters, rng_gen: np.random.Generator) -> List[int]:
     run_steps = []
 
     def none_to_max(x):
@@ -775,32 +744,25 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     # turn into LAMMPS indices
     freeze_indices_LAMMPS = atomIds_to_LAMMPS_ids(ppp.freeze_indices)
     parameterfile.write(
-        get_string_def(
-            "indices", prepend_or_empty(list_to_space_str(freeze_indices_LAMMPS), "id ")
-        )
+        get_string_def("indices", prepend_or_empty(list_to_space_str(freeze_indices_LAMMPS), "id "))
     )
 
     if isinstance(
         dna_config, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)
     ) and isinstance(dna_config.tether.obstacle, dna.Tether.Wall):
-        parameterfile.write(
-            f"variable wall_y equal {dna_config.tether.group.positions[0][1]}\n"
-        )
+        parameterfile.write(f"variable wall_y equal {dna_config.tether.group.positions[0][1]}\n")
 
         excluded = [
             gen.get_atom_index((dna_config.tether.group, 0)),
             gen.get_atom_index((dna_config.tether.group, 1)),
         ]
         parameterfile.write(
-            get_string_def(
-                "excluded", prepend_or_empty(list_to_space_str(excluded), "id ")
-            )
+            get_string_def("excluded", prepend_or_empty(list_to_space_str(excluded), "id "))
         )
 
     # forces
     stretching_forces_array_LAMMPS = {
-        key: atomIds_to_LAMMPS_ids(val)
-        for key, val in ppp.stretching_forces_array.items()
+        key: atomIds_to_LAMMPS_ids(val) for key, val in ppp.stretching_forces_array.items()
     }
     if stretching_forces_array_LAMMPS:
         parameterfile.write(
@@ -811,15 +773,11 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
             for lst in stretching_forces_array_LAMMPS.values()
         ]
         parameterfile.write(get_universe_def("stretching_forces_groups", sf_ids))
-        sf_forces = [
-            list_to_space_str(tup) for tup in stretching_forces_array_LAMMPS.keys()
-        ]
+        sf_forces = [list_to_space_str(tup) for tup in stretching_forces_array_LAMMPS.keys()]
         parameterfile.write(get_universe_def("stretching_forces", sf_forces))
 
     # obstacle, if particle
-    if hasattr(dna_config, "tether") and isinstance(
-        dna_config.tether.obstacle, dna.Tether.Gold
-    ):
+    if hasattr(dna_config, "tether") and isinstance(dna_config.tether.obstacle, dna.Tether.Gold):
         obstacle_lammps_id = gen.get_atom_index((dna_config.tether.obstacle.group, 0))
         parameterfile.write(f"variable obstacle_id equal {obstacle_lammps_id}\n")
 

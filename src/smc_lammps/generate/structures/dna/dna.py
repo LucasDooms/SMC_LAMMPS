@@ -227,13 +227,14 @@ class Tether:
             ip.sigma_SMC_DNA,
             ip.rcut_SMC_DNA,
         )
-        pair_inter.add_interaction(
-            tether_type,
-            smc.t_hinge,
-            ip.epsilon_SMC_DNA * kBT,
-            ip.sigma_SMC_DNA / 2.0,
-            ip.rcut_SMC_DNA / 2.0,
-        )
+        if smc.has_toroidal_hinge():
+            pair_inter.add_interaction(
+                tether_type,
+                smc.t_hinge,
+                ip.epsilon_SMC_DNA * kBT,
+                ip.sigma_SMC_DNA / 2.0,
+                ip.rcut_SMC_DNA / 2.0,
+            )
         # Optional: don't allow bridge to go through tether
         # pair_inter.add_interaction(
         #     tether_type, smc.atp_type,
@@ -259,13 +260,14 @@ class Tether:
                 self.obstacle.radius,
                 self.obstacle.cut,
             )
-            pair_inter.add_interaction(
-                self.obstacle.group.type,
-                smc.t_hinge,
-                ip.epsilon_DNA_DNA * kBT,
-                self.obstacle.radius,
-                self.obstacle.cut,
-            )
+            if smc.has_toroidal_hinge():
+                pair_inter.add_interaction(
+                    self.obstacle.group.type,
+                    smc.t_hinge,
+                    ip.epsilon_DNA_DNA * kBT,
+                    self.obstacle.radius,
+                    self.obstacle.cut,
+                )
             pair_inter.add_interaction(
                 self.obstacle.group.type,
                 tether_type,
@@ -442,13 +444,14 @@ class DnaConfiguration:
             ip.sigma_SMC_DNA,
             ip.rcut_SMC_DNA,
         )
-        pair_inter.add_interaction(
-            dna_type,
-            self.smc.t_hinge,
-            ip.epsilon_SMC_DNA * kBT,
-            ip.sigma_SMC_DNA,
-            ip.rcut_SMC_DNA,
-        )
+        if self.smc.has_toroidal_hinge():
+            pair_inter.add_interaction(
+                dna_type,
+                self.smc.t_hinge,
+                ip.epsilon_SMC_DNA * kBT,
+                ip.sigma_SMC_DNA,
+                ip.rcut_SMC_DNA,
+            )
         pair_inter.add_interaction(
             dna_type,
             self.smc.t_lower_site,
