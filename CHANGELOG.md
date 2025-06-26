@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - The `average_plot.py` script now also plots a linear fit with the average velocity.
+- Add new option `use_toroidal_hinge`, to allow simulating old non-toroidal hinge.
 
 ### Changed
 
