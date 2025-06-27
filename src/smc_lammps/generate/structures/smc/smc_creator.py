@@ -5,7 +5,6 @@ from dataclasses import dataclass, fields
 from typing import Any, List, Tuple
 
 import numpy as np
-from numpy.random import default_rng
 from scipy.spatial.transform import Rotation
 
 from smc_lammps.generate.generator import Nx3Array
@@ -73,9 +72,7 @@ class SMC_Creator:
 
     small_noise: float = 1e-5
 
-    def get_arms(
-        self, seed: int = 8671288977726523465
-    ) -> Tuple[Nx3Array, Nx3Array, Nx3Array, Nx3Array]:
+    def get_arms(self) -> Tuple[Nx3Array, Nx3Array, Nx3Array, Nx3Array]:
         # Number of beads forming each arm segment (err on the high side)
         n_arm_segments = math.ceil(self.arm_length / (2 * self.SMC_spacing))
 
@@ -108,17 +105,9 @@ class SMC_Creator:
         r_arm_ur -= center
         r_arm_dr -= center
 
-        # A bit of randomness, to avoid exact overlap (pressure is messed up in LAMMPS)
-        rng_arms = default_rng(seed=seed)
-
-        r_arm_dl += rng_arms.standard_normal() * self.small_noise
-        r_arm_ul += rng_arms.standard_normal() * self.small_noise
-        r_arm_ur += rng_arms.standard_normal() * self.small_noise
-        r_arm_dr += rng_arms.standard_normal() * self.small_noise
-
         return r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr
 
-    def get_bridge(self, seed: int = 4685150768879447999) -> Nx3Array:
+    def get_bridge(self) -> Nx3Array:
         # Number of beads forming the ATP ring (err on the high side)
         n_ATP = math.ceil(self.bridge_width / self.SMC_spacing)
 
@@ -135,13 +124,9 @@ class SMC_Creator:
         # move center to origin
         r_ATP -= (r_ATP[0] + r_ATP[-1]) / 2.0
 
-        # A bit of randomness
-        rng_atp = default_rng(seed=seed)
-        r_ATP += rng_atp.standard_normal() * self.small_noise
-
         return r_ATP
 
-    def get_heads_kleisin(self, seed: int = 8305832029550348799) -> Nx3Array:
+    def get_heads_kleisin(self) -> Nx3Array:
         # Circle-arc radius
         # radius = (self.HKradius**2 + (self.bridgeWidth / 2.0)**2) / (2.0 * self.HKradius)
         bridge_radius = self.bridge_width / 2.0
@@ -180,10 +165,6 @@ class SMC_Creator:
         # move the bridge-gap to the origin
         r_kleisin[:, 1] -= r_kleisin[0][1]
 
-        # A bit of randomness
-        rng_rhk = default_rng(seed=seed)
-        r_kleisin += rng_rhk.standard_normal() * self.small_noise
-
         return r_kleisin
 
     @staticmethod
@@ -196,9 +177,7 @@ class SMC_Creator:
         """create a line of beads surrounded by a protective shell/shield"""
         axis = np.array([1, 0, 0])
         # Inner/Attractive beads
-        inner_beads = (
-            get_straight_segment(n_inner_beads, direction=axis) * inner_spacing
-        )
+        inner_beads = get_straight_segment(n_inner_beads, direction=axis) * inner_spacing
         # put center at the origin
         inner_beads -= (inner_beads[0] + inner_beads[-1]) / 2.0
 
@@ -229,7 +208,7 @@ class SMC_Creator:
         return tuple(rotation.dot(arr.transpose()).transpose() for arr in arrays)
 
     def get_interaction_sites(
-        self, lower_site_points_down: bool, seed: int = 8343859591397577529
+        self, lower_site_points_down: bool
     ) -> Tuple[Nx3Array, Nx3Array, Nx3Array]:
         # U = upper  interaction site
         # M = middle interaction site
@@ -240,35 +219,21 @@ class SMC_Creator:
         r_upper_site = get_straight_segment(3)
         r_upper_site -= r_upper_site[1]
 
-        rotate_around_x_axis = Rotation.from_rotvec(
-            math.pi * np.array([1.0, 0.0, 0.0])
-        ).as_matrix()
+        rotate_around_x_axis = Rotation.from_rotvec(math.pi * np.array([1.0, 0.0, 0.0])).as_matrix()
 
         # MIDDLE SITE
         r_middle_site = self.shielded_site_template(1, 4, self.middle_site_h, 1)
-        (r_middle_site,) = self.transpose_rotate_transpose(
-            rotate_around_x_axis, r_middle_site
-        )
+        (r_middle_site,) = self.transpose_rotate_transpose(rotate_around_x_axis, r_middle_site)
 
         # take last bead and use it as an extra inner bead
-        r_middle_site = np.concatenate(
-            [r_middle_site[:1], r_middle_site[-1:], r_middle_site[1:-1]]
-        )
+        r_middle_site = np.concatenate([r_middle_site[:1], r_middle_site[-1:], r_middle_site[1:-1]])
         # move, so that this bead is at the origin
         r_middle_site -= r_middle_site[1]
 
         # LOWER SITE
         r_lower_site = self.shielded_site_template(3, 4, self.lower_site_h, 1)
         if not lower_site_points_down:
-            (r_lower_site,) = self.transpose_rotate_transpose(
-                rotate_around_x_axis, r_lower_site
-            )
-
-        # Add randomness
-        rng_sites = default_rng(seed=seed)
-        r_upper_site += rng_sites.standard_normal() * self.small_noise
-        r_middle_site += rng_sites.standard_normal() * self.small_noise
-        r_lower_site += rng_sites.standard_normal() * self.small_noise
+            (r_lower_site,) = self.transpose_rotate_transpose(rotate_around_x_axis, r_lower_site)
 
         return r_upper_site, r_middle_site, r_lower_site
 
@@ -317,9 +282,7 @@ class SMC_Creator:
         r_hinge = self.get_hinge()
 
         # Inert bead, used for breaking folding symmetry
-        r_middle_site = np.concatenate(
-            [r_middle_site, np.array([1.0, -1.0, 0.0]).reshape(1, 3)]
-        )
+        r_middle_site = np.concatenate([r_middle_site, np.array([1.0, -1.0, 0.0]).reshape(1, 3)])
         r_middle_site[:, 1] += self.middle_site_v
         if lower_site_points_down:
             r_lower_site[:, 1] -= self.lower_site_v
@@ -347,9 +310,7 @@ class SMC_Creator:
             + r_arm_ur[-1]
         )
         r_arm_ul = (
-            self.transpose_rotate_transpose(
-                rot.inv().as_matrix(), r_arm_ul - r_arm_ul[0]
-            )[0]
+            self.transpose_rotate_transpose(rot.inv().as_matrix(), r_arm_ul - r_arm_ul[0])[0]
             + r_arm_ul[0]
         )
 
