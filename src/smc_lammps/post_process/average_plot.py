@@ -29,10 +29,9 @@ def get_npz_files_from_args(args: List[str]):
     return files
 
 
-def process(files: List[str]):
-    files = get_npz_files_from_args(files)
+def get_data_raw(files: List[str]):
     if not files:
-        raise Exception("did not receive files to process")
+        raise ValueError("did not receive files to process")
 
     steps_array = []
     indices_array = []
@@ -41,32 +40,84 @@ def process(files: List[str]):
         steps_array.append(data["steps"])
         indices_array.append(data["ids"])
 
-    shortest_steps_length = min([len(x) for x in steps_array])
-    steps_array = [steps[:shortest_steps_length] for steps in steps_array]
-    steps = steps_array[0]
-    assert(all([np.array_equal(steps, others) for others in steps_array]))
+    return steps_array, indices_array
 
-    for i in range(len(indices_array)):
-        indices_array[i] = indices_array[i][:shortest_steps_length]
+
+def get_averages(steps_array, indices_array, cutoff_to_shortest: bool = True):
+    if cutoff_to_shortest:
+        shortest_steps_length = min([len(x) for x in steps_array])
+        steps_array = [steps[:shortest_steps_length] for steps in steps_array]
+        steps = steps_array[0]
+
+        assert all([np.array_equal(steps, others) for others in steps_array])
+        steps_array = steps
+
+        for i in range(len(indices_array)):
+            indices_array[i] = indices_array[i][:shortest_steps_length]
 
     indices_array = np.array(indices_array).transpose()
 
     def custom_average(arr):
         return np.average(arr) if arr.size else -1
 
-    averages = np.array([
-        custom_average(indices[indices != -1]) # ignore -1, these are due to issues in process_displacement.py
-        for indices in indices_array
-    ])
+    averages = np.array(
+        [
+            custom_average(
+                indices[indices != -1]
+            )  # ignore -1, these are due to issues in process_displacement.py
+            for indices in indices_array
+        ]
+    )
 
+    return steps_array, averages
+
+
+def create_figure_raw(steps, averages, num_samples: int):
     import matplotlib.pyplot as plt
-    
+
     plt.figure(figsize=(8, 6), dpi=144)
-    plt.title("Averaged index of DNA bead inside SMC loop in time")
-    plt.xlabel("time")
-    plt.ylabel(f"Average DNA bead index ({len(files)} samples)")
+    plt.title(f"Average index of DNA bead inside SMC loop in time ({num_samples} samples)")
+    plt.xlabel("timestep")
+    plt.ylabel("DNA bead index")
     plt.scatter(steps, averages, s=0.5)
     plt.savefig("average_bead_id_in_time.png")
+
+
+def create_figure_units(steps, averages, num_samples: int):
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(8, 6), dpi=144)
+    plt.title(f"Average position of SMC along DNA in time ({num_samples} samples)")
+    plt.xlabel("time [s]")
+    plt.ylabel("distance [nm]")
+    plt.scatter(steps, averages, s=0.5)
+    plt.savefig("average_bead_id_in_time.png")
+
+
+def convert_units_time(steps):
+    # conversion: 1 cycle = 12 * 10^6 ~ 0.13 seconds
+    # TODO: look this up dynamically in parameterfile!
+    steps_per_cycle = int(12 * 1e6)
+    seconds_per_cycle = 0.13
+    seconds_per_step = seconds_per_cycle / steps_per_cycle
+    return steps * seconds_per_step
+
+
+def convert_units_distance(indices):
+    # conversion: 1 index = 1 bead of DNA = 5 bps = 1.7 nm
+    # TODO: look this up dynamically in parameterfile!
+    nanometers_per_index = 1.7
+    return indices * nanometers_per_index
+
+
+def process(globs: List[str]):
+    files = get_npz_files_from_args(globs)
+    steps_array, indices_array = get_data_raw(files)
+    steps_array, averages = get_averages(steps_array, indices_array, True)
+    create_figure_units(
+        convert_units_time(steps_array), convert_units_distance(averages), len(files)
+    )
+
 
 if __name__ == "__main__":
     argv = argv[1:]
