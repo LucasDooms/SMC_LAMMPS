@@ -12,8 +12,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - The `--visualize-follow` flag now has two choices `arms, kleisin`, tracking the SMC arms or kleisin respectively.
+- The `average_plot.py` script now converts to `nm` and `s` units when creating plots by default.
 
 ### Fixed
+
+- The `process_displacement.py` script no longer raises an error when no `obstacle.lammpstrj` is present.
 
 ## [0.1.1] - 2025-06-17
 

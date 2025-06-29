@@ -222,7 +222,9 @@ class Parser:
         return LammpsData(np.array(ids, dtype=int), np.array(types, dtype=int), xyz)
 
     def __del__(self) -> None:
-        self.file.close()
+        # check if attribute exists, since __init__ may fail
+        if hasattr(self, "file"):
+            self.file.close()
 
 
 def create_box(data: LammpsData, types: List[int]) -> Box:
@@ -449,7 +451,12 @@ def get_best_match_dna_bead_in_smc(folder_path):
 
 
 def get_msd_obstacle(folder_path):
-    par = Parser(folder_path / "obstacle.lammpstrj")
+    try:
+        par = Parser(folder_path / "obstacle.lammpstrj")
+    except FileNotFoundError:
+        print("Skipping obstacle MSD analysis: obstacle trajectory file not found")
+        return
+
     steps = []
     positions = []
     while True:
