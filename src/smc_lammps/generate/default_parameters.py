@@ -1,3 +1,5 @@
+# Copyright (c) 2024-2025 Lucas Dooms
+
 from dataclasses import dataclass
 from typing import Any
 

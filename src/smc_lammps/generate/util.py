@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Lucas Dooms
+
 from pathlib import Path
 from typing import Any, List
 

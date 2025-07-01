@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
+
+# Copyright (c) 2024-2025 Lucas Dooms
+
 import argparse
 import subprocess
 from functools import partial

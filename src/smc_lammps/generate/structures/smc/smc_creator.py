@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Lucas Dooms
+# Copyright (c) 2024-2025 Lucas Dooms
 
 import math
 from dataclasses import dataclass, fields

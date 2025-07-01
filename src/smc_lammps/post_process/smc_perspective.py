@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Lucas Dooms
+
 from pathlib import Path
 from runpy import run_path
 from sys import argv

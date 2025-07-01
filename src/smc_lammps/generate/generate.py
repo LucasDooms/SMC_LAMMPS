@@ -1,6 +1,6 @@
 # Copyright (c) 2021 Stefanos Nomidis
 # Copyright (c) 2022 Arwin Goossens
-# Copyright (c) 2024 Lucas Dooms
+# Copyright (c) 2024-2025 Lucas Dooms
 
 import math
 from collections.abc import Sequence
