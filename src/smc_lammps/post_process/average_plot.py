@@ -47,6 +47,8 @@ def get_data_raw(files: List[str]):
 def get_averages(steps_array, indices_array, cutoff_to_shortest: bool = True):
     if cutoff_to_shortest:
         shortest_steps_length = min([len(x) for x in steps_array])
+        shortest_non_min1 = min([max(np.where(ind != -1)[0]) for ind in indices_array])
+        shortest_steps_length = min(shortest_steps_length, shortest_non_min1)
         steps_array = [steps[:shortest_steps_length] for steps in steps_array]
         steps = steps_array[0]
 
