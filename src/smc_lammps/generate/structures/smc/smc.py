@@ -168,28 +168,28 @@ class SMC:
 
         self.atp_grp = AtomGroup(self.pos.r_ATP, self.t_atp, self.mol_ATP)
 
-        if self.has_toroidal_hinge():
-            self.hinge_l_grp = AtomGroup(
-                self.pos.r_hinge[: len(self.pos.r_hinge) // 2],
-                self.t_hinge,
-                self.mol_hinge_l,
-                charge=-0.1,
-            )
-            self.hinge_r_grp = AtomGroup(
-                self.pos.r_hinge[len(self.pos.r_hinge) // 2 :],
-                self.t_hinge,
-                self.mol_hinge_r,
-                charge=-0.1,
-            )
-        else:
-            self.hinge_l_grp = None
-            self.hinge_r_grp = None
+        self.hinge_l_grp = AtomGroup(
+            self.pos.r_hinge[: len(self.pos.r_hinge) // 2],
+            self.t_hinge,
+            self.mol_hinge_l,
+            charge=-0.1,
+        )
+        self.hinge_r_grp = AtomGroup(
+            self.pos.r_hinge[len(self.pos.r_hinge) // 2 :],
+            self.t_hinge,
+            self.mol_hinge_r,
+            charge=-0.1,
+        )
 
         if self.has_toroidal_hinge():
             self.upper_site_grp = AtomGroup(
                 self.pos.r_upper_site, self.t_upper_site, self.mol_hinge_l
             )
-            self.upper_site_arm_grp = None
+            self.upper_site_arm_grp = AtomGroup(
+                np.empty(shape=(0, 3), dtype=self.pos.r_upper_site.dtype),
+                self.t_arms_heads_kleisin,
+                self.mol_hinge_l,
+            )
         else:
             cut = 3
             self.upper_site_grp = AtomGroup(
@@ -231,10 +231,10 @@ class SMC:
             self.right_attach_hinge = 0
 
     def has_toroidal_hinge(self) -> bool:
-        return self.pos.r_hinge is not None
+        return self.pos.r_hinge.size != 0
 
     def get_groups(self) -> List[AtomGroup]:
-        grps = [
+        return [
             self.arm_dl_grp,
             self.arm_ul_grp,
             self.arm_ur_grp,
@@ -251,7 +251,6 @@ class SMC:
             self.hinge_l_grp,
             self.hinge_r_grp,
         ]
-        return [grp for grp in grps if grp is not None]
 
     def get_bonds(self, hinge_opening: float | None = None) -> List[BAI]:
         # Every joint is kept in place through bonds
