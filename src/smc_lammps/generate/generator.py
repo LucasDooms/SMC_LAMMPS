@@ -29,9 +29,10 @@ from smc_lammps.console import warn
 class AtomType:
     __index = 0
 
-    def __init__(self, mass: float = 1.0) -> None:
+    def __init__(self, mass: float = 1.0, unused: bool = False) -> None:
         self._index = None
         self.mass = mass
+        self.unused = unused
 
     @classmethod
     def _get_next(cls) -> int:
@@ -40,6 +41,8 @@ class AtomType:
 
     @property
     def index(self) -> int:
+        if self.unused:
+            raise ValueError("This AtomType is marked as unused, cannot obtain a LAMMPS index!")
         if self._index is None:
             self._index = self._get_next()
         return self._index

@@ -297,7 +297,7 @@ smc_1 = SMC(
     pos=smc_positions,
     #
     t_arms_heads_kleisin=AtomType(mSMC),
-    t_hinge=AtomType(mSMC),
+    t_hinge=AtomType(mSMC, unused=not par.use_toroidal_hinge),
     t_atp=AtomType(mSMC),
     t_upper_site=AtomType(mSMC),
     t_middle_site=AtomType(mSMC),
