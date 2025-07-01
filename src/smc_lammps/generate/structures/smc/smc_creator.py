@@ -72,6 +72,7 @@ class SMC_Creator:
 
     folding_angle_APO: float
 
+    seed: int = 5894302289572
     small_noise: float = 1e-5
 
     def get_arms(self) -> Tuple[Nx3Array, Nx3Array, Nx3Array, Nx3Array]:
@@ -373,6 +374,14 @@ class SMC_Creator:
             self.generated_positions.apply(
                 lambda pos: self.transpose_rotate_transpose(rotation, pos)
             )
+
+        # apply random shifts to prevent non-numeric atom coordinates errors due to exact overlap
+        shift_rng = np.random.default_rng(self.seed)
+
+        def random_shift(x):
+            return x + shift_rng.normal(0, self.small_noise * self.SMC_spacing, (1, 3))
+
+        self.generated_positions.apply(random_shift)
 
         return self.generated_positions
 
