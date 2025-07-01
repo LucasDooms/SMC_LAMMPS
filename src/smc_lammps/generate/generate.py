@@ -397,10 +397,10 @@ if par.add_stopper_bead:
         gen.molecule_override[dna_id] = mol_stopper
 
 
-gen.atom_groups += [
+gen.add_atom_groups(
     *dna_config.get_all_groups(),
     *smc_1.get_groups(),
-]
+)
 
 
 # Pair coefficients
