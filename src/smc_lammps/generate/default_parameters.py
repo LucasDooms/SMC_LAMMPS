@@ -1,3 +1,5 @@
+# Copyright (c) 2024-2025 Lucas Dooms
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -95,10 +97,14 @@ class Parameters:
     bridge_width = 7.5
     "Width of ATP bridge (nm)"
 
+    use_toroidal_hinge = True
+    "True: toroidal hinge, False: old hinge type"
+
     hinge_radius = 1.5
     "Hinge radius (nm)"
 
     rigid_hinge = True
+    "True: hinge is one rigid object, False: hinge sections are connected by bonds"
 
     kleisin_radius = 7.0
     "Radius of lower circular-arc compartment (nm)"

@@ -1,3 +1,5 @@
+# Copyright (c) 2025 Lucas Dooms
+
 from pathlib import Path
 from runpy import run_path
 from sys import argv
@@ -32,9 +34,7 @@ def read_lammpstrj(file_path):
             i += 2
 
         elif lines[i].strip() == "ITEM: BOX BOUNDS ff ff ff":
-            bounds = [
-                list(map(float, lines[i + j].strip().split())) for j in range(1, 4)
-            ]
+            bounds = [list(map(float, lines[i + j].strip().split())) for j in range(1, 4)]
 
             box_bounds.append(bounds)
 
@@ -140,23 +140,36 @@ def main(input_file, output_file, index1, index2, index3):
         atom_data, index1, index2, index3, initial_pos1, initial_pos2, initial_pos3
     )
 
-    write_lammpstrj(
-        output_file, timesteps, num_atoms, box_bounds, transformed_atom_data
-    )
+    write_lammpstrj(output_file, timesteps, num_atoms, box_bounds, transformed_atom_data)
 
 
 if __name__ == "__main__":
     argv = argv[1:]
-    if len(argv) != 2:
-        raise ValueError(
-            "2 inputs required: output.lammpstrj and post_processing_parameters.py"
-        )
+    if len(argv) < 2:
+        raise ValueError("2 inputs required: output.lammpstrj and post_processing_parameters.py")
 
     output_file = Path(argv[0])
 
     post_processing_parameters_file = Path(argv[1])
     parameters = run_path(post_processing_parameters_file.as_posix())
-    kleisin_ids = parameters["kleisin_ids"]
-    ref_ids = [kleisin_ids[1], kleisin_ids[len(kleisin_ids) // 2], kleisin_ids[-2]]
+
+    argv = argv[2:]
+    if argv:
+        use_reference = argv[0]
+    else:
+        # default is arms
+        use_reference = "arms"
+
+    if use_reference == "kleisin":
+        kleisin_ids = parameters["kleisin_ids"]
+        ref_ids = [kleisin_ids[1], kleisin_ids[len(kleisin_ids) // 2], kleisin_ids[-2]]
+    elif use_reference == "arms":
+        ref_ids = [
+            parameters["top_left_bead_id"],
+            parameters["left_bead_id"],
+            parameters["right_bead_id"],
+        ]
+    else:
+        raise ValueError(f"Unknown reference option {use_reference}")
 
     main(output_file, output_file.parent / f"perspective.{output_file.name}", *ref_ids)

@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Lucas Dooms
+# Copyright (c) 2024-2025 Lucas Dooms
 
 # post-processing to find the movement of the SMC relative to the DNA
 
@@ -17,6 +17,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+from smc_lammps.console import warn
+
 
 def timer(func):
     def timed_func(*args, **kwargs):
@@ -25,20 +27,25 @@ def timer(func):
         time_end = time()
         print(time_end - time_start)
         return ret_value
+
     return timed_func
 
 
 cached = dict()
+
+
 def timer_accumulator(func):
     global cached
     if func not in cached:
         cached[func] = 0.0
+
     def timed_func(*args, **kwargs):
         time_start = time()
         ret_value = func(*args, **kwargs)
         time_end = time()
         cached[func] += time_end - time_start
         return ret_value
+
     return timed_func
 
 
@@ -53,18 +60,17 @@ class Box:
 
     def is_in_box(self, xyz) -> bool:
         xyz = np.array(xyz)
-        condition_x = np.logical_and(self.xlo <= xyz[:,0], xyz[:,0] <= self.xhi)
-        condition_y = np.logical_and(self.ylo <= xyz[:,1], xyz[:,1] <= self.yhi)
-        condition_z = np.logical_and(self.zlo <= xyz[:,2], xyz[:,2] <= self.zhi)
+        condition_x = np.logical_and(self.xlo <= xyz[:, 0], xyz[:, 0] <= self.xhi)
+        condition_y = np.logical_and(self.ylo <= xyz[:, 1], xyz[:, 1] <= self.yhi)
+        condition_z = np.logical_and(self.zlo <= xyz[:, 2], xyz[:, 2] <= self.zhi)
 
         return np.logical_and.reduce([condition_x, condition_y, condition_z], axis=0)
 
 
 class Plane:
-
     class Side(Enum):
-        OUTSIDE = -1 # on the side of the plane that the normal vector is pointing to
-        INSIDE = 1 # opposite of OUTSIDE
+        OUTSIDE = -1  # on the side of the plane that the normal vector is pointing to
+        INSIDE = 1  # opposite of OUTSIDE
 
         @classmethod
         def get_opposite(cls, side: Plane.Side) -> Plane.Side:
@@ -98,7 +104,6 @@ class Plane:
 
 @dataclass
 class LammpsData:
-
     ids: List[int]
     types: List[int]
     positions: List[List[float]]
@@ -108,7 +113,7 @@ class LammpsData:
         return cls(
             ids=np.array([], dtype=int),
             types=np.array([], dtype=int),
-            positions=np.array([], dtype=float).reshape(-1, 3)
+            positions=np.array([], dtype=float).reshape(-1, 3),
         )
 
     @timer_accumulator
@@ -125,11 +130,7 @@ class LammpsData:
         self.filter(lambda _, t, __: np.isin(t, types))
 
     def __deepcopy__(self, memo) -> LammpsData:
-        new = LammpsData(
-            np.copy(self.ids),
-            np.copy(self.types),
-            np.copy(self.positions)
-        )
+        new = LammpsData(np.copy(self.ids), np.copy(self.types), np.copy(self.positions))
         return new
 
     def delete_outside_box(self, box: Box) -> LammpsData:
@@ -141,9 +142,7 @@ class LammpsData:
     def delete_side_of_plane(self, plane: Plane, side: Plane.Side) -> None:
         """filters the current LammpsData instance to remove points on one side of a plane
         side: the side of the Plane that will get deleted"""
-        self.filter(
-            lambda _, __, pos: plane.is_on_side(Plane.Side.get_opposite(side), pos)
-        )
+        self.filter(lambda _, __, pos: plane.is_on_side(Plane.Side.get_opposite(side), pos))
 
     def combine_by_ids(self, other: LammpsData):
         """merges two LammpsData instances by keeping all values present in any of the two
@@ -161,34 +160,41 @@ class LammpsData:
 
 
 class Parser:
-
-    atom_format = "ITEM: ATOMS id type x y z\n"
+    ATOM_FORMAT = "ITEM: ATOMS id type x y z\n"
 
     class EndOfLammpsFile(Exception):
         pass
 
     def __init__(self, file_name: str) -> None:
-        self.file = open(file_name, 'r', encoding='utf-8')
+        self.file = open(file_name, "r", encoding="utf-8")
 
     def skip_to_atoms(self) -> Dict[str, str]:
         saved = dict()
         current_line = None
         empty = True
+
         for line in self.file:
             empty = False
+
             if line.startswith("ITEM: ATOMS"):
-                if line != self.atom_format:
-                    raise ValueError(f"Wrong format of atoms, found\n{line}\nshould be\n{self.atom_format}\n")
+                if line != self.ATOM_FORMAT:
+                    raise ValueError(
+                        f"Wrong format of atoms, found\n{line}\nshould be\n{self.ATOM_FORMAT}\n"
+                    )
                 return saved
+
             # remove newline
             line = line[:-1]
+
             if line.startswith("ITEM:"):
                 saved[line] = []
                 current_line = line
             else:
                 saved[current_line].append(line)
+
         if empty:
             raise self.EndOfLammpsFile()
+
         raise ValueError("reached end of file unexpectedly")
 
     @staticmethod
@@ -222,7 +228,9 @@ class Parser:
         return LammpsData(np.array(ids, dtype=int), np.array(types, dtype=int), xyz)
 
     def __del__(self) -> None:
-        self.file.close()
+        # check if attribute exists, since __init__ may fail
+        if hasattr(self, "file"):
+            self.file.close()
 
 
 def create_box(data: LammpsData, types: List[int]) -> Box:
@@ -231,12 +239,12 @@ def create_box(data: LammpsData, types: List[int]) -> Box:
     reduced_xyz = copy_data.positions
 
     return Box(
-        xlo = np.min(reduced_xyz[:,0]),
-        xhi = np.max(reduced_xyz[:,0]),
-        ylo = np.min(reduced_xyz[:,1]),
-        yhi = np.max(reduced_xyz[:,1]),
-        zlo = np.min(reduced_xyz[:,2]),
-        zhi = np.max(reduced_xyz[:,2])
+        xlo=np.min(reduced_xyz[:, 0]),
+        xhi=np.max(reduced_xyz[:, 0]),
+        ylo=np.min(reduced_xyz[:, 1]),
+        yhi=np.max(reduced_xyz[:, 1]),
+        zlo=np.min(reduced_xyz[:, 2]),
+        zhi=np.max(reduced_xyz[:, 2]),
     )
 
 
@@ -261,7 +269,7 @@ def write(file, steps, positions):
             "-8.5170000000000005e+02 8.5170000000000005e+02\n"
             "-8.5170000000000005e+02 8.5170000000000005e+02\n"
         )
-        file.write(Parser.atom_format)
+        file.write(Parser.ATOM_FORMAT)
         file.write(f"1 1 {position[0]} {position[1]} {position[2]}\n")
 
 
@@ -277,7 +285,7 @@ def split_into_index_groups(indices) -> List[List[int]]:
 
     if not is_sorted(indices):
         raise ValueError("indices must be sorted")
-    
+
     groups = [[indices[0]]]
     for index in indices[1:]:
         if groups[-1][-1] == index - 1:
@@ -294,7 +302,9 @@ def get_bead_distances(positions, pos1: int, pos2: int, pos3: int):
     return distance_point_to_plane(positions, pos1, normal_vector)
 
 
-def remove_outside_planar_n_gon(data: LammpsData, points, delta_out_of_plane: float, delta_extended_plane: float):
+def remove_outside_planar_n_gon(
+    data: LammpsData, points, delta_out_of_plane: float, delta_extended_plane: float
+):
     """removes all points outside a box created from an n-sided polygon in a plane.
     the points are the vertices of the n-gon and are assumed to be in the same plane.
     delta is the thickness of the box in each direction going out of the plane."""
@@ -318,7 +328,7 @@ def remove_outside_planar_n_gon(data: LammpsData, points, delta_out_of_plane: fl
     # delete points far away in the plane of the n-gon
     for point1, point2 in zip(points, points[1:] + [points[0]]):
         side_vector = point2 - point1
-        normal_to_side = np.cross(normal, side_vector) # always points INSIDE
+        normal_to_side = np.cross(normal, side_vector)  # always points INSIDE
         normal_to_side = normal_to_side / np.linalg.norm(normal_to_side)
         side_plane = Plane(point1 - delta_extended_plane * normal_to_side, normal_to_side)
         # INSIDE of plane points out of the shape
@@ -342,27 +352,35 @@ def handle_dna_bead(data: LammpsData, new_data: LammpsData, indices, positions, 
     delta = 0.51 * parameters["dna_spacing"]
     small_delta = delta / 4.0
 
-    new_data_copy1 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data_copy1, [pos_top_left, pos_left, pos_right], delta, small_delta)
+    top_left_triangle = deepcopy(new_data)
+    remove_outside_planar_n_gon(
+        top_left_triangle, [pos_top_left, pos_left, pos_right], delta, small_delta
+    )
 
-    new_data_copy2 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data_copy2, [pos_top_left, pos_top_right, pos_right], delta, small_delta)
+    top_right_triangle = deepcopy(new_data)
+    remove_outside_planar_n_gon(
+        top_right_triangle, [pos_top_left, pos_top_right, pos_right], delta, small_delta
+    )
 
-    new_data_copy3 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data_copy3, [pos_middle_right, pos_middle_left, pos_left], delta, small_delta)
+    bottom_left_triangle = deepcopy(new_data)
+    remove_outside_planar_n_gon(
+        bottom_left_triangle, [pos_middle_right, pos_middle_left, pos_left], delta, small_delta
+    )
 
-    new_data_copy4 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data_copy4, [pos_middle_right, pos_left, pos_right], delta, small_delta)
+    bottom_right_triangle = deepcopy(new_data)
+    remove_outside_planar_n_gon(
+        bottom_right_triangle, [pos_middle_right, pos_left, pos_right], delta, small_delta
+    )
 
-    new_data_copy5 = deepcopy(new_data)
-    remove_outside_planar_n_gon(new_data_copy5, pos_kleisins, delta, small_delta)
+    kleisin = deepcopy(new_data)
+    remove_outside_planar_n_gon(kleisin, pos_kleisins, delta, small_delta)
 
     new_data = LammpsData.empty()
-    new_data.combine_by_ids(new_data_copy1)
-    new_data.combine_by_ids(new_data_copy2)
-    new_data.combine_by_ids(new_data_copy3)
-    new_data.combine_by_ids(new_data_copy4)
-    new_data.combine_by_ids(new_data_copy5)
+    new_data.combine_by_ids(top_left_triangle)
+    new_data.combine_by_ids(top_right_triangle)
+    new_data.combine_by_ids(bottom_left_triangle)
+    new_data.combine_by_ids(bottom_right_triangle)
+    new_data.combine_by_ids(kleisin)
 
     if len(new_data.positions) == 0:
         print(f"call: {step}")
@@ -408,6 +426,10 @@ def get_best_match_dna_bead_in_smc(folder_path):
             step, arr = par.next_step()
         except Parser.EndOfLammpsFile:
             break
+        except UnicodeDecodeError as e:
+            print(e)
+            warn(f"Decode error after step {steps[-1]}.\nContinuing with available data...")
+            break
 
         steps.append(step)
 
@@ -421,14 +443,16 @@ def get_best_match_dna_bead_in_smc(folder_path):
         for i, (min_index, max_index) in enumerate(dna_indices_list):
             new_data_temp = deepcopy(new_data)
             new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
-            handle_dna_bead(data, new_data_temp, indices_array[i], positions_array[i], parameters, step)
+            handle_dna_bead(
+                data, new_data_temp, indices_array[i], positions_array[i], parameters, step
+            )
 
     # delete old files
     for p in folder_path.glob("marked_bead*.lammpstrj"):
         p.unlink()
 
     for i, positions in enumerate(positions_array):
-        with open(folder_path / f"marked_bead{i}.lammpstrj", 'w', encoding='utf-8') as file:
+        with open(folder_path / f"marked_bead{i}.lammpstrj", "w", encoding="utf-8") as file:
             write(file, steps, positions)
 
     print(cached)
@@ -449,7 +473,12 @@ def get_best_match_dna_bead_in_smc(folder_path):
 
 
 def get_msd_obstacle(folder_path):
-    par = Parser(folder_path / "obstacle.lammpstrj")
+    try:
+        par = Parser(folder_path / "obstacle.lammpstrj")
+    except FileNotFoundError:
+        print("Skipping obstacle MSD analysis: obstacle trajectory file not found")
+        return
+
     steps = []
     positions = []
     while True:
@@ -464,19 +493,17 @@ def get_msd_obstacle(folder_path):
     print(cached)
 
     # calculate msd in time chunks
-    time_chunk_size = 2000 # number of timesteps to pick for one window
+    time_chunk_size = 2000  # number of timesteps to pick for one window
 
     def calculate_msd(array) -> float:
-        return np.average((array - array[0])**2)
+        return np.average((array - array[0]) ** 2)
 
     def apply_moving_window(window_size: int, func, array):
         """returns the array of the results from applying the func to
         windows along the array."""
         result = []
         for i in range(len(array) - window_size + 1):
-            result.append(
-                func(array[i:i + window_size])
-            )
+            result.append(func(array[i : i + window_size]))
         return result
 
     msd_array = apply_moving_window(time_chunk_size, calculate_msd, positions)
@@ -484,10 +511,12 @@ def get_msd_obstacle(folder_path):
     import matplotlib.pyplot as plt
 
     plt.figure(figsize=(8, 6), dpi=144)
-    plt.title(f"MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size} (all average = {calculate_msd(positions)})")
+    plt.title(
+        f"MSD over time in chunks of {(steps[1] - steps[0]) * time_chunk_size} (all average = {calculate_msd(positions)})"
+    )
     plt.xlabel("time")
     plt.ylabel("MSD")
-    plt.scatter(steps[:-time_chunk_size+1], msd_array, s=0.3)
+    plt.scatter(steps[: -time_chunk_size + 1], msd_array, s=0.3)
     plt.savefig(folder_path / "msd_in_time.png")
 
 
@@ -498,7 +527,7 @@ def test_plane_distances():
     n = get_normal_direction(p1, p2, p3)
     print(n)
     point = np.array([2, 2, 5], dtype=float)
-    another_one = np.array([1, 1 ,1], dtype=float)
+    another_one = np.array([1, 1, 1], dtype=float)
     print(distance_point_to_plane(np.array([point, another_one, another_one]), p1, n))
 
 
@@ -507,12 +536,14 @@ def test_plane_comparisons():
     n = np.array([1, 0, 0], dtype=float)
     plane = Plane(point_on_plane, n)
     points = np.array([[0, 0, 0], [0.5, 0, 0], [-20, 0, 0]])
-    print(plane.is_on_side(Plane.Side.INSIDE, points)) # should be [True, False, True]
-    print(plane.is_on_side(Plane.Side.OUTSIDE, points)) # should be [True, True, False]
+    print(plane.is_on_side(Plane.Side.INSIDE, points))  # should be [True, False, True]
+    print(plane.is_on_side(Plane.Side.OUTSIDE, points))  # should be [True, True, False]
 
     plane2 = Plane(np.array([1, 0, 0], dtype=float), np.array([1, 1, 0], dtype=float))
-    print(plane2.is_on_side(Plane.Side.INSIDE, points)) # should be [True, True, True]
-    print(plane2.is_on_side(Plane.Side.INSIDE, np.array([1, 0.2, 0], dtype=float))) # should be False
+    print(plane2.is_on_side(Plane.Side.INSIDE, points))  # should be [True, True, True]
+    print(
+        plane2.is_on_side(Plane.Side.INSIDE, np.array([1, 0.2, 0], dtype=float))
+    )  # should be False
 
 
 if __name__ == "__main__":

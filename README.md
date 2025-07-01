@@ -49,22 +49,22 @@ export PATH="$HOME/lammps/bin:$PATH"
 
 ### (Optional) VMD
 
-To use the `src/smc_lammps/post-process/visualize.py` script, you will need VMD,  
+To use the `src/smc_lammps/post_process/visualize.py` script, you will need VMD,  
 see https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD.
 
 ## Docker Installation
 
 You can also use docker to run the code. First build the image
 ```sh
-docker build -t smc_lammps .
+docker build -t smc-lammps .
 ```
 Now you can run an interactive session using
 ```sh
-docker run -it -v .:/data smc_lammps
+docker run -it -v .:/data smc-lammps
 ```
 Or, to run directly (see Usage)
 ```sh
-docker run -v .:/data smc_lammps smc-lammps ...
+docker run -v .:/data smc-lammps smc-lammps ...
 ```
 
 Note: the docker image does not include VMD.

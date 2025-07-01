@@ -49,6 +49,11 @@ RUN cp -r ${LAMMPS_HOME}/python ${LAMMPS_PYTHON_DIR}
 
 FROM python:3.13.3-slim-bookworm
 
+LABEL org.opencontainers.image.authors="Lucas Dooms <lucas.dooms@kuleuven.be>"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.title="SMC_LAMMPS"
+LABEL org.opencontainers.image.url="https://github.com/LucasDooms/SMC_LAMMPS"
+
 # global values
 ARG LAMMPS_PYTHON_DIR
 ARG LAMMPS_INSTALL_DIR

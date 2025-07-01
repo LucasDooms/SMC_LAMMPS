@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Lucas Dooms
+# Copyright (c) 2024-2025 Lucas Dooms
 
 """
 generator.py
@@ -29,9 +29,10 @@ from smc_lammps.console import warn
 class AtomType:
     __index = 0
 
-    def __init__(self, mass: float = 1.0) -> None:
+    def __init__(self, mass: float = 1.0, unused: bool = False) -> None:
         self._index = None
         self.mass = mass
+        self.unused = unused
 
     @classmethod
     def _get_next(cls) -> int:
@@ -40,6 +41,8 @@ class AtomType:
 
     @property
     def index(self) -> int:
+        if self.unused:
+            raise ValueError("This AtomType is marked as unused, cannot obtain a LAMMPS index!")
         if self._index is None:
             self._index = self._get_next()
         return self._index
@@ -159,9 +162,7 @@ class PairWise:
         self.default = default
         self.pairs: List[Tuple[AtomType, AtomType, List[Any]]] = []
 
-    def add_interaction(
-        self, atom_type1: AtomType, atom_type2: AtomType, *args: Any
-    ) -> PairWise:
+    def add_interaction(self, atom_type1: AtomType, atom_type2: AtomType, *args: Any) -> PairWise:
         """Add an iteraction. Will sort the indices automatically."""
         ordered = sorted([atom_type1, atom_type2], key=lambda at: at.index)
         self.pairs.append((ordered[0], ordered[1], list(args)))
@@ -220,9 +221,7 @@ class PairWise:
             pair = pair_in_inter(inter)
             if pair is None:
                 if self.default is not None:
-                    final_pairs.append(
-                        (inter[0], inter[1], self.template.format(*self.default))
-                    )
+                    final_pairs.append((inter[0], inter[1], self.template.format(*self.default)))
             else:
                 final_pairs.append((pair[0], pair[1], self.template.format(*pair[2])))
 
@@ -236,7 +235,7 @@ def write_if_non_zero(file, fmt_string: str, amount: int):
 
 class Generator:
     def __init__(self) -> None:
-        self.atom_groups: List[AtomGroup] = []
+        self._atom_groups: List[AtomGroup] = []
         self.bais: List[BAI] = []
         self.atom_group_map: List[int] = []
         self.pair_interactions: List[PairWise] = []
@@ -253,13 +252,21 @@ class Generator:
         """Function that returns a random shift vector.
         This is useful to avoid exact overlap, which causes LAMMPS to crash during kspace calculations (e.g. with pair_style coul)."""
 
+    def add_atom_groups(self, *args: AtomGroup) -> None:
+        """Add new atom groups, atom groups with empty positions are ignored."""
+        for grp in args:
+            if grp.positions.size == 0:
+                continue
+
+            self._atom_groups.append(grp)
+
     def set_system_size(self, box_width: float) -> None:
         """Set the box size of the simulation."""
         self.box_width = box_width
 
     def get_total_atoms(self) -> int:
         """Get the total number of atoms across all groups."""
-        return sum(map(lambda atom_group: atom_group.n, self.atom_groups))
+        return sum(map(lambda atom_group: atom_group.n, self._atom_groups))
 
     def write_header(self, file) -> None:
         """Write the top header to a file.
@@ -271,7 +278,7 @@ class Generator:
         """Get a list of all atom types across all atom groups.
         The returned list is sorted based on the AtomType index."""
         atom_types: Set[AtomType] = set()
-        for atom_group in self.atom_groups:
+        for atom_group in self._atom_groups:
             atom_types.add(atom_group.type)
         return sorted(atom_types, key=lambda atom_type: atom_type.index)
 
@@ -281,7 +288,7 @@ class Generator:
         bai_types: Set[BAI_Type] = set()
         for bai in filter(lambda bai: bai.type.kind == kind, self.bais):
             bai_types.add(bai.type)
-        for atom_group in self.atom_groups:
+        for atom_group in self._atom_groups:
             if kind == BAI_Kind.BOND and atom_group.polymer_bond_type is not None:
                 bai_types.add(atom_group.polymer_bond_type)
             if kind == BAI_Kind.ANGLE and atom_group.polymer_angle_type is not None:
@@ -298,15 +305,13 @@ class Generator:
 
     def get_amounts(self) -> Tuple[int, int, int]:
         """Return the total amount of bonds, angles, and impropers."""
-        length_lookup = {
-            key: len(value) for (key, value) in self.get_bai_dict_by_type().items()
-        }
+        length_lookup = {key: len(value) for (key, value) in self.get_bai_dict_by_type().items()}
 
         total_bonds = length_lookup[BAI_Kind.BOND]
         total_angles = length_lookup[BAI_Kind.ANGLE]
         total_impropers = length_lookup[BAI_Kind.IMPROPER]
 
-        for atom_group in self.atom_groups:
+        for atom_group in self._atom_groups:
             if atom_group.polymer_bond_type is not None:
                 total_bonds += len(atom_group.positions) - 1
             if atom_group.polymer_angle_type is not None:
@@ -330,15 +335,9 @@ class Generator:
         """Write the amount of atom types, bond types, angle types, and improper types to a file."""
 
         write_if_non_zero(file, "{} atom types\n", len(self.get_all_atom_types()))
-        write_if_non_zero(
-            file, "{} bond types\n", len(self.get_all_types(BAI_Kind.BOND))
-        )
-        write_if_non_zero(
-            file, "{} angle types\n", len(self.get_all_types(BAI_Kind.ANGLE))
-        )
-        write_if_non_zero(
-            file, "{} improper types\n", len(self.get_all_types(BAI_Kind.IMPROPER))
-        )
+        write_if_non_zero(file, "{} bond types\n", len(self.get_all_types(BAI_Kind.BOND)))
+        write_if_non_zero(file, "{} angle types\n", len(self.get_all_types(BAI_Kind.ANGLE)))
+        write_if_non_zero(file, "{} improper types\n", len(self.get_all_types(BAI_Kind.IMPROPER)))
 
         file.write("\n")
 
@@ -392,10 +391,7 @@ class Generator:
             styles_string = " ".join(styles)
             return f"{self.hybrid_styles[k]} {styles_string}"
 
-        strings = [
-            f"{self.get_BAI_style_command_name(k)} {extract_command(k)}\n"
-            for k in BAI_Kind
-        ]
+        strings = [f"{self.get_BAI_style_command_name(k)} {extract_command(k)}\n" for k in BAI_Kind]
         return "".join(strings)
 
     def get_hybrid_or_single_style(self) -> Dict[BAI_Kind, str]:
@@ -454,7 +450,7 @@ class Generator:
         if not self.atom_group_map:
             raise AttributeError("write_atoms must be called first")
 
-        index = self.atom_groups.index(atom_id[0])
+        index = self._atom_groups.index(atom_id[0])
         if atom_id[1] < 0:
             atom_group_length = len(atom_id[0].positions)
             atom_id = (atom_id[0], atom_id[1] + atom_group_length)
@@ -462,7 +458,7 @@ class Generator:
 
     def _set_up_atom_group_map(self) -> None:
         index_offset = 1
-        for atom_group in self.atom_groups:
+        for atom_group in self._atom_groups:
             self.atom_group_map.append(index_offset)
             index_offset += len(atom_group.positions)
 
@@ -481,7 +477,7 @@ class Generator:
 
     def check_charges(self) -> None:
         """Checks for discrepancies between the use_charges flag and the actual atom charges."""
-        nonzero_charges = [grp.charge != 0.0 for grp in self.atom_groups]
+        nonzero_charges = [grp.charge != 0.0 for grp in self._atom_groups]
 
         if self.use_charges:
             if not any(nonzero_charges):
@@ -507,11 +503,10 @@ class Generator:
             for atom_id, mol_id in self.molecule_override.items()
         }
         charge_override_values = {
-            self.get_atom_index(atom_id): charge
-            for atom_id, charge in self.charge_override.items()
+            self.get_atom_index(atom_id): charge for atom_id, charge in self.charge_override.items()
         }
 
-        for atom_group in self.atom_groups:
+        for atom_group in self._atom_groups:
             for j, position in enumerate(atom_group.positions):
                 atom_id = self.get_atom_index((atom_group, j))
                 try:
@@ -560,7 +555,7 @@ class Generator:
 
             global_index = 1
 
-            for atom_group in self.atom_groups:
+            for atom_group in self._atom_groups:
                 if kind == BAI_Kind.BOND and atom_group.polymer_bond_type is not None:
                     for j in range(len(atom_group.positions) - 1):
                         file.write(
@@ -587,9 +582,7 @@ class Generator:
                 file.write(f"{global_index} {bai.type.index} ")
                 formatter = ("{} " * length)[:-1] + "\n"
                 file.write(
-                    formatter.format(
-                        *(self.get_atom_index(bai.atoms[i]) for i in range(length))
-                    )
+                    formatter.format(*(self.get_atom_index(bai.atoms[i]) for i in range(length)))
                 )
                 global_index += 1
 
@@ -661,7 +654,7 @@ class Generator:
 def test_simple_atoms():
     positions = np.zeros(shape=(100, 3), dtype=np.float32)
     gen = Generator()
-    gen.atom_groups.append(AtomGroup(positions, AtomType(), 1))
+    gen.add_atom_groups(AtomGroup(positions, AtomType(), 1))
     gen.set_system_size(10)
     with open("test.gen", "w", encoding="utf-8") as file:
         gen.write_full(file)
@@ -670,10 +663,8 @@ def test_simple_atoms():
 def test_simple_atoms_polymer():
     positions = np.zeros(shape=(100, 3), dtype=np.float32)
     gen = Generator()
-    gen.atom_groups.append(
-        AtomGroup(
-            positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND, "fene")
-        )
+    gen.add_atom_groups(
+        AtomGroup(positions, AtomType(), 1, polymer_bond_type=BAI_Type(BAI_Kind.BOND, "fene"))
     )
     gen.set_system_size(10)
     with open("test.gen", "w", encoding="utf-8") as file:
@@ -690,10 +681,10 @@ def test_with_bonds():
     bt2 = BAI_Type(BAI_Kind.BOND, "harmonic")
 
     group1 = AtomGroup(positions, AtomType(), 1, polymer_bond_type=bt2)
-    gen.atom_groups.append(group1)
+    gen.add_atom_groups(group1)
 
     group2 = AtomGroup(np.copy(positions), AtomType(), 3)
-    gen.atom_groups.append(group2)
+    gen.add_atom_groups(group2)
 
     gen.bais.append(BAI(bt1, (group1, 1), (group2, 0)))
 
@@ -713,10 +704,10 @@ def test_with_pairs():
 
     at1 = AtomType()
     group1 = AtomGroup(positions, at1, 1)
-    gen.atom_groups.append(group1)
+    gen.add_atom_groups(group1)
 
     group2 = AtomGroup(np.copy(positions), AtomType(), 3)
-    gen.atom_groups.append(group2)
+    gen.add_atom_groups(group2)
 
     pairwise = PairWise("PairIJ Coeffs # hybrid\n", "lj/cut {} {} {}\n", [0, 0, 0])
     pairwise.add_interaction(at1, at1, 1, 2, 3)

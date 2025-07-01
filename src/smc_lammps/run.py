@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
+
+# Copyright (c) 2024-2025 Lucas Dooms
+
 import argparse
 import subprocess
 from functools import partial
@@ -42,7 +45,7 @@ def parse() -> argparse.Namespace:
     pp_vis = post_processing.add_mutually_exclusive_group()
     pp_vis.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
     pp_vis.add_argument('-vd', '--visualize-datafile', action='store_true', help='shows the initial structure in VMD')
-    pp_vis.add_argument('-vf', '--visualize-follow', action='store_true', help='same as --visualize, but follows the SMC')
+    pp_vis.add_argument('-vf', '--visualize-follow', nargs='?', choices=['arms', 'kleisin'], help='same as --visualize, but follows the SMC tracking either the arms or kleisin, default: \'arms\'', const='arms', default=None)
 
     other = parser.add_argument_group(title='other options')
     other.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
@@ -60,9 +63,7 @@ def parse() -> argparse.Namespace:
 def run_and_handle_error(process, ignore_errors: bool):
     completion: subprocess.CompletedProcess = process()
     if completion.returncode != 0:
-        message = (
-            f"\n\nprocess ended with error code {completion.returncode}\n{completion}\n"
-        )
+        message = f"\n\nprocess ended with error code {completion.returncode}\n{completion}\n"
         print(message)
         if ignore_errors:
             print("-n (--ignore-errors) flag is set, continuing...\n")
@@ -152,7 +153,7 @@ def generate(args, path: Path) -> TaskDone:
     print("running setup file...")
     run_and_handle_error(
         lambda: subprocess.run(
-            PYRUN + ["smc_lammps.generate.generate+parse", f"{path}"] + extra_args,
+            PYRUN + ["smc_lammps.generate.generate", f"{path}"] + extra_args,
             check=False,
         ),
         args.ignore_errors,
@@ -194,13 +195,9 @@ def perform_run(args, path: Path, lammps_vars: List[List[str]] | None = None):
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as output_file:
-            print(
-                f"running LAMMPS file {args.input}, output redirected to {args.output}"
-            )
+            print(f"running LAMMPS file {args.input}, output redirected to {args.output}")
             print(command)
-            run_and_handle_error(
-                lambda: run_with_output(stdout=output_file), args.ignore_errors
-            )
+            run_and_handle_error(lambda: run_with_output(stdout=output_file), args.ignore_errors)
     else:
         print(f"running LAMMPS file {args.input}, printing output to terminal")
         print(command)
@@ -258,7 +255,7 @@ def post_process(args, path: Path) -> TaskDone:
     print("running post processing...")
     run_and_handle_error(
         lambda: subprocess.run(
-            PYRUN + ["smc_lammps.post-process.process_displacement", f"{path}"],
+            PYRUN + ["smc_lammps.post_process.process_displacement", f"{path}"],
             check=False,
         ),
         args.ignore_errors,
@@ -292,9 +289,10 @@ def create_perspective_file(args, path: Path, force=False):
         lambda: subprocess.run(
             PYRUN
             + [
-                "smc_lammps.post-process.smc_perspective",
+                "smc_lammps.post_process.smc_perspective",
                 f"{path / 'output.lammpstrj'}",
                 f"{path / 'post_processing_parameters.py'}",
+                f"{args.visualize_follow}",
             ],
             check=False,
         ),
@@ -304,7 +302,7 @@ def create_perspective_file(args, path: Path, force=False):
 
 
 def visualize_follow(args, path: Path) -> TaskDone:
-    if not args.visualize_follow:
+    if args.visualize_follow is None:
         return TaskDone(skipped=True)
 
     create_perspective_file(args, path)
@@ -314,7 +312,7 @@ def visualize_follow(args, path: Path) -> TaskDone:
         lambda: subprocess.run(
             PYRUN
             + [
-                "smc_lammps.post-process.visualize",
+                "smc_lammps.post_process.visualize",
                 f"{path}",
                 "--file_name",
                 "perspective.output.lammpstrj",
@@ -341,7 +339,7 @@ def visualize(args, path: Path) -> TaskDone:
     print("starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
-            PYRUN + ["smc_lammps.post-process.visualize", f"{path}"], check=False
+            PYRUN + ["smc_lammps.post_process.visualize", f"{path}"], check=False
         ),
         args.ignore_errors,
     )
@@ -370,7 +368,7 @@ def main():
     if all(map(lambda task: task.skipped, tasks)):
         print("nothing to do, use -gr to generate and run")
 
-    print("end of run.py")
+    print("end of smc-lammps (run.py)")
 
 
 if __name__ == "__main__":
