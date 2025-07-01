@@ -26,33 +26,20 @@ class SMC_Pos:
     r_upper_site: Nx3Array
     r_middle_site: Nx3Array
     r_lower_site: Nx3Array
-    # None when using non-toroidal hinge!
-    r_hinge: Nx3Array | None
+    r_hinge: Nx3Array
 
     def iter(self) -> List[Any]:
         """Returns a list of all fields"""
         return [getattr(self, field.name) for field in fields(SMC_Pos)]
 
-    @staticmethod
-    def none_wrapper(func):
-        """Handle None values in the first argument by returning None."""
-
-        def new_func(*args, **kwargs):
-            if args[0] is None:
-                return None
-            return func(*args, **kwargs)
-
-        return new_func
-
     def apply(self, func) -> None:
         """Update the object inplace by applying a function to every field"""
-        func = self.none_wrapper(func)
         for field in fields(self.__class__):
             setattr(self, field.name, func(getattr(self, field.name)))
 
     def map(self, func) -> List[Any]:
         """Apply a function to every field and return the resulting list"""
-        return [func(x) for x in self.iter() if x is not None]
+        return [func(x) for x in self.iter()]
 
 
 @dataclass
@@ -258,7 +245,7 @@ class SMC_Creator:
 
         return r_upper_site, r_middle_site, r_lower_site
 
-    def get_hinge(self) -> Nx3Array:
+    def get_toroidal_hinge(self) -> Nx3Array:
         radius = self.hinge_radius
 
         spacing = self.SMC_spacing * 0.8
@@ -301,7 +288,7 @@ class SMC_Creator:
             lower_site_points_down
         )
         if self.use_toroidal_hinge:
-            r_hinge = self.get_hinge()
+            r_hinge = self.get_toroidal_hinge()
         else:
             r_hinge = np.empty(shape=(0, 3), dtype=r_ATP.dtype)
 
@@ -377,7 +364,7 @@ class SMC_Creator:
             r_upper_site=r_upper_site,
             r_middle_site=r_middle_site,
             r_lower_site=r_lower_site,
-            r_hinge=r_hinge if self.use_toroidal_hinge else None,
+            r_hinge=r_hinge,
         )
 
         # apply extra rotation to entire SMC
