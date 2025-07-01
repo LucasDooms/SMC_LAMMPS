@@ -234,7 +234,7 @@ class SMC:
         return self.pos.r_hinge.size != 0
 
     def get_groups(self) -> List[AtomGroup]:
-        return [
+        grps = [
             self.arm_dl_grp,
             self.arm_ul_grp,
             self.arm_ur_grp,
@@ -251,6 +251,7 @@ class SMC:
             self.hinge_l_grp,
             self.hinge_r_grp,
         ]
+        return [grp for grp in grps if grp.positions.size != 0]
 
     def get_bonds(self, hinge_opening: float | None = None) -> List[BAI]:
         # Every joint is kept in place through bonds
