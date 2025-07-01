@@ -6,6 +6,7 @@ from sys import argv
 from typing import List
 
 import numpy as np
+from scipy.optimize import curve_fit
 
 
 def get_npz_files_from_args(args: List[str]):
@@ -83,14 +84,24 @@ def create_figure_raw(steps, averages, num_samples: int):
     plt.savefig("average_bead_id_in_time.png")
 
 
-def create_figure_units(steps, averages, num_samples: int):
+def create_figure_units(steps, averages, num_samples: int, linear_parameters=None):
     import matplotlib.pyplot as plt
 
     plt.figure(figsize=(8, 6), dpi=144)
     plt.title(f"Average position of SMC along DNA in time ({num_samples} samples)")
     plt.xlabel("time [s]")
     plt.ylabel("distance [nm]")
-    plt.scatter(steps, averages, s=0.5)
+    plt.scatter(steps, averages, s=0.5, color="purple", label="Simulation")
+
+    if linear_parameters is not None:
+        plt.plot(
+            steps,
+            linear(steps, *linear_parameters),
+            color="green",
+            label=f"Linear Fit (slope={linear_parameters[0]:.1f} nm / s)",
+        )
+
+    plt.legend()
     plt.savefig("average_bead_id_in_time.png")
 
 
@@ -110,13 +121,23 @@ def convert_units_distance(indices):
     return indices * nanometers_per_index
 
 
+def linear(x, a, b):
+    return a * x + b
+
+
+def linear_fit(steps, averages):
+    popt = curve_fit(linear, steps, averages, (-340, 500))[0]
+    print(f"optimal values (a, b): {popt}")
+    return popt
+
+
 def process(globs: List[str]):
     files = get_npz_files_from_args(globs)
     steps_array, indices_array = get_data_raw(files)
     steps_array, averages = get_averages(steps_array, indices_array, True)
-    create_figure_units(
-        convert_units_time(steps_array), convert_units_distance(averages), len(files)
-    )
+    steps, averages = convert_units_time(steps_array), convert_units_distance(averages)
+    popt = linear_fit(steps, averages)
+    create_figure_units(steps, averages, len(files), popt)
 
 
 if __name__ == "__main__":
