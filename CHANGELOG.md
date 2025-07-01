@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- The `average_plot.py` script now also plots a linear fit with the average velocity.
+
 ### Changed
 
 - The `--visualize-follow` flag now has two choices `arms, kleisin`, tracking the SMC arms or kleisin respectively.
 - The `average_plot.py` script now converts to `nm` and `s` units when creating plots by default.
+- The `average_plot.py` script now removes `-1` values when finding the smallest common number of steps.
 
 ### Fixed
 
