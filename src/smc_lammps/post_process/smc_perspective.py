@@ -44,7 +44,11 @@ def read_lammpstrj(file_path):
             atoms = []
 
             for j in range(num_atoms[-1]):
-                atoms.append(list(map(float, lines[i + 1 + j].strip().split())))
+                components = lines[i + 1 + j].strip().split()
+                # convert x,y,z to float
+                components = [*components[:2], *map(float, components[2:])]
+
+                atoms.append(components)
 
             atom_data.append(atoms)
 

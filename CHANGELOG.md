@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
+
+- The `smc_perspective.py` script now correctly writes the atom types and ids in the lammpstrj format,
+this fixes the colors in VMD.
+
 ## [0.1.2] - 2025-07-01
 
 ### Added
