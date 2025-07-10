@@ -362,14 +362,17 @@ if par.spaced_beads_interval is not None:
     # get spacing
     start_id = par.spaced_beads_interval
     stop_id = get_closest(dna_config.dna_groups[0].positions, smc_positions.r_lower_site[1])
-    spaced_bead_ids = list(range(start_id, stop_id, par.spaced_beads_interval))
-    spaced_bead_ids += list(
-        range(
-            stop_id + par.spaced_beads_interval,
-            len(dna_config.dna_groups[0].positions),
-            par.spaced_beads_interval,
+    clearance = math.ceil(par.spaced_beads_smc_clearance / DNA_bond_length)
+    spaced_bead_ids = list(range(start_id, stop_id - clearance, par.spaced_beads_interval))
+
+    if par.spaced_beads_full_dna:
+        spaced_bead_ids += list(
+            range(
+                stop_id + clearance,
+                len(dna_config.dna_groups[0].positions),
+                par.spaced_beads_interval,
+            )
         )
-    )
 
     for dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()

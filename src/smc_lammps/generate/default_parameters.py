@@ -89,6 +89,12 @@ class Parameters:
     spaced_beads_size: float = 5.0
     "radius of beads along DNA (nm)"
 
+    spaced_beads_full_dna: bool = False
+    "whether to place beads across the entire DNA length or not"
+
+    spaced_beads_smc_clearance: float = spaced_beads_size
+    "length of bare DNA to keep next to SMC"
+
     ##################### Geometry #####################
 
     arm_length = 50.0
