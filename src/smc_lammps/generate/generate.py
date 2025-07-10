@@ -347,11 +347,8 @@ if par.add_RNA_polymerase:
     if hasattr(dna_config, "tether"):
         dna_id = dna_config.tether.dna_tether_id
     else:
-        dna_id = (
-            dna_config.dna_groups[0],
-            int(len(dna_config.dna_groups[0].positions) // 2),
-        )
-    dna_config.add_bead_to_dna(bead_type, mol_bead, dna_id, bead_bond, bead_angle, bead_size)
+        dna_id = dna_config.dna_strands[0].get_percent_id(0.5)
+    dna_config.add_bead_to_dna(bead_type, mol_bead, 0, dna_id, bead_bond, bead_angle, bead_size)
 
     if bead_bond is None:
         gen.molecule_override[dna_id] = mol_bead
@@ -361,7 +358,7 @@ if par.spaced_beads_interval is not None:
 
     # get spacing
     start_id = par.spaced_beads_interval
-    stop_id = get_closest(dna_config.dna_groups[0].positions, smc_positions.r_lower_site[1])
+    stop_id = get_closest(dna_config.dna_strands[0].full_list(), smc_positions.r_lower_site[1])
     clearance = math.ceil(par.spaced_beads_smc_clearance / DNA_bond_length)
     spaced_bead_ids = list(range(start_id, stop_id - clearance, par.spaced_beads_interval))
 
@@ -369,7 +366,7 @@ if par.spaced_beads_interval is not None:
         spaced_bead_ids += list(
             range(
                 stop_id + clearance,
-                len(dna_config.dna_groups[0].positions),
+                dna_config.dna_strands[0].full_list_length(),
                 par.spaced_beads_interval,
             )
         )
@@ -377,10 +374,11 @@ if par.spaced_beads_interval is not None:
     for dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
         extra_mols_smc.append(mol_spaced_bead)
-        dna_id = (dna_config.dna_groups[0], dna_id)
+        dna_id = dna_config.dna_strands[0].get_id_from_list_index(dna_id)
         dna_config.add_bead_to_dna(
             spaced_bead_type,
             mol_spaced_bead,
+            0,
             dna_id,
             None,
             None,
@@ -396,7 +394,7 @@ if par.add_stopper_bead:
 
     stopper_ids = dna_config.get_stopper_ids()
     for dna_id in stopper_ids:
-        dna_config.add_bead_to_dna(stopper_type, mol_stopper, dna_id, None, None, stopper_size)
+        dna_config.add_bead_to_dna(stopper_type, mol_stopper, 0, dna_id, None, None, stopper_size)
         gen.molecule_override[dna_id] = mol_stopper
 
 
@@ -482,10 +480,16 @@ gen.bais += smc_1.get_impropers()
 # Override molecule ids to form rigid safety-belt bond
 if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.Safety)):  # TODO
     safety_index = dna_config.dna_safety_belt_index
-    gen.molecule_override[(dna_config.dna_groups[0], safety_index)] = smc_1.mol_lower_site
+    gen.molecule_override[dna_config.dna_strands[0].get_id_from_list_index(safety_index)] = (
+        smc_1.mol_lower_site
+    )
     # add neighbors to prevent rotation
-    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = smc_1.mol_lower_site
-    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = smc_1.mol_lower_site
+    # gen.molecule_override[dna_config.dna_strands[0].get_id_from_list_index(safety_index - 1)] = (
+    #     smc_1.mol_lower_site
+    # )
+    # gen.molecule_override[dna_config.dna_strands[0].get_id_from_list_index(safety_index + 1)] = (
+    #     smc_1.mol_lower_site
+    # )
 
 with open(path / "datafile_coeffs", "w", encoding="utf-8") as datafile:
     gen.write_coeffs(datafile)
@@ -601,7 +605,7 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     file.write("\n")
     file.write(f"dna_spacing = {max_bond_length_DNA}\n")
     file.write("\n")
-    file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.dna_groups))}\n")
+    file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.all_dna_groups))}\n")
     file.write(f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n")
 
 
