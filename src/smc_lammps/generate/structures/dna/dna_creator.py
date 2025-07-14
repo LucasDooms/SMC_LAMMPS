@@ -14,6 +14,14 @@ from smc_lammps.generate.structures.structure_creator import (
 from smc_lammps.generate.util import get_closest
 
 
+def check_length(length: int):
+    if length <= 0:
+        raise ValueError(
+            f"""DNA is not long enough to form this configuration, please increase the DNA length.
+                Found invalid length: {length}."""
+        )
+
+
 def get_dna_coordinates_straight(nDNA: int, DNAbondLength: float):
     rDNA = get_straight_segment(nDNA, [1, 0, 0])
 
@@ -57,14 +65,14 @@ def get_dna_coordinates_safety_belt(nDNA: int, DNAbondLength: float):
             dtype=float,
         ),
     )
-    distances = np.linalg.norm(
-        rDNA - 10 * DNAbondLength * np.array([0, -1.0, 0.0]), axis=1
-    )
+    distances = np.linalg.norm(rDNA - 10 * DNAbondLength * np.array([0, -1.0, 0.0]), axis=1)
     belt_index = np.where(distances == np.min(distances))[0][0]
 
     remaining = nDNA - len(rDNA)
+    check_length(remaining)
     nLeft = int(remaining * 0.05)
     nRight = remaining - nLeft
+    check_length(nRight)
     left = get_straight_segment(nLeft + 1, [-1, 0, 0]) * DNAbondLength
     right = get_straight_segment(nRight + 1, [-1, 0, 0]) * DNAbondLength
     right, rDNA, left = attach_chain(right, [[rDNA, True], [left, True]])
@@ -123,6 +131,7 @@ def get_dna_coordinates_advanced_safety_belt(nDNA: int, DNAbondLength: float):
     belt_index = np.where(distances == np.min(distances))[0][0]
 
     remaining = nDNA - len(rDNA)
+    check_length(remaining)
     right = get_straight_segment(remaining + 1, [-1, 0, 0]) * DNAbondLength
     rDNA = attach(right, rDNA, delete_overlap=True)
 
@@ -198,6 +207,7 @@ def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength:
     bead_to_tether_id = get_closest(rDNA, 10 * DNAbondLength * tether_pos)
 
     remaining = nDNA - len(rDNA)
+    check_length(remaining)
     right = get_straight_segment(remaining + 1, [-1, 0, 0]) * DNAbondLength
     rDNA = attach(right, rDNA, delete_overlap=True)
 
@@ -212,9 +222,7 @@ def get_dna_coordinates_advanced_safety_belt_plus_loop(nDNA: int, DNAbondLength:
     )
 
 
-def get_dna_coordinates(
-    nDNA: int, DNAbondLength: float, diameter: float, nArcStraight: int
-):
+def get_dna_coordinates(nDNA: int, DNAbondLength: float, diameter: float, nArcStraight: int):
     # form vertical + quarter circle + straight + semi circle + horizontal parts
 
     # Number of beads forming the arced DNA piece (err on the high side)
@@ -229,6 +237,7 @@ def get_dna_coordinates(
     # Upper DNA piece
 
     nUpperDNA = (nDNA - nArcedDNA - nArcStraight) // 2
+    check_length(nUpperDNA)
 
     rUpperDNA = get_straight_segment(nUpperDNA, [0, -1, 0])
 
@@ -236,6 +245,7 @@ def get_dna_coordinates(
 
     nArcSemi = int(nArcedDNA * 2 / 3)
     nArcQuart = nArcedDNA - nArcSemi
+    check_length(nArcQuart)
 
     # since there will be overlap: use one extra, then delete it later (after pieces are assembled)
     rArcQuart = get_circle_segment(
@@ -254,6 +264,7 @@ def get_dna_coordinates(
     # Lower DNA piece
 
     nLowerDNA = nDNA - nUpperDNA - nArcedDNA - nArcStraight
+    check_length(nLowerDNA)
 
     rLowerDNA = get_straight_segment(nLowerDNA, [1, 0, 0])
 
@@ -300,9 +311,7 @@ def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     # form upper + semi circle + horizontal parts
 
     # Number of beads forming the arced DNA piece (err on the high side)
-    nArcedDNA = math.ceil(
-        1 / 2 * math.pi * diameter / DNAbondLength
-    )  # 1 / 2 = semi circle
+    nArcedDNA = math.ceil(1 / 2 * math.pi * diameter / DNAbondLength)  # 1 / 2 = semi circle
 
     # We want an odd number (necessary for angle/dihedral interactions)
     if nArcedDNA % 2 == 0:
@@ -311,6 +320,7 @@ def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     # Upper DNA piece
 
     nUpperDNA = (nDNA - nArcedDNA) // 2
+    check_length(nUpperDNA)
 
     rUpperDNA = get_straight_segment(nUpperDNA, [-1, 0, 0])
 
@@ -329,6 +339,7 @@ def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
     # Lower DNA piece
 
     nLowerDNA = nDNA - nUpperDNA - nArcedDNA
+    check_length(nLowerDNA)
 
     rLowerDNA = get_straight_segment(nLowerDNA, [1, 0, 0])
 
@@ -358,12 +369,8 @@ def get_dna_coordinates_twist(nDNA: int, DNAbondLength: float, diameter: float):
 def get_dna_coordinates_doubled(nDNA: int, DNAbondLength: float, diameter: float):
     nOuterDNA = math.ceil(nDNA / 1.9)
     nInnerDNA = nDNA - nOuterDNA
-    [rOuterDNA], outerCenter = get_dna_coordinates_twist(
-        nOuterDNA, DNAbondLength, diameter
-    )
-    [rInnerDNA], innerCenter = get_dna_coordinates_twist(
-        nInnerDNA, DNAbondLength, diameter / 1.5
-    )
+    [rOuterDNA], outerCenter = get_dna_coordinates_twist(nOuterDNA, DNAbondLength, diameter)
+    [rInnerDNA], innerCenter = get_dna_coordinates_twist(nInnerDNA, DNAbondLength, diameter / 1.5)
     # align pieces
     rInnerDNA += outerCenter - innerCenter
     # create separation (x direction)
