@@ -347,7 +347,7 @@ if par.add_RNA_polymerase:
     else:
         raise ValueError(f"unknown RNA_polymerase_type, {par.RNA_polymerase_type}")
 
-    if hasattr(dna_config, "tether"):
+    if isinstance(dna_config.tether, dna.Tether):
         st_dna_id = dna_config.tether.dna_tether_id
     else:
         st_dna_id = (0, int(0.5 * dna_config.dna_strands[0].full_list_length()))
@@ -604,9 +604,12 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
         f"middle_right_bead_id = {gen.get_atom_index((smc_1.atp_grp, -1))}\n"
     )
     file.write("\n")
+    dna_indices_list = {
+        k: [(gen.get_atom_index(atomId1), gen.get_atom_index(atomId2)) for atomId1, atomId2 in lst]
+        for k, lst in ppp.dna_indices_list.items()
+    }
     dna_indices_list = [
-        (gen.get_atom_index(atomId1), gen.get_atom_index(atomId2))
-        for (atomId1, atomId2) in ppp.dna_indices_list
+        tup for lst in dna_indices_list.values() for tup in dna_config.strand_concat(lst)
     ]
     file.write(
         "# list of (min, max) of DNA indices for separate pieces to analyze\n"
@@ -799,7 +802,7 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
         parameterfile.write(get_universe_def("stretching_forces", sf_forces))
 
     # obstacle, if particle
-    if hasattr(dna_config, "tether") and isinstance(dna_config.tether.obstacle, dna.Tether.Gold):
+    if dna_config.tether is not None and isinstance(dna_config.tether.obstacle, dna.Tether.Gold):
         obstacle_lammps_id = gen.get_atom_index((dna_config.tether.obstacle.group, 0))
         parameterfile.write(f"variable obstacle_id equal {obstacle_lammps_id}\n")
 

@@ -115,7 +115,7 @@ class Tether:
             self.group.positions[0] += vector
 
     group: AtomGroup
-    dna_tether_id: StrandId
+    dna_tether_id: StrandId | AtomIdentifier
     obstacle: Tether.Obstacle
 
     @staticmethod
@@ -273,15 +273,8 @@ class Tether:
             )
 
     def get_bonds(self, bond_type: BAI_Type, dna_config: DnaConfiguration) -> List[BAI]:
-        bonds = [
-            BAI(
-                bond_type,
-                (self.group, -1),
-                dna_config.dna_strands[self.dna_tether_id[0]].get_id_from_list_index(
-                    self.dna_tether_id[1]
-                ),
-            )
-        ]
+        atom_id = dna_config.map_to_atom_id(self.dna_tether_id)
+        bonds = [BAI(bond_type, (self.group, -1), atom_id)]
         if isinstance(self.obstacle, Tether.Gold):
             bonds += [self.obstacle.tether_bond]
         return bonds
@@ -349,7 +342,7 @@ class DnaConfiguration:
         # POST PROCESSING
 
         # indices to use for marked bead tracking
-        dna_indices_list: List[Tuple[AtomIdentifier, AtomIdentifier]]
+        dna_indices_list: Dict[int, List[Tuple[AtomIdentifier, AtomIdentifier]]]
 
     @classmethod
     def set_parameters(cls, par: Parameters, inter_par: InteractionParameters) -> None:
@@ -368,6 +361,7 @@ class DnaConfiguration:
         self.bead_sizes: List[float] = []
         self.bead_bonds: List[Tuple[BAI_Type, List[StrandId | AtomIdentifier]]] = []
         self.molecule_overrides: List[Tuple[int, int, int]] = []  # (strand_id, index, new_mol)
+        self.tether: None | Tether = None
 
     @property
     def all_dna_groups(self) -> List[AtomGroup]:
@@ -385,18 +379,31 @@ class DnaConfiguration:
             end_points=[],
             freeze_indices=[],
             stretching_forces_array=dict(),
-            dna_indices_list=[],
+            dna_indices_list=dict(),
         )
+
+    @staticmethod
+    def strand_concat(lst: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+        new = []
+        for x, y in zip(lst, lst[1:]):
+            if x[1] + 1 == y[0]:
+                new.append((x[0], y[1]))
+            else:
+                new.append(x)
+                new.append(y)
+
+        return new
 
     def dna_indices_list_get_all_dna(
         self,
+        strand_index: int,
     ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
-        return [tup for strand in self.dna_strands for tup in strand.all_indices_list()]
+        return [tup for tup in self.dna_strands[strand_index].all_indices_list()]
 
     def dna_indices_list_get_dna_to(
-        self, ratio: float
+        self, strand_index: int, ratio: float
     ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
-        return [tup for strand in self.dna_strands for tup in strand.indices_list_to_percent(ratio)]
+        return [tup for tup in self.dna_strands[strand_index].indices_list_to_percent(ratio)]
 
     def add_interactions(self, pair_inter: PairWise) -> None:
         dna_type = self.dna_parameters.type
@@ -444,43 +451,34 @@ class DnaConfiguration:
                 bead_size * (2 ** (1 / 6)),
             )
 
+    def map_to_atom_id(self, strnd: StrandId | AtomIdentifier) -> AtomIdentifier:
+        x = strnd[0]
+        y = strnd[1]
+        if isinstance(x, AtomGroup):
+            return (x, y)
+        else:
+            return self.dna_strands[x].get_id_from_list_index(y)
+
     def get_bonds(self) -> List[BAI]:
         return [
             BAI(
                 bond[0],
-                *[
-                    self.dna_strands[strnd[0]].get_id_from_list_index(strnd[1])
-                    if not isinstance(strnd[0], AtomGroup)
-                    else strnd
-                    for strnd in bond[1]
-                ],
+                *[self.map_to_atom_id(strnd) for strnd in bond[1]],
             )
             for bond in self.bead_bonds
         ]
 
     def update_tether_bond(
-        self, old_id: AtomIdentifier, new_groups, bead: None | AtomIdentifier
+        self, old_id: AtomIdentifier, bead: None | AtomIdentifier
     ) -> None:
-        if not hasattr(self, "tether"):
-            return
         assert isinstance(self.tether, Tether)
 
         if self.tether.dna_tether_id[0] is old_id[0]:
-            if self.tether.dna_tether_id[1] < old_id[1]:
-                self.tether.dna_tether_id = (
-                    new_groups[0],
-                    self.tether.dna_tether_id[1],
-                )
-            elif self.tether.dna_tether_id[1] == old_id[1] and bead is not None:
+            if self.tether.dna_tether_id[1] == old_id[1] and bead is not None:
                 self.tether.dna_tether_id = bead
-            else:
-                self.tether.dna_tether_id = (
-                    new_groups[1],
-                    self.tether.dna_tether_id[1] - old_id[1],
-                )
 
         old = pos_from_id(old_id)
-        new = pos_from_id(self.tether.dna_tether_id)
+        new = pos_from_id(self.map_to_atom_id(self.tether.dna_tether_id))
         self.tether.move(new - old)
 
     def change_dna_stiffness(
@@ -505,7 +503,7 @@ class DnaConfiguration:
         ]
         assert left.polymer_angle_type is not None
         assert right.polymer_angle_type is not None
-        bais += [
+        bais = bais + [
             (
                 left.polymer_angle_type,
                 [(strand_index, from_id - 2), (strand_index, from_id - 1), (strand_index, from_id)],
@@ -564,7 +562,7 @@ class DnaConfiguration:
             bead.positions[0, 0] += bead_size
             first_group.positions[:, 0] += 2 * bead_size - self.dna_parameters.DNA_bond_length
 
-            self.update_tether_bond(dna_atom, (first_group, second_group), (bead, 0))
+            self.update_tether_bond(dna_atom, (bead, 0))
 
         self.beads.append(bead)
         self.bead_sizes.append(bead_size)
@@ -574,7 +572,7 @@ class DnaConfiguration:
         return []
 
     @staticmethod
-    def str_to_config(string: str):
+    def str_to_config(string: str) -> DnaConfiguration:
         string = string.lower()
         return {
             "line": Line,
@@ -639,7 +637,7 @@ class Line(DnaConfiguration):
             ),  # closest to middle -> r_middle_site[1]
         ]
 
-        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+        ppp.dna_indices_list[0] = self.dna_indices_list_get_all_dna(0)
 
         return ppp
 
@@ -694,7 +692,7 @@ class Folded(DnaConfiguration):
             ),  # closest to middle -> r_middle_site[1]
         ]
 
-        ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
+        ppp.dna_indices_list[0] = self.dna_indices_list_get_dna_to(0, ratio=0.5)
 
         return ppp
 
@@ -742,7 +740,7 @@ class RightAngle(DnaConfiguration):
         # find closest DNA bead to siteD
         # closest_DNA_index = get_closest(self.dna_groups[0].positions, r_lower_site[1])
 
-        ppp.dna_indices_list += [(strand.first_id(), strand.get_percent_id(0.5))]
+        ppp.dna_indices_list[0] = [(strand.first_id(), strand.get_percent_id(0.5))]
 
         return ppp
 
@@ -811,7 +809,8 @@ class Doubled(DnaConfiguration):
                 ),  # closest to middle
             ]
 
-        ppp.dna_indices_list += self.dna_indices_list_get_dna_to(ratio=0.5)
+        for strand_id in range(len(self.dna_strands)):
+            ppp.dna_indices_list[strand_id] = self.dna_indices_list_get_dna_to(strand_id, ratio=0.5)
 
         return ppp
 
@@ -890,7 +889,7 @@ class Obstacle(DnaConfiguration):
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
-        ppp.dna_indices_list += strand.indices_list_to(self.dna_start_index)
+        ppp.dna_indices_list[0] = strand.indices_list_to(self.dna_start_index)
 
         return ppp
 
@@ -939,7 +938,7 @@ class Safety(DnaConfiguration):
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
-        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+        ppp.dna_indices_list[0] = self.dna_indices_list_get_all_dna(0)
 
         # prevent breaking of safety belt
         # ppp.freeze_indices += [
@@ -1013,7 +1012,7 @@ class ObstacleSafety(DnaConfiguration):
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
-        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+        ppp.dna_indices_list[0] = self.dna_indices_list_get_all_dna(0)
 
         # prevent breaking of safety belt
         # ppp.freeze_indices += [
@@ -1091,7 +1090,7 @@ class AdvancedObstacleSafety(DnaConfiguration):
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
-        ppp.dna_indices_list += self.dna_indices_list_get_all_dna()
+        ppp.dna_indices_list[0] = self.dna_indices_list_get_all_dna(0)
 
         # prevent breaking of safety belt
         # ppp.freeze_indices += [
