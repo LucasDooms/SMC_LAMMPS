@@ -604,13 +604,15 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
         f"middle_right_bead_id = {gen.get_atom_index((smc_1.atp_grp, -1))}\n"
     )
     file.write("\n")
-    dna_indices_list = {
-        k: [(gen.get_atom_index(atomId1), gen.get_atom_index(atomId2)) for atomId1, atomId2 in lst]
-        for k, lst in ppp.dna_indices_list.items()
-    }
+
+    def do_map(lst):
+        return map(lambda tup: (gen.get_atom_index(tup[0]), gen.get_atom_index(tup[1])), lst)
+
+    dna_indices_list = {key: do_map(lst) for key, lst in ppp.dna_indices_list.items()}
     dna_indices_list = [
-        tup for lst in dna_indices_list.values() for tup in dna_config.strand_concat(lst)
+        dna_config.strand_concat(list(lst)) for lst in dna_indices_list.values()
     ]
+    dna_indices_list = [t for x in dna_indices_list for t in x]
     file.write(
         "# list of (min, max) of DNA indices for separate pieces to analyze\n"
         f"dna_indices_list = {dna_indices_list}\n"

@@ -384,13 +384,18 @@ class DnaConfiguration:
 
     @staticmethod
     def strand_concat(lst: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
-        new = []
-        for x, y in zip(lst, lst[1:]):
-            if x[1] + 1 == y[0]:
-                new.append((x[0], y[1]))
+        if not lst:
+            return lst
+
+        def fuse(alist: List[Tuple[int, int]], next: Tuple[int, int]):
+            if not alist or alist[-1][1] + 1 != next[0]:
+                alist.append(next)
             else:
-                new.append(x)
-                new.append(y)
+                alist[-1] = (alist[-1][0], next[1])
+
+        new = []
+        for item in lst:
+            fuse(new, item)
 
         return new
 
@@ -468,9 +473,7 @@ class DnaConfiguration:
             for bond in self.bead_bonds
         ]
 
-    def update_tether_bond(
-        self, old_id: AtomIdentifier, bead: None | AtomIdentifier
-    ) -> None:
+    def update_tether_bond(self, old_id: AtomIdentifier, bead: None | AtomIdentifier) -> None:
         assert isinstance(self.tether, Tether)
 
         if self.tether.dna_tether_id[0] is old_id[0]:
