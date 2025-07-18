@@ -260,6 +260,9 @@ dna_bond = BAI_Type(
     f"{k_bond_DNA} {max_bond_length_DNA} {0.0} {0.0} {DNA_bond_length}\n",
 )
 dna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine", f"{k_angle_DNA}\n")
+stiff_dna_angle = BAI_Type(
+    BAI_Kind.ANGLE, "cosine", f"{par.spaced_beads_custom_stiffness * k_angle_DNA}\n"
+)
 ssdna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine", f"{k_angle_ssDNA}\n")
 dna_type = AtomType(DNA_bead_mass)
 
@@ -345,13 +348,12 @@ if par.add_RNA_polymerase:
         raise ValueError(f"unknown RNA_polymerase_type, {par.RNA_polymerase_type}")
 
     if hasattr(dna_config, "tether"):
-        dna_id = dna_config.tether.dna_tether_id
+        st_dna_id = dna_config.tether.dna_tether_id
     else:
-        dna_id = dna_config.dna_strands[0].get_percent_id(0.5)
-    dna_config.add_bead_to_dna(bead_type, mol_bead, 0, dna_id, bead_bond, bead_angle, bead_size)
-
-    if bead_bond is None:
-        gen.molecule_override[dna_id] = mol_bead
+        st_dna_id = (0, int(0.5 * dna_config.dna_strands[0].full_list_length()))
+    dna_config.add_bead_to_dna(
+        bead_type, mol_bead, st_dna_id[0], st_dna_id[1], bead_bond, bead_angle, bead_size
+    )
 
 if par.spaced_beads_interval is not None:
     spaced_bead_type = AtomType(DNA_bead_mass)
@@ -371,20 +373,28 @@ if par.spaced_beads_interval is not None:
             )
         )
 
-    for dna_id in spaced_bead_ids:
+    for st_dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
         extra_mols_smc.append(mol_spaced_bead)
-        dna_id = dna_config.dna_strands[0].get_id_from_list_index(dna_id)
         dna_config.add_bead_to_dna(
             spaced_bead_type,
             mol_spaced_bead,
             0,
-            dna_id,
+            st_dna_id,
             None,
             None,
             par.spaced_beads_size,
         )
-        gen.molecule_override[dna_id] = mol_spaced_bead
+
+        if par.spaced_beads_custom_stiffness != 1.0:
+            offset = int(par.spaced_beads_size / DNA_bond_length)
+            try:
+                dna_config.change_dna_stiffness(
+                    0, st_dna_id - offset, st_dna_id + offset, dna_bond, stiff_dna_angle
+                )
+            except ValueError as e:
+                print(e)
+                raise ValueError("Overlapping stiffness ranges not supported yet.")
 
 if par.add_stopper_bead:
     mol_stopper = MoleculeId.get_next()
@@ -393,9 +403,10 @@ if par.add_stopper_bead:
     stopper_size = 25.0
 
     stopper_ids = dna_config.get_stopper_ids()
-    for dna_id in stopper_ids:
-        dna_config.add_bead_to_dna(stopper_type, mol_stopper, 0, dna_id, None, None, stopper_size)
-        gen.molecule_override[dna_id] = mol_stopper
+    for st_dna_id in stopper_ids:
+        dna_config.add_bead_to_dna(
+            stopper_type, mol_stopper, st_dna_id[0], st_dna_id[1], None, None, stopper_size
+        )
 
 
 gen.add_atom_groups(
@@ -476,6 +487,10 @@ gen.bais += [*smc_1.get_bonds(smc_creator.hinge_opening), *dna_config.get_bonds(
 gen.bais += smc_1.get_angles()
 
 gen.bais += smc_1.get_impropers()
+
+# get overrides for DNA
+for s_id, g_id, mol_id in dna_config.molecule_overrides:
+    gen.molecule_override[dna_config.dna_strands[s_id].get_id_from_list_index(g_id)] = mol_id
 
 # Override molecule ids to form rigid safety-belt bond
 if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.Safety)):  # TODO

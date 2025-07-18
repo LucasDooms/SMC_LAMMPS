@@ -95,6 +95,9 @@ class Parameters:
     spaced_beads_smc_clearance: float = spaced_beads_size
     "length of bare DNA to keep next to SMC"
 
+    spaced_beads_custom_stiffness: float = 1.0
+    "multiple of the default DNA stiffness"
+
     ##################### Geometry #####################
 
     arm_length = 50.0

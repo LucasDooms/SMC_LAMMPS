@@ -18,9 +18,13 @@ class Polymer:
     def split(self, split: AtomIdentifier) -> Tuple[AtomGroup, AtomGroup]:
         """split the polymer in two pieces, with the split atom id part of the second group.
         Note: this simply changes the underlying atom groups"""
+        id = self.atom_groups.index(split[0])
         self.atom_groups.remove(split[0])
         pos1 = split[0].positions[: split[1]]
         pos2 = split[0].positions[split[1] :]
+
+        if len(pos1) == 0 or len(pos2) == 0:
+            raise ValueError("Empty group produced by split!")
 
         args = (
             split[0].type,
@@ -32,7 +36,9 @@ class Polymer:
             AtomGroup(pos1, *args),
             AtomGroup(pos2, *args),
         )
-        self.atom_groups += groups
+        for grp in groups[::-1]:
+            self.atom_groups.insert(id, grp)
+
         return groups
 
     def full_list(self) -> Nx3Array:

@@ -28,6 +28,8 @@ from smc_lammps.generate.structures.polymer import Polymer
 from smc_lammps.generate.structures.smc.smc import SMC
 from smc_lammps.generate.util import get_closest, pos_from_id
 
+type StrandId = Tuple[int, int]  # strand_id, id
+
 
 @dataclass
 class DnaParameters:
@@ -113,7 +115,7 @@ class Tether:
             self.group.positions[0] += vector
 
     group: AtomGroup
-    dna_tether_id: AtomIdentifier
+    dna_tether_id: StrandId
     obstacle: Tether.Obstacle
 
     @staticmethod
@@ -153,7 +155,7 @@ class Tether:
     @classmethod
     def create_tether(
         cls,
-        dna_tether_id: AtomIdentifier,
+        dna_tether_id: StrandId,
         tether_length: int,
         bond_length: float,
         mass: float,
@@ -270,8 +272,16 @@ class Tether:
                 self.obstacle.cut,
             )
 
-    def get_bonds(self, bond_type: BAI_Type) -> List[BAI]:
-        bonds = [BAI(bond_type, (self.group, -1), self.dna_tether_id)]
+    def get_bonds(self, bond_type: BAI_Type, dna_config: DnaConfiguration) -> List[BAI]:
+        bonds = [
+            BAI(
+                bond_type,
+                (self.group, -1),
+                dna_config.dna_strands[self.dna_tether_id[0]].get_id_from_list_index(
+                    self.dna_tether_id[1]
+                ),
+            )
+        ]
         if isinstance(self.obstacle, Tether.Gold):
             bonds += [self.obstacle.tether_bond]
         return bonds
@@ -356,7 +366,8 @@ class DnaConfiguration:
         self.kBT = self.par.kB * self.par.T
         self.beads: List[AtomGroup] = []
         self.bead_sizes: List[float] = []
-        self.bead_bonds: List[BAI] = []
+        self.bead_bonds: List[Tuple[BAI_Type, List[StrandId | AtomIdentifier]]] = []
+        self.molecule_overrides: List[Tuple[int, int, int]] = []  # (strand_id, index, new_mol)
 
     @property
     def all_dna_groups(self) -> List[AtomGroup]:
@@ -434,7 +445,18 @@ class DnaConfiguration:
             )
 
     def get_bonds(self) -> List[BAI]:
-        return self.bead_bonds
+        return [
+            BAI(
+                bond[0],
+                *[
+                    self.dna_strands[strnd[0]].get_id_from_list_index(strnd[1])
+                    if not isinstance(strnd[0], AtomGroup)
+                    else strnd
+                    for strnd in bond[1]
+                ],
+            )
+            for bond in self.bead_bonds
+        ]
 
     def update_tether_bond(
         self, old_id: AtomIdentifier, new_groups, bead: None | AtomIdentifier
@@ -461,16 +483,59 @@ class DnaConfiguration:
         new = pos_from_id(self.tether.dna_tether_id)
         self.tether.move(new - old)
 
+    def change_dna_stiffness(
+        self,
+        strand_index: int,
+        from_id: int,
+        to_id: int,
+        bond: BAI_Type,
+        angle: BAI_Type,
+    ) -> None:
+        from_ = self.dna_strands[strand_index].get_id_from_list_index(from_id)
+        left, middle = self.dna_strands[strand_index].split(from_)
+
+        # only get this id after the split, since groups change!
+        to_ = self.dna_strands[strand_index].get_id_from_list_index(to_id)
+        middle, right = self.dna_strands[strand_index].split(to_)
+
+        # add interactions/exceptions
+        bais: List[Tuple[BAI_Type, List[AtomIdentifier | StrandId]]] = [
+            (bond, [(strand_index, from_id - 1), (strand_index, from_id)]),
+            (bond, [(strand_index, to_id - 1), (strand_index, to_id)]),
+        ]
+        assert left.polymer_angle_type is not None
+        assert right.polymer_angle_type is not None
+        bais += [
+            (
+                left.polymer_angle_type,
+                [(strand_index, from_id - 2), (strand_index, from_id - 1), (strand_index, from_id)],
+            ),
+            (
+                angle,
+                [(strand_index, from_id - 1), (strand_index, from_id), (strand_index, from_id + 1)],
+            ),
+            (angle, [(strand_index, to_id - 2), (strand_index, to_id - 1), (strand_index, to_id)]),
+            (
+                right.polymer_angle_type,
+                [(strand_index, to_id - 1), (strand_index, to_id), (strand_index, to_id + 1)],
+            ),
+        ]
+
+        middle.polymer_angle_type = angle
+
+        self.bead_bonds += bais
+
     def add_bead_to_dna(
         self,
         bead_type: AtomType,
         mol_index: int,
         strand_index: int,
-        dna_atom: AtomIdentifier,
+        dna_id: int,
         bond: None | BAI_Type,  # if None -> rigid attachment to dna_atom
         angle: None | BAI_Type,  # only used if bond is not None
         bead_size: float,
     ) -> None:
+        dna_atom = self.dna_strands[strand_index].get_id_from_list_index(dna_id)
         # place on a DNA bead
         location = pos_from_id(dna_atom)
 
@@ -479,22 +544,20 @@ class DnaConfiguration:
 
         bais = []
         if bond is None:
-            # TODO:
-            # gen.molecule_override[dna_atom] = mol_index
-            pass
+            self.molecule_overrides.append((strand_index, dna_id, mol_index))
         else:
             first_group, second_group = self.dna_strands[strand_index].split(dna_atom)
 
             # add interactions/exceptions
             bais += [
-                BAI(bond, (first_group, -1), (bead, 0)),
-                BAI(bond, (second_group, 0), (bead, 0)),
+                (bond, [(strand_index, dna_id - 1), (bead, 0)]),
+                (bond, [(strand_index, dna_id), (bead, 0)]),
             ]
             if angle is not None:
                 bais += [
-                    BAI(angle, (first_group, -2), (first_group, -1), (bead, 0)),
-                    BAI(angle, (first_group, -1), (bead, 0), (second_group, 0)),
-                    BAI(angle, (bead, 0), (second_group, 0), (second_group, 1)),
+                    (angle, [(strand_index, dna_id - 2), (strand_index, dna_id - 1), (bead, 0)]),
+                    (angle, [(strand_index, dna_id - 1), (bead, 0), (strand_index, dna_id)]),
+                    (angle, [(bead, 0), (strand_index, dna_id), (strand_index, dna_id + 1)]),
                 ]
 
             # move to correct distances
@@ -507,7 +570,7 @@ class DnaConfiguration:
         self.bead_sizes.append(bead_size)
         self.bead_bonds += bais
 
-    def get_stopper_ids(self) -> List[AtomIdentifier]:
+    def get_stopper_ids(self) -> List[StrandId]:
         return []
 
     @staticmethod
@@ -580,8 +643,8 @@ class Line(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [self.dna_strands[0].last_id()]
+    def get_stopper_ids(self) -> List[StrandId]:
+        return [(0, -1)]
 
 
 class Folded(DnaConfiguration):
@@ -635,7 +698,7 @@ class Folded(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[AtomIdentifier]:
+    def get_stopper_ids(self) -> List[StrandId]:
         # TODO: maybe add bead at halfway point (left most point)?
         return []
 
@@ -683,7 +746,7 @@ class RightAngle(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[AtomIdentifier]:
+    def get_stopper_ids(self) -> List[StrandId]:
         return []
 
 
@@ -752,7 +815,7 @@ class Doubled(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[AtomIdentifier]:
+    def get_stopper_ids(self) -> List[StrandId]:
         # TODO: see todo for folded config
         return []
 
@@ -798,7 +861,7 @@ class Obstacle(DnaConfiguration):
 
         dna_bead_to_tether_id = int(len(r_DNA) * 7.5 / 15)
         tether = Tether.create_tether(
-            (dna_strand.atom_groups[0], dna_bead_to_tether_id),
+            (0, dna_bead_to_tether_id),
             25,
             dna_parameters.DNA_bond_length,
             dna_parameters.DNA_mass,
@@ -831,8 +894,8 @@ class Obstacle(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [self.dna_strands[0].last_id()]
+    def get_stopper_ids(self) -> List[StrandId]:
+        return [(0, -1)]
 
 
 class Safety(DnaConfiguration):
@@ -860,7 +923,9 @@ class Safety(DnaConfiguration):
         shift[1] -= 0.65 * par.cutoff6 + 0.5 * par.cutoff6  # TODO: if siteDup
         r_DNA += shift
 
-        return cls([dna_parameters.create_dna_polymer([r_DNA])], dna_parameters, dna_safety_belt_index)
+        return cls(
+            [dna_parameters.create_dna_polymer([r_DNA])], dna_parameters, dna_safety_belt_index
+        )
 
     def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
         ppp = super().get_post_process_parameters()
@@ -884,8 +949,8 @@ class Safety(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [self.dna_strands[0].last_id()]
+    def get_stopper_ids(self) -> List[StrandId]:
+        return [(0, -1)]
 
 
 @with_tether
@@ -919,7 +984,7 @@ class ObstacleSafety(DnaConfiguration):
         dna_strand = dna_parameters.create_dna_polymer([r_DNA])
 
         tether = Tether.create_tether(
-            (dna_strand.atom_groups[0], dna_bead_to_tether_id),
+            (0, dna_bead_to_tether_id),
             35,
             dna_parameters.DNA_bond_length,
             dna_parameters.DNA_mass,
@@ -958,8 +1023,8 @@ class ObstacleSafety(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [self.dna_strands[0].last_id()]
+    def get_stopper_ids(self) -> List[StrandId]:
+        return [(0, -1)]
 
 
 @with_tether
@@ -996,7 +1061,7 @@ class AdvancedObstacleSafety(DnaConfiguration):
         dna_strand = dna_parameters.create_dna_polymer([r_DNA])
 
         tether = Tether.create_tether(
-            (dna_strand.atom_groups[0], dna_bead_to_tether_id),
+            (0, dna_bead_to_tether_id),
             35,
             dna_parameters.DNA_bond_length,
             dna_parameters.DNA_mass,
@@ -1036,5 +1101,5 @@ class AdvancedObstacleSafety(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[AtomIdentifier]:
-        return [self.dna_strands[0].last_id()]
+    def get_stopper_ids(self) -> List[StrandId]:
+        return [(0, -1)]
