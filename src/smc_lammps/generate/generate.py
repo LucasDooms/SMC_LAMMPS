@@ -390,7 +390,7 @@ if par.spaced_beads_interval is not None:
             offset = int(par.spaced_beads_size / DNA_bond_length)
             try:
                 dna_config.change_dna_stiffness(
-                    0, st_dna_id - offset, st_dna_id + offset, dna_bond, stiff_dna_angle
+                    0, st_dna_id - offset, st_dna_id + offset + 1, dna_bond, stiff_dna_angle
                 )
             except ValueError as e:
                 print(e)
