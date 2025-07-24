@@ -444,9 +444,9 @@ class DnaConfiguration:
             ip.rcut_lower_site_DNA,
         )
 
-        # every bead should repel every SMC group
+        # every bead should repel certain SMC groups
         for (bead, bead_size), smc_grp in product(
-            zip(self.beads, self.bead_sizes), self.smc.get_groups()
+            zip(self.beads, self.bead_sizes), self.smc.get_repulsive_groups()
         ):
             pair_inter.add_interaction(
                 bead.type,
