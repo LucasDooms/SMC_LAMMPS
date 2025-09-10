@@ -105,6 +105,7 @@ def clean(args, path: Path) -> TaskDone:
 
     safe_to_delete = [
         r".*\.lammpstrj",
+        r".*\.lammpstrj\.(\d)+",
         r"log\.lammps",
         r"parameterfile",
         r"datafile.*",
@@ -113,6 +114,8 @@ def clean(args, path: Path) -> TaskDone:
         r"tmp\.lammps\.variable",
         r"vmd\.tcl",
         r"states",
+        r"restartfile",
+        r"vmd.init",
     ]
     safe_to_delete = [compile_regex(string) for string in safe_to_delete]
 
