@@ -26,3 +26,4 @@ tmp.lammps.variable
 
 # generated images
 bead_id_in_time.png
+msd_in_time.png
