@@ -142,6 +142,7 @@ def clean(args, path: Path) -> TaskDone:
 
 
 def generate(args, path: Path) -> TaskDone:
+    # TODO: produce a warning when using this with --continue flag?
     if not args.generate:
         if args.seed is not None:
             warn("seed argument is ignored when -g flag is not used!")
@@ -208,6 +209,7 @@ def restart_run(args, path: Path, output_file: Path) -> TaskDone:
     if not args.continue_flag:
         return TaskDone(skipped=True)
 
+    # TODO: check that all necessary files have been generated?
     file_exists = output_file.exists()
     if not file_exists:
         if args.force:
@@ -216,7 +218,15 @@ def restart_run(args, path: Path, output_file: Path) -> TaskDone:
             "Make sure the following file exists to restart a simulation:", output_file
         )
 
-    perform_run(args, path, [["is_restart", "1"]])
+    # find a file name that is not taken yet
+    x = 1
+    new_output_file = Path(f"{output_file}.{x}")
+    while new_output_file.exists():
+        x += 1
+        new_output_file = Path(f"{output_file}.{x}")
+
+    print(f"your run will continue and the output trajectory will be placed into {new_output_file}")
+    perform_run(args, path, [["is_restart", "1"], ["output_file_name", str(new_output_file.relative_to(path))]])
 
     return TaskDone()
 

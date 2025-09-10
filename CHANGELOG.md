@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- Simulations run with the --continue flag will now produce output.lammpstrj.1, output.lammpstrj.2, ... files
+instead of appending to the existing output.lammpstrj file.
+
 ### Fixed
 
 - The `smc_perspective.py` script now correctly writes the atom types and ids in the lammpstrj format,

@@ -94,9 +94,23 @@ if $(is_defined(variable,excluded)) then &
 	"group repelled_by_wall subtract all exl_grp" &
 	"fix obstacle repelled_by_wall wall/lj126 ylo ${wall_y} ${epsilon3} ${sigma} ${sigma}"
 
+#----------------------------------------------Equilibration-------------------------------------------------#
+
+# Set integration timestep
+timestep ${timestep}
+
+if $(!v_is_restart) then &
+    "include ${lammps_root_dir}/equilibrate.lmp" &
+    "reset_timestep 0"
+
+#----------------------------------------------Data Collection-------------------------------------------------#
+
+if $(!is_defined(variable,output_file_name)) then &
+    "variable output_file_name string output.lammpstrj"
+
 # For VMD visualisation
-dump movie all custom ${output_steps} output.lammpstrj id type x y z
-dump_modify movie sort id pbc yes append yes
+dump movie all custom ${output_steps} ${output_file_name} id type x y z
+dump_modify movie sort id pbc yes
 
 # Computes SMC potential energy due to angles and impropers
 #compute en all pe angle improper
@@ -113,14 +127,16 @@ dump_modify movie sort id pbc yes append yes
 
 #fix 5 all print 1000 "${enDNA} ${enSMC}" append "energy.dat"
 
-# Set integration timestep
-timestep ${timestep}
-
-
 #----------------------------------------------Run-------------------------------------------------#
 
-if $(!v_is_restart) then &
-    "include ${lammps_root_dir}/equilibrate.lmp"
+# loop until (cumulative) runtimes value exceeds current time step
+variable current_step equal step
+label step_loop
+if $(v_current_step >= v_runtimes) then &
+    "variable current_step equal $(v_current_step - v_runtimes)" &
+    "print ${current_step} screen yes" &
+    "next runtimes" &
+    "jump SELF step_loop"
 
 # collect msd for obstacle
 if $(is_defined(variable,obstacle_id)) then &
