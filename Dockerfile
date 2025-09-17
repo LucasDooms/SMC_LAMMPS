@@ -3,7 +3,7 @@ ARG LAMMPS_PYTHON_DIR=/lammps-python
 ARG LAMMPS_INSTALL_DIR=/lammps-install
 ARG VENV_DIR=/.venv
 
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS build
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS build
 
 # global values
 ARG LAMMPS_PYTHON_DIR
@@ -47,7 +47,7 @@ RUN strip ${LAMMPS_INSTALL_DIR}/bin/lmp
 RUN cp -r ${LAMMPS_HOME}/python ${LAMMPS_PYTHON_DIR}
 
 
-FROM python:3.13.3-slim-bookworm
+FROM python:3.13-slim-trixie
 
 LABEL org.opencontainers.image.authors="Lucas Dooms <lucas.dooms@kuleuven.be>"
 LABEL org.opencontainers.image.licenses="MIT"
