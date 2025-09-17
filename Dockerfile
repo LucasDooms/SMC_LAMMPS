@@ -22,7 +22,7 @@ COPY pyproject.toml pyproject.toml
 COPY README.md README.md
 COPY src/smc_lammps src/smc_lammps
 
-RUN uv venv ${VENV_DIR} && uv sync --no-editable \
+RUN uv venv ${VENV_DIR} && uv sync --locked --no-editable \
     && find ${VENV_DIR} \( -type d -a -name test -o -name tests \) -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) -exec rm -rf '{}' \+
 
 # activate venv
