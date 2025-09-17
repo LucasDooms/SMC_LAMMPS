@@ -93,7 +93,8 @@ class BAI_Type:
         return f"{self.index}{style} {self.coefficients}"
 
 
-Nx3Array = npt.NDArray[np.float32]
+COORD_TYPE = np.float32
+Nx3Array = npt.NDArray[COORD_TYPE]
 """An (N, 3) array of positions"""
 
 
