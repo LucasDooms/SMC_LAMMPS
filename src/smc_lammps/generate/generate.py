@@ -544,6 +544,26 @@ with open(path / "vmd.tcl", "w", encoding="utf-8") as vmdfile:
 states_path = path / "states"
 states_path.mkdir(exist_ok=True)
 
+# if par.lower_site_cycle_period is not zero, the lower site is handled elsewhere
+use_lower_site_off = [lower_site_off] if par.lower_site_cycle_period == 0 else []
+use_lower_site_on = [lower_site_on] if par.lower_site_cycle_period == 0 else []
+
+if par.lower_site_cycle_period > 0:
+    create_phase(
+        gen,
+        states_path / "lower_site_on",
+        [
+            lower_site_on,
+        ],
+    )
+    create_phase(
+        gen,
+        states_path / "lower_site_off",
+        [
+            lower_site_off,
+        ],
+    )
+
 create_phase(
     gen,
     states_path / "adp_bound",
@@ -551,7 +571,7 @@ create_phase(
         bridge_off,
         hinge_attraction_on,
         middle_site_off,
-        lower_site_off,
+        *use_lower_site_off,
         smc_1.arms_open,
         smc_1.kleisin_unfolds1,
         smc_1.kleisin_unfolds2,
@@ -565,7 +585,7 @@ create_phase(
         bridge_off,
         hinge_attraction_off,
         middle_site_off,
-        lower_site_on,
+        *use_lower_site_on,
         smc_1.arms_close,
         smc_1.kleisin_unfolds1,
         smc_1.kleisin_unfolds2,
@@ -591,7 +611,7 @@ create_phase(
         bridge_on,
         hinge_attraction_on,
         middle_site_on,
-        lower_site_on,
+        *use_lower_site_on,
         smc_1.arms_open,
         smc_1.kleisin_folds1,
         smc_1.kleisin_folds2,
@@ -826,3 +846,8 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     runtimes = get_times_with_max_steps(par, rng)
 
     parameterfile.write(get_index_def("runtimes", runtimes))
+
+    parameterfile.write("\n")
+
+    parameterfile.write(f"variable lower_site_toggle_delay equal {par.lower_site_toggle_delay}\n")
+    parameterfile.write(f"variable lower_site_cycle_period equal {par.lower_site_cycle_period}\n")
