@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- New `spaced_beads` parameters allow simulating arrays of obstacles on a DNA strand with
+tunable size, spacing, and angle stiffness.
+
 ### Changed
 
 - Simulations run with the --continue flag will now produce output.lammpstrj.1, output.lammpstrj.2, ... files
