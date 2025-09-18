@@ -5,257 +5,17 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
-from enum import Enum
-from io import StringIO
-from itertools import islice
 from pathlib import Path
 from runpy import run_path
 from sys import argv
-from time import time
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 import numpy as np
-import numpy.typing as npt
 
 from smc_lammps.console import warn
 from smc_lammps.generate.generator import COORD_TYPE, Nx3Array
-
-
-def timer(func):
-    def timed_func(*args, **kwargs):
-        time_start = time()
-        ret_value = func(*args, **kwargs)
-        time_end = time()
-        print(time_end - time_start)
-        return ret_value
-
-    return timed_func
-
-
-cached = dict()
-
-
-def timer_accumulator(func):
-    global cached
-    if func not in cached:
-        cached[func] = 0.0
-
-    def timed_func(*args, **kwargs):
-        time_start = time()
-        ret_value = func(*args, **kwargs)
-        time_end = time()
-        cached[func] += time_end - time_start
-        return ret_value
-
-    return timed_func
-
-
-@dataclass
-class Box:
-    lows: Nx3Array
-    highs: Nx3Array
-
-    def is_in_box(self, xyz: Nx3Array) -> bool:
-        condition_x = np.logical_and(self.lows[0] <= xyz[:, 0], xyz[:, 0] <= self.highs[0])
-        condition_y = np.logical_and(self.lows[1] <= xyz[:, 1], xyz[:, 1] <= self.highs[1])
-        condition_z = np.logical_and(self.lows[2] <= xyz[:, 2], xyz[:, 2] <= self.highs[2])
-
-        return np.logical_and.reduce([condition_x, condition_y, condition_z], axis=0)
-
-
-class Plane:
-    class Side(Enum):
-        OUTSIDE = -1  # on the side of the plane that the normal vector is pointing to
-        INSIDE = 1  # opposite of OUTSIDE
-
-        @classmethod
-        def get_opposite(cls, side: Plane.Side) -> Plane.Side:
-            if side == cls.INSIDE:
-                return cls.OUTSIDE
-            elif side == cls.OUTSIDE:
-                return cls.INSIDE
-            raise ValueError("unknown Side value")
-
-    def __init__(self, point: Nx3Array, normal: Nx3Array):
-        """point: a point on the plain,
-        normal: normal vector of the plain (always normalized)"""
-        normal_length = np.linalg.norm(normal)
-        if normal_length == 0:
-            raise ValueError("normal vector may not be zero")
-        self.normal = normal / normal_length
-        # take point vector to be parallel to normal vector for convenience
-        # this is garantueed to still be on the same plane
-        # self.point = point.dot(self.normal) * self.normal
-        self.point = point
-
-    def is_on_side(self, side: Plane.Side, point: Nx3Array) -> bool:
-        # includes points on the plane itself
-        compare = self.point.dot(self.normal)
-        # for checking if inside: (point - self.point) . normal <= 0
-        # thus point . normal <= self.point . normal
-        # for outside: the inequality is flipped, which is equivalent
-        # to multiplying both sides by (-1) (without actually flipping the inequality)
-        return point.dot(self.normal) * side.value <= compare * side.value
-
-
-ID_TYPE = np.int64
-IdArray = npt.NDArray[ID_TYPE]
-"""An array of LAMMPS ids."""
-TYPE_TYPE = np.int64
-TypeArray = npt.NDArray[TYPE_TYPE]
-"""An array of LAMMPS atom types."""
-
-
-@dataclass
-class LammpsData:
-    ids: IdArray
-    types: TypeArray
-    positions: Nx3Array
-
-    @classmethod
-    def empty(cls):
-        return cls(
-            ids=np.array([], dtype=np.int64),
-            types=np.array([], dtype=np.int64),
-            positions=np.array([], dtype=np.float32).reshape(-1, 3),
-        )
-
-    @timer_accumulator
-    def filter(self, keep) -> None:
-        """filters the current lists
-        keep takes id (int), type (int), pos (array[float]) as input and returns bool"""
-        keep_indices = keep(self.ids, self.types, self.positions)
-
-        self.ids = self.ids[keep_indices]
-        self.types = self.types[keep_indices]
-        self.positions = self.positions[keep_indices]
-
-    def filter_by_types(self, types: TypeArray) -> None:
-        self.filter(lambda _, t, __: np.isin(t, types))
-
-    def __deepcopy__(self, memo) -> LammpsData:
-        new = LammpsData(np.copy(self.ids), np.copy(self.types), np.copy(self.positions))
-        return new
-
-    def delete_outside_box(self, box: Box) -> LammpsData:
-        """creates a new LammpsData instance with points outside of the Box removed"""
-        new = deepcopy(self)
-        new.filter(lambda _, __, position: box.is_in_box(position))
-        return new
-
-    def delete_side_of_plane(self, plane: Plane, side: Plane.Side) -> None:
-        """filters the current LammpsData instance to remove points on one side of a plane
-        side: the side of the Plane that will get deleted"""
-        self.filter(lambda _, __, pos: plane.is_on_side(Plane.Side.get_opposite(side), pos))
-
-    def combine_by_ids(self, other: LammpsData):
-        """merges two LammpsData instances by keeping all values present in any of the two
-        mutates the self argument"""
-        # WARNING: making no guarantees about the order
-        all_ids = np.concatenate([self.ids, other.ids])
-        all_types = np.concatenate([self.types, other.types])
-        all_positions = np.concatenate([self.positions, other.positions])
-        self.ids, indices = np.unique(all_ids, return_index=True)
-        self.types = all_types[indices]
-        self.positions = all_positions[indices]
-
-    def get_position_from_index(self, index):
-        return self.positions[np.where(index == self.ids)[0][0]]
-
-
-class Parser:
-    ATOM_FORMAT = "ITEM: ATOMS id type x y z\n"
-
-    class EndOfLammpsFile(Exception):
-        pass
-
-    def __init__(self, file_name: str) -> None:
-        self.file = open(file_name, "r", encoding="utf-8")
-
-    def skip_to_atoms(self) -> Dict[str, str]:
-        saved = dict()
-        current_line = None
-        empty = True
-
-        for line in self.file:
-            empty = False
-
-            if line.startswith("ITEM: ATOMS"):
-                if line != self.ATOM_FORMAT:
-                    raise ValueError(
-                        f"Wrong format of atoms, found\n{line}\nshould be\n{self.ATOM_FORMAT}\n"
-                    )
-                return saved
-
-            # remove newline
-            line = line[:-1]
-
-            if line.startswith("ITEM:"):
-                saved[line] = []
-                current_line = line
-            else:
-                saved[current_line].append(line)
-
-        if empty:
-            raise self.EndOfLammpsFile()
-
-        raise ValueError("reached end of file unexpectedly")
-
-    @staticmethod
-    @timer_accumulator
-    def get_array(lines):
-        lines = "".join(lines)
-        with StringIO(lines) as file:
-            array = np.loadtxt(file, ndmin=2)
-        return array
-
-    @staticmethod
-    def split_data(array) -> LammpsData:
-        """split array into ids, types, xyz"""
-        ids, types, x, y, z = array.transpose()
-        xyz = np.array(np.concatenate([x, y, z]).reshape(3, -1).transpose(), dtype=COORD_TYPE)
-        return LammpsData(np.array(ids, dtype=ID_TYPE), np.array(types, dtype=TYPE_TYPE), xyz)
-
-    def next_step(self) -> Tuple[int, LammpsData]:
-        """returns timestep and the lammps data of all the atoms."""
-
-        saved = self.skip_to_atoms()
-        timestep = int(saved["ITEM: TIMESTEP"][0])
-        number_of_atoms = int(saved["ITEM: NUMBER OF ATOMS"][0])
-
-        lines = list(islice(self.file, number_of_atoms))
-        if len(lines) != number_of_atoms:
-            raise ValueError("reached end of file unexpectedly")
-
-        data = self.split_data(self.get_array(lines))
-
-        return timestep, data
-
-    def __del__(self) -> None:
-        # check if attribute exists, since __init__ may fail
-        if hasattr(self, "file"):
-            self.file.close()
-
-
-def create_box(data: LammpsData, types: TypeArray) -> Box:
-    copy_data = deepcopy(data)
-    copy_data.filter_by_types(types)
-    reduced_xyz = copy_data.positions
-
-    return Box(
-        lows=np.array([np.min(reduced_xyz[:, i], axis=0) for i in range(3)], dtype=COORD_TYPE),
-        highs=np.array([np.max(reduced_xyz[:, i], axis=0) for i in range(3)], dtype=COORD_TYPE),
-    )
-
-
-def distance_point_to_plane(point, point_on_plane, normal_direction) -> float:
-    return abs((point - point_on_plane).dot(normal_direction))
-
-
-def get_normal_direction(p1, p2, p3):
-    perpendicular = np.cross(p1 - p2, p1 - p3)
-    return perpendicular / np.linalg.norm(perpendicular)
+from smc_lammps.reader.lammps_data import ID_TYPE, IdArray, LammpsData, Plane, get_normal_direction
+from smc_lammps.reader.parser import Parser
 
 
 def write(file, steps: List[int], positions: Nx3Array):
@@ -297,10 +57,10 @@ def split_into_index_groups(indices) -> List[List[int]]:
     return groups
 
 
-def get_bead_distances(positions, pos1: int, pos2: int, pos3: int):
+def get_bead_distances(positions: Nx3Array, pos1: Nx3Array, pos2: Nx3Array, pos3: Nx3Array):
     normal_vector = get_normal_direction(pos1, pos2, pos3)
-
-    return distance_point_to_plane(positions, pos1, normal_vector)
+    plane = Plane(pos1, normal_vector)
+    return plane.distance(positions)
 
 
 def remove_outside_planar_n_gon(
@@ -340,7 +100,10 @@ def handle_dna_bead(
     full_data: LammpsData, filtered_dna: LammpsData, parameters, step
 ) -> Tuple[IdArray, Nx3Array]:
     """Finds the DNA beads that are within the SMC ring and updates the indices, positions lists."""
-    fallback = (np.array([-1], dtype=ID_TYPE), np.array([full_data.positions[-1]], dtype=COORD_TYPE))
+    fallback = (
+        np.array([-1], dtype=ID_TYPE),
+        np.array([full_data.positions[-1]], dtype=COORD_TYPE),
+    )
     if len(filtered_dna.positions) == 0:
         return fallback
 
@@ -433,7 +196,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
     """
     parameters = run_path((path / "post_processing_parameters.py").as_posix())
 
-    par = Parser(folder_path / "output.lammpstrj")
+    par = Parser(folder_path / "output.lammpstrj", time_it=True)
     dna_indices_list = parameters["dna_indices_list"]
     steps = []
     indices_array = [[] for _ in range(len(dna_indices_list))]
@@ -442,6 +205,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
         try:
             step, lmpData = par.next_step()
         except Parser.EndOfLammpsFile:
+            print(par.timings)
             break
         except UnicodeDecodeError as e:
             print(e)
@@ -451,7 +215,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
         steps.append(step)
 
         # TODO: get range from post_processing_parameters.py
-        box = create_box(lmpData, parameters["SMC_types"])
+        box = lmpData.create_box(parameters["SMC_types"])
 
         new_data = lmpData.delete_outside_box(box)
         new_data.filter_by_types(parameters["DNA_types"])
@@ -471,8 +235,6 @@ def get_best_match_dna_bead_in_smc(folder_path):
     for i, positions in enumerate(positions_array):
         with open(folder_path / f"marked_bead{i}.lammpstrj", "w", encoding="utf-8") as file:
             write(file, steps, positions)
-
-    print(cached)
 
     for i, indices in enumerate(indices_array):
         np.savez(folder_path / f"bead_indices{i}.npz", steps=steps, ids=indices)
@@ -508,8 +270,6 @@ def get_msd_obstacle(folder_path):
         assert len(lmpData.positions) == 1
         positions.append(lmpData.positions[0])
 
-    print(cached)
-
     # calculate msd in time chunks
     time_chunk_size = 2000  # number of timesteps to pick for one window
 
@@ -536,32 +296,6 @@ def get_msd_obstacle(folder_path):
     plt.ylabel("MSD")
     plt.scatter(steps[: -time_chunk_size + 1], msd_array, s=0.3)
     plt.savefig(folder_path / "msd_in_time.png")
-
-
-def test_plane_distances():
-    p1 = np.array([0, 1, 0], dtype=float)
-    p2 = np.array([0, 1, 2], dtype=float)
-    p3 = np.array([1, 0, 1], dtype=float)
-    n = get_normal_direction(p1, p2, p3)
-    print(n)
-    point = np.array([2, 2, 5], dtype=float)
-    another_one = np.array([1, 1, 1], dtype=float)
-    print(distance_point_to_plane(np.array([point, another_one, another_one]), p1, n))
-
-
-def test_plane_comparisons():
-    point_on_plane = np.array([0, 0, 0], dtype=float)
-    n = np.array([1, 0, 0], dtype=float)
-    plane = Plane(point_on_plane, n)
-    points = np.array([[0, 0, 0], [0.5, 0, 0], [-20, 0, 0]])
-    print(plane.is_on_side(Plane.Side.INSIDE, points))  # should be [True, False, True]
-    print(plane.is_on_side(Plane.Side.OUTSIDE, points))  # should be [True, True, False]
-
-    plane2 = Plane(np.array([1, 0, 0], dtype=float), np.array([1, 1, 0], dtype=float))
-    print(plane2.is_on_side(Plane.Side.INSIDE, points))  # should be [True, True, True]
-    print(
-        plane2.is_on_side(Plane.Side.INSIDE, np.array([1, 0.2, 0], dtype=float))
-    )  # should be False
 
 
 if __name__ == "__main__":
