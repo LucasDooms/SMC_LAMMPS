@@ -706,8 +706,8 @@ class Folded(DnaConfiguration):
         return ppp
 
     def get_stopper_ids(self) -> List[StrandId]:
-        # TODO: maybe add bead at halfway point (left most point)?
-        return []
+        # add bead at halfway point
+        return [(0, self.dna_strands[0].convert_ratio(0.5))]
 
 
 class RightAngle(DnaConfiguration):
