@@ -317,7 +317,7 @@ def with_tether(cls):
 
     def new4(f):
         def get_bonds(self) -> List[BAI]:
-            return f(self) + self.tether.get_bonds(self.dna_parameters.bond)
+            return f(self) + self.tether.get_bonds(self.dna_parameters.bond, self)
 
         return get_bonds
 
