@@ -701,6 +701,7 @@ class Folded(DnaConfiguration):
         ]
 
         ppp.dna_indices_list[0] = self.dna_indices_list_get_dna_to(0, ratio=0.5)
+        ppp.dna_indices_list[1] = self.dna_indices_list_get_dna_from_to(0, from_ratio=0.5, to_ratio=1.0)
 
         return ppp
 
