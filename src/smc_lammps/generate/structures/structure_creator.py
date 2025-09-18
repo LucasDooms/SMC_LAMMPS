@@ -5,7 +5,7 @@ from typing import List
 import numpy as np
 import numpy.typing as npt
 from scipy import interpolate
-from scipy.stats import trapezoid
+from scipy.integrate import trapezoid
 from scipy.spatial.transform import Rotation
 
 from smc_lammps.generate.generator import Nx3Array

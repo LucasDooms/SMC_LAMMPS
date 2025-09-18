@@ -12,6 +12,7 @@ from typing import Any, List
 import numpy as np
 from numpy.random import default_rng
 
+from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.generate.generator import (
     AtomIdentifier,
@@ -260,6 +261,9 @@ dna_bond = BAI_Type(
     f"{k_bond_DNA} {max_bond_length_DNA} {0.0} {0.0} {DNA_bond_length}\n",
 )
 dna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine", f"{k_angle_DNA}\n")
+stiff_dna_angle = BAI_Type(
+    BAI_Kind.ANGLE, "cosine", f"{par.spaced_beads_custom_stiffness * k_angle_DNA}\n"
+)
 ssdna_angle = BAI_Type(BAI_Kind.ANGLE, "cosine", f"{k_angle_ssDNA}\n")
 dna_type = AtomType(DNA_bead_mass)
 
@@ -344,46 +348,54 @@ if par.add_RNA_polymerase:
     else:
         raise ValueError(f"unknown RNA_polymerase_type, {par.RNA_polymerase_type}")
 
-    if hasattr(dna_config, "tether"):
-        dna_id = dna_config.tether.dna_tether_id
+    if isinstance(dna_config.tether, dna.Tether):
+        st_dna_id = dna_config.tether.dna_tether_id
     else:
-        dna_id = (
-            dna_config.dna_groups[0],
-            int(len(dna_config.dna_groups[0].positions) // 2),
-        )
-    dna_config.add_bead_to_dna(bead_type, mol_bead, dna_id, bead_bond, bead_angle, bead_size)
-
-    if bead_bond is None:
-        gen.molecule_override[dna_id] = mol_bead
+        st_dna_id = (0, int(0.5 * dna_config.dna_strands[0].full_list_length()))
+    dna_config.add_bead_to_dna(
+        bead_type, mol_bead, st_dna_id[0], st_dna_id[1], bead_bond, bead_angle, bead_size
+    )
 
 if par.spaced_beads_interval is not None:
     spaced_bead_type = AtomType(DNA_bead_mass)
 
     # get spacing
     start_id = par.spaced_beads_interval
-    stop_id = get_closest(dna_config.dna_groups[0].positions, smc_positions.r_lower_site[1])
-    spaced_bead_ids = list(range(start_id, stop_id, par.spaced_beads_interval))
-    spaced_bead_ids += list(
-        range(
-            stop_id + par.spaced_beads_interval,
-            len(dna_config.dna_groups[0].positions),
-            par.spaced_beads_interval,
-        )
-    )
+    stop_id = get_closest(dna_config.dna_strands[0].full_list(), smc_positions.r_lower_site[1])
+    clearance = math.ceil(par.spaced_beads_smc_clearance / DNA_bond_length)
+    spaced_bead_ids = list(range(start_id, stop_id - clearance, par.spaced_beads_interval))
 
-    for dna_id in spaced_bead_ids:
+    if par.spaced_beads_full_dna:
+        spaced_bead_ids += list(
+            range(
+                stop_id + clearance,
+                dna_config.dna_strands[0].full_list_length(),
+                par.spaced_beads_interval,
+            )
+        )
+
+    for st_dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
         extra_mols_smc.append(mol_spaced_bead)
-        dna_id = (dna_config.dna_groups[0], dna_id)
         dna_config.add_bead_to_dna(
             spaced_bead_type,
             mol_spaced_bead,
-            dna_id,
+            0,
+            st_dna_id,
             None,
             None,
             par.spaced_beads_size,
         )
-        gen.molecule_override[dna_id] = mol_spaced_bead
+
+        if par.spaced_beads_custom_stiffness != 1.0:
+            offset = int(par.spaced_beads_size / DNA_bond_length)
+            try:
+                dna_config.change_dna_stiffness(
+                    0, st_dna_id - offset, st_dna_id + offset + 1, dna_bond, stiff_dna_angle
+                )
+            except ValueError as e:
+                print(e)
+                raise ValueError("Overlapping stiffness ranges not supported yet.")
 
 if par.add_stopper_bead:
     mol_stopper = MoleculeId.get_next()
@@ -392,9 +404,10 @@ if par.add_stopper_bead:
     stopper_size = 25.0
 
     stopper_ids = dna_config.get_stopper_ids()
-    for dna_id in stopper_ids:
-        dna_config.add_bead_to_dna(stopper_type, mol_stopper, dna_id, None, None, stopper_size)
-        gen.molecule_override[dna_id] = mol_stopper
+    for st_dna_id in stopper_ids:
+        dna_config.add_bead_to_dna(
+            stopper_type, mol_stopper, st_dna_id[0], st_dna_id[1], None, None, stopper_size
+        )
 
 
 gen.add_atom_groups(
@@ -476,13 +489,34 @@ gen.bais += smc_1.get_angles()
 
 gen.bais += smc_1.get_impropers()
 
+# get overrides for DNA
+# check for duplicates
+original = [(x[0], x[1]) for x in dna_config.molecule_overrides]
+seen = set()
+dupes = {x for x in original if x in seen or seen.add(x)}
+if dupes:
+    warn(
+        "Conflicting molecule overrides where found!\n"
+        "This will likely cause LAMMPS to crash.\n"
+        f"\tduplicates: {dupes}\n"
+        f"\tall overrides: {dna_config.molecule_overrides}"
+    )
+for s_id, g_id, mol_id in dna_config.molecule_overrides:
+    gen.molecule_override[dna_config.dna_strands[s_id].get_id_from_list_index(g_id)] = mol_id
+
 # Override molecule ids to form rigid safety-belt bond
 if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.Safety)):  # TODO
     safety_index = dna_config.dna_safety_belt_index
-    gen.molecule_override[(dna_config.dna_groups[0], safety_index)] = smc_1.mol_lower_site
+    gen.molecule_override[dna_config.dna_strands[0].get_id_from_list_index(safety_index)] = (
+        smc_1.mol_lower_site
+    )
     # add neighbors to prevent rotation
-    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index - 1)] = smc_1.mol_lower_site
-    # gen.molecule_override[(dnaConfig.dna_groups[0], safety_index + 1)] = smc_1.mol_lower_site
+    # gen.molecule_override[dna_config.dna_strands[0].get_id_from_list_index(safety_index - 1)] = (
+    #     smc_1.mol_lower_site
+    # )
+    # gen.molecule_override[dna_config.dna_strands[0].get_id_from_list_index(safety_index + 1)] = (
+    #     smc_1.mol_lower_site
+    # )
 
 with open(path / "datafile_coeffs", "w", encoding="utf-8") as datafile:
     gen.write_coeffs(datafile)
@@ -582,10 +616,13 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
         f"middle_right_bead_id = {gen.get_atom_index((smc_1.atp_grp, -1))}\n"
     )
     file.write("\n")
-    dna_indices_list = [
-        (gen.get_atom_index(atomId1), gen.get_atom_index(atomId2))
-        for (atomId1, atomId2) in ppp.dna_indices_list
-    ]
+
+    def do_map(lst):
+        return map(lambda tup: (gen.get_atom_index(tup[0]), gen.get_atom_index(tup[1])), lst)
+
+    dna_indices_list = {key: do_map(lst) for key, lst in ppp.dna_indices_list.items()}
+    dna_indices_list = [dna_config.strand_concat(list(lst)) for lst in dna_indices_list.values()]
+    dna_indices_list = [t for x in dna_indices_list for t in x]
     file.write(
         "# list of (min, max) of DNA indices for separate pieces to analyze\n"
         f"dna_indices_list = {dna_indices_list}\n"
@@ -598,7 +635,7 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     file.write("\n")
     file.write(f"dna_spacing = {max_bond_length_DNA}\n")
     file.write("\n")
-    file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.dna_groups))}\n")
+    file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.all_dna_groups))}\n")
     file.write(f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n")
 
 
@@ -777,7 +814,7 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
         parameterfile.write(get_universe_def("stretching_forces", sf_forces))
 
     # obstacle, if particle
-    if hasattr(dna_config, "tether") and isinstance(dna_config.tether.obstacle, dna.Tether.Gold):
+    if dna_config.tether is not None and isinstance(dna_config.tether.obstacle, dna.Tether.Gold):
         obstacle_lammps_id = gen.get_atom_index((dna_config.tether.obstacle.group, 0))
         parameterfile.write(f"variable obstacle_id equal {obstacle_lammps_id}\n")
 

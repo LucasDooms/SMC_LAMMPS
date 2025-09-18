@@ -253,6 +253,21 @@ class SMC:
         ]
         return [grp for grp in grps if grp.positions.size != 0]
 
+    def get_repulsive_groups(self) -> List[AtomGroup]:
+        """Returns a list of groups that should have a repulsive LJ interaction
+        with other (inert) beads such as obstacles."""
+        grps = [
+            self.arm_dl_grp,
+            self.arm_ul_grp,
+            self.arm_ur_grp,
+            self.arm_dr_grp,
+            self.hk_grp,
+            self.atp_grp,
+            self.hinge_l_grp,
+            self.hinge_r_grp,
+        ]
+        return [grp for grp in grps if grp.positions.size != 0]
+
     def get_bonds(self, hinge_opening: float | None = None) -> List[BAI]:
         # Every joint is kept in place through bonds
         attach = BAI_Type(
