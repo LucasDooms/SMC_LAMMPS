@@ -405,6 +405,11 @@ class DnaConfiguration:
     ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
         return [tup for tup in self.dna_strands[strand_index].all_indices_list()]
 
+    def dna_indices_list_get_dna_from_to(
+        self, strand_index: int, from_ratio: float, to_ratio: float
+    ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+        return [tup for tup in self.dna_strands[strand_index].indices_list_from_to_percent(from_ratio, to_ratio)]
+
     def dna_indices_list_get_dna_to(
         self, strand_index: int, ratio: float
     ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
