@@ -12,6 +12,7 @@ from typing import Any, List
 import numpy as np
 from numpy.random import default_rng
 
+from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.generate.generator import (
     AtomIdentifier,
@@ -489,6 +490,17 @@ gen.bais += smc_1.get_angles()
 gen.bais += smc_1.get_impropers()
 
 # get overrides for DNA
+# check for duplicates
+original = [(x[0], x[1]) for x in dna_config.molecule_overrides]
+seen = set()
+dupes = {x for x in original if x in seen or seen.add(x)}
+if dupes:
+    warn(
+        "Conflicting molecule overrides where found!\n"
+        "This will likely cause LAMMPS to crash.\n"
+        f"\tduplicates: {dupes}\n"
+        f"\tall overrides: {dna_config.molecule_overrides}"
+    )
 for s_id, g_id, mol_id in dna_config.molecule_overrides:
     gen.molecule_override[dna_config.dna_strands[s_id].get_id_from_list_index(g_id)] = mol_id
 
@@ -609,9 +621,7 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
         return map(lambda tup: (gen.get_atom_index(tup[0]), gen.get_atom_index(tup[1])), lst)
 
     dna_indices_list = {key: do_map(lst) for key, lst in ppp.dna_indices_list.items()}
-    dna_indices_list = [
-        dna_config.strand_concat(list(lst)) for lst in dna_indices_list.values()
-    ]
+    dna_indices_list = [dna_config.strand_concat(list(lst)) for lst in dna_indices_list.values()]
     dna_indices_list = [t for x in dna_indices_list for t in x]
     file.write(
         "# list of (min, max) of DNA indices for separate pieces to analyze\n"
