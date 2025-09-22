@@ -6,7 +6,6 @@ import math
 from pathlib import Path
 from runpy import run_path
 from sys import argv
-from typing import List
 
 import numpy as np
 from numpy.random import default_rng
@@ -336,8 +335,8 @@ smc_1 = SMC(
 
 dna_config.set_smc(smc_1)
 
-extra_mols_smc: List[int] = []
-extra_mols_dna: List[int] = []
+extra_mols_smc: list[int] = []
+extra_mols_dna: list[int] = []
 
 if par.add_RNA_polymerase:
     mol_bead = MoleculeId.get_next()
@@ -678,7 +677,7 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
 #################################################################################
 
 
-def get_variables_for_lammps() -> List[str]:
+def get_variables_for_lammps() -> list[str]:
     """returns variable names that are needed in LAMMPS script"""
     return [
         "T",

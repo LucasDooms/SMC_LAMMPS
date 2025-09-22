@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Set, Tuple, TypeAlias
+from typing import Any, TypeAlias
 
 import numpy as np
 import numpy.typing as npt
@@ -131,7 +131,7 @@ class AtomGroup:
         return len(self.positions)
 
 
-AtomIdentifier = Tuple[AtomGroup, int]
+AtomIdentifier: TypeAlias = tuple[AtomGroup, int]
 "A unique identifier of an atom in a group"
 
 
@@ -143,7 +143,7 @@ class BAI:
     def __init__(self, type_: BAI_Type, *atoms: AtomIdentifier) -> None:
         """Length of atoms should be 2 for Bond, 3 for Angle, 4 for Improper"""
         self.type = type_
-        self.atoms: List[AtomIdentifier] = list(atoms)
+        self.atoms: list[AtomIdentifier] = list(atoms)
 
 
 class PairWise:
@@ -156,12 +156,12 @@ class PairWise:
                                            to all be explicitly defined)
     """
 
-    def __init__(self, header: str, template: str, default: List[Any] | None) -> None:
+    def __init__(self, header: str, template: str, default: list[Any] | None) -> None:
         """if default is None -> don't insert missing interactions"""
         self.header = header
         self.template = template
         self.default = default
-        self.pairs: List[Tuple[AtomType, AtomType, List[Any]]] = []
+        self.pairs: list[tuple[AtomType, AtomType, list[Any]]] = []
 
     def add_interaction(self, atom_type1: AtomType, atom_type2: AtomType, *args: Any) -> PairWise:
         """Add an iteraction. Will sort the indices automatically."""
@@ -170,7 +170,7 @@ class PairWise:
 
         return self
 
-    def write(self, file, atom_types: List[AtomType]) -> None:
+    def write(self, file, atom_types: list[AtomType]) -> None:
         """Write the Pair Coeffs header and all pair interactions to a file.
         e.g.
         PairIJ Coeffs
@@ -182,15 +182,15 @@ class PairWise:
         file.write("\n")
 
     def get_all_interaction_pairs(
-        self, all_atom_types: List[AtomType]
-    ) -> List[Tuple[AtomType, AtomType]]:
+        self, all_atom_types: list[AtomType]
+    ) -> list[tuple[AtomType, AtomType]]:
         """Returns all possible interactions, whether they are set by the user or not."""
         present_atom_types = set()
         for pair in self.pairs:
             present_atom_types.add(pair[0])
             present_atom_types.add(pair[1])
 
-        all_inters: List[Tuple[AtomType, AtomType]] = []
+        all_inters: list[tuple[AtomType, AtomType]] = []
         all_atom_types = sorted(all_atom_types, key=lambda atom_type: atom_type.index)
         for i in range(len(all_atom_types)):
             for j in range(i, len(all_atom_types)):
@@ -199,15 +199,15 @@ class PairWise:
         return all_inters
 
     def get_all_interactions(
-        self, all_atom_types: List[AtomType]
-    ) -> List[Tuple[AtomType, AtomType, str]]:
+        self, all_atom_types: list[AtomType]
+    ) -> list[tuple[AtomType, AtomType, str]]:
         """Returns actual interactions to define,
         applying the default where no interaction was specified by the user."""
         all_inters = self.get_all_interaction_pairs(all_atom_types)
 
         def pair_in_inter(
-            interaction: Tuple[AtomType, AtomType],
-        ) -> Tuple[AtomType, AtomType, List[Any]] | None:
+            interaction: tuple[AtomType, AtomType],
+        ) -> tuple[AtomType, AtomType, list[Any]] | None:
             for pair in self.pairs:
                 if interaction[0] == pair[0] and interaction[1] == pair[1]:
                     return pair
@@ -216,7 +216,7 @@ class PairWise:
 
             return None
 
-        final_pairs: List[Tuple[AtomType, AtomType, str]] = []
+        final_pairs: list[tuple[AtomType, AtomType, str]] = []
 
         for inter in all_inters:
             pair = pair_in_inter(inter)
@@ -236,13 +236,13 @@ def write_if_non_zero(file, fmt_string: str, amount: int):
 
 class Generator:
     def __init__(self) -> None:
-        self._atom_groups: List[AtomGroup] = []
-        self.bais: List[BAI] = []
-        self.atom_group_map: List[int] = []
-        self.pair_interactions: List[PairWise] = []
+        self._atom_groups: list[AtomGroup] = []
+        self.bais: list[BAI] = []
+        self.atom_group_map: list[int] = []
+        self.pair_interactions: list[PairWise] = []
         self.box_width = None
-        self.molecule_override: Dict[AtomIdentifier, int] = {}
-        self.charge_override: Dict[AtomIdentifier, float] = {}
+        self.molecule_override: dict[AtomIdentifier, int] = {}
+        self.charge_override: dict[AtomIdentifier, float] = {}
         self.use_charges = False
         self.hybrid_styles = {
             BAI_Kind.BOND: "hybrid",
@@ -275,18 +275,18 @@ class Generator:
         which should be this header."""
         file.write("# LAMMPS data file\n")
 
-    def get_all_atom_types(self) -> List[AtomType]:
+    def get_all_atom_types(self) -> list[AtomType]:
         """Get a list of all atom types across all atom groups.
         The returned list is sorted based on the AtomType index."""
-        atom_types: Set[AtomType] = set()
+        atom_types: set[AtomType] = set()
         for atom_group in self._atom_groups:
             atom_types.add(atom_group.type)
         return sorted(atom_types, key=lambda atom_type: atom_type.index)
 
-    def get_all_types(self, kind: BAI_Kind) -> List[BAI_Type]:
+    def get_all_types(self, kind: BAI_Kind) -> list[BAI_Type]:
         """Get a list of all Bond/Angle/Improper types across all atom groups.
         The returned list is sorted based on the BAI_Type index."""
-        bai_types: Set[BAI_Type] = set()
+        bai_types: set[BAI_Type] = set()
         for bai in filter(lambda bai: bai.type.kind == kind, self.bais):
             bai_types.add(bai.type)
         for atom_group in self._atom_groups:
@@ -296,15 +296,15 @@ class Generator:
                 bai_types.add(atom_group.polymer_angle_type)
         return sorted(bai_types, key=lambda bai_type: bai_type.index)
 
-    def get_bai_dict_by_type(self) -> Dict[BAI_Kind, List[BAI]]:
+    def get_bai_dict_by_type(self) -> dict[BAI_Kind, list[BAI]]:
         """Get a dictionary mapping the Bond/Angle/Improper kind
         to a list of all BAIs which have that type."""
-        bai_by_kind: Dict[BAI_Kind, List[BAI]] = {kind: [] for kind in BAI_Kind}
+        bai_by_kind: dict[BAI_Kind, list[BAI]] = {kind: [] for kind in BAI_Kind}
         for bai in self.bais:
             bai_by_kind[bai.type.kind].append(bai)
         return bai_by_kind
 
-    def get_amounts(self) -> Tuple[int, int, int]:
+    def get_amounts(self) -> tuple[int, int, int]:
         """Return the total amount of bonds, angles, and impropers."""
         length_lookup = {key: len(value) for (key, value) in self.get_bai_dict_by_type().items()}
 
@@ -364,10 +364,10 @@ class Generator:
 
         file.write("\n")
 
-    def get_all_BAI_styles(self) -> Dict[BAI_Kind, List[str]]:
+    def get_all_BAI_styles(self) -> dict[BAI_Kind, list[str]]:
         """Return a list of unique styles for each BAI kind."""
 
-        def get_unique_styles(bai_types: List[BAI_Type]) -> List[str]:
+        def get_unique_styles(bai_types: list[BAI_Type]) -> list[str]:
             return list(set(t.style for t in bai_types))
 
         return {k: get_unique_styles(self.get_all_types(k)) for k in BAI_Kind}
@@ -395,10 +395,10 @@ class Generator:
         strings = [f"{self.get_BAI_style_command_name(k)} {extract_command(k)}\n" for k in BAI_Kind]
         return "".join(strings)
 
-    def get_hybrid_or_single_style(self) -> Dict[BAI_Kind, str]:
+    def get_hybrid_or_single_style(self) -> dict[BAI_Kind, str]:
         """Return the style needed for the BAI Coeffs header."""
 
-        def extract_style(k: BAI_Kind, styles: List[str]) -> str:
+        def extract_style(k: BAI_Kind, styles: list[str]) -> str:
             if len(styles) == 1:
                 return styles[0]
             return self.hybrid_styles[k]
@@ -638,7 +638,7 @@ class Generator:
     class DynamicCoeffs:
         pair_or_BAI: None | BAI_Kind
         coeff_string: str
-        args: List[Any]
+        args: list[Any]
 
     def write_script_bai_coeffs(self, file, coeffs: DynamicCoeffs) -> None:
         """Write a LAMMPS command for a pair / BAI interaction to a file."""

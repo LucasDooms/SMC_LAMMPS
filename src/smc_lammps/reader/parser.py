@@ -3,7 +3,6 @@ from __future__ import annotations
 from io import StringIO
 from itertools import islice
 from pathlib import Path
-from typing import Dict, Tuple
 
 import numpy as np
 
@@ -27,7 +26,7 @@ class Parser:
             timer_accumulator = get_timer_accumulator(self.timings)
             self.next_step = timer_accumulator(self.next_step)
 
-    def skip_to_atoms(self) -> Dict[str, str]:
+    def skip_to_atoms(self) -> dict[str, str]:
         saved = dict()
         current_line = None
         empty = True
@@ -70,7 +69,7 @@ class Parser:
         xyz = np.array(np.concatenate([x, y, z]).reshape(3, -1).transpose(), dtype=COORD_TYPE)
         return LammpsData(np.array(ids, dtype=ID_TYPE), np.array(types, dtype=TYPE_TYPE), xyz)
 
-    def next_step(self) -> Tuple[int, LammpsData]:
+    def next_step(self) -> tuple[int, LammpsData]:
         """returns timestep and the lammps data of all the atoms."""
 
         saved = self.skip_to_atoms()

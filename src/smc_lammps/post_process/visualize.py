@@ -4,32 +4,37 @@ import argparse
 import subprocess
 from pathlib import Path
 from runpy import run_path
-from typing import List, Tuple
+from typing import Sequence
 
 # TODO: VMD uses zero-indexed arrays!
 
 parser = argparse.ArgumentParser(
-    prog='Visualize with VMD',
-    description='Creates appropriate vmd.init file and runs vmd',
-    epilog='End'
+    prog="Visualize with VMD",
+    description="Creates appropriate vmd.init file and runs vmd",
+    epilog="End",
 )
 
 
-parser.add_argument('directory', help='the directory containing LAMMPS output files')
-fn_arg = parser.add_argument('-f', '--file_name', help='name of file, default: \'output.lammpstrj\'', default='output.lammpstrj')
+parser.add_argument("directory", help="the directory containing LAMMPS output files")
+fn_arg = parser.add_argument(
+    "-f",
+    "--file_name",
+    help="name of file, default: 'output.lammpstrj'",
+    default="output.lammpstrj",
+)
 
 args = parser.parse_args()
 path = Path(args.directory)
 
 parameters = run_path((path / "post_processing_parameters.py").as_posix())
 
-class Molecules:
 
+class Molecules:
     nice_color_ids = [
-        7, # green
-        1, # red
-        9, # pink
-        6, # silver
+        7,  # green
+        1,  # red
+        9,  # pink
+        6,  # silver
     ]
 
     def __init__(self, path_to_vmd_init: Path) -> None:
@@ -38,7 +43,7 @@ class Molecules:
         self.color_index = 0
         self.path = path_to_vmd_init / "vmd.init"
         # clear the file
-        with open(self.path, 'w', encoding='utf-8'):
+        with open(self.path, "w", encoding="utf-8"):
             pass
 
     def get_color_id(self) -> int:
@@ -47,18 +52,23 @@ class Molecules:
         return color_id
 
     def create_new(self, file_name: str, other_args: str) -> None:
-        with open(self.path, 'a', encoding="utf-8") as file:
+        with open(self.path, "a", encoding="utf-8") as file:
             file.write(f"mol new {file_name} {other_args}\n")
             self.index += 1
 
     def create_new_marked(self, file_name: str) -> None:
         self.create_new(file_name, "waitfor all")
-        with open(self.path, 'a', encoding="utf-8") as file:
+        with open(self.path, "a", encoding="utf-8") as file:
             file.write(f"mol modstyle 0 {self.index} vdw\n")
 
-    def create_new_dna(self, file_name: str, dna_pieces: List[Tuple[int, int]], remove_ranges: List[Tuple[int, int]]) -> None:
+    def create_new_dna(
+        self,
+        file_name: str,
+        dna_pieces: Sequence[tuple[int, int]],
+        remove_ranges: Sequence[tuple[int, int]],
+    ) -> None:
         self.create_new(file_name, "waitfor all")
-        with open(self.path, 'a', encoding="utf-8") as file:
+        with open(self.path, "a", encoding="utf-8") as file:
             # show everything, slightly smaller
             file.write(f"mol modstyle 0 {self.index} cpk 1.3\n")
 
@@ -70,23 +80,31 @@ class Molecules:
 
             self.add_dna_pieces(file, dna_pieces)
 
-    def add_dna_pieces(self, file, dna_pieces: List[Tuple[int, int]]) -> None:
+    def add_dna_pieces(self, file, dna_pieces: Sequence[tuple[int, int]]) -> None:
         # color the pieces differently
         file.write("mol rep cpk\n")
         for piece in dna_pieces:
             file.write(f"mol addrep {self.index}\n")
             self.rep_index += 1
-            file.write(f"mol modselect {self.rep_index} {self.index} index >= {piece[0] - 1} and index <= {piece[1] - 1}\n")
-            file.write(f"mol modcolor {self.rep_index} {self.index} colorID {self.get_color_id()}\n")
+            file.write(
+                f"mol modselect {self.rep_index} {self.index} index >= {piece[0] - 1} and index <= {piece[1] - 1}\n"
+            )
+            file.write(
+                f"mol modcolor {self.rep_index} {self.index} colorID {self.get_color_id()}\n"
+            )
             file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
-    def add_piece(self, rng: Tuple[int, int]) -> None:
-        with open(self.path, 'a', encoding="utf-8") as file:
+    def add_piece(self, rng: tuple[int, int]) -> None:
+        with open(self.path, "a", encoding="utf-8") as file:
             file.write("mol rep cpk\n")
             file.write(f"mol addrep {self.index}\n")
             self.rep_index += 1
-            file.write(f"mol modselect {self.rep_index} {self.index} index >= {rng[0] - 1} and index <= {rng[1] - 1}\n")
-            file.write(f"mol modcolor {self.rep_index} {self.index} colorID {self.get_color_id()}\n")
+            file.write(
+                f"mol modselect {self.rep_index} {self.index} index >= {rng[0] - 1} and index <= {rng[1] - 1}\n"
+            )
+            file.write(
+                f"mol modcolor {self.rep_index} {self.index} colorID {self.get_color_id()}\n"
+            )
             file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
 

@@ -8,7 +8,7 @@ import subprocess
 from functools import partial
 from pathlib import Path
 from re import compile as compile_regex
-from typing import List
+from typing import Callable, Sequence
 
 import argcomplete
 from click import confirm
@@ -51,7 +51,6 @@ def parse() -> argparse.Namespace:
     other.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
     other.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS')
     other.add_argument('--clean', action='store_true', help='remove all files except parameters.py from the directory')
-
     # fmt: on
 
     # shell autocompletion
@@ -60,8 +59,8 @@ def parse() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_and_handle_error(process, ignore_errors: bool):
-    completion: subprocess.CompletedProcess = process()
+def run_and_handle_error(process: Callable[[], subprocess.CompletedProcess], ignore_errors: bool):
+    completion = process()
     if completion.returncode != 0:
         message = f"\n\nprocess ended with error code {completion.returncode}\n{completion}\n"
         print(message)
@@ -167,14 +166,14 @@ def generate(args, path: Path) -> TaskDone:
     return TaskDone()
 
 
-def get_lammps_args_list(lammps_vars: List[List[str]]):
+def get_lammps_args_list(lammps_vars: Sequence[list[str]]):
     out = []
     for var in lammps_vars:
         out += ["-var"] + var
     return out
 
 
-def perform_run(args, path: Path, lammps_vars: List[List[str]] | None = None):
+def perform_run(args, path: Path, lammps_vars: list[list[str]] | None = None):
     if lammps_vars is None:
         lammps_vars = []
 
@@ -229,7 +228,11 @@ def restart_run(args, path: Path, output_file: Path) -> TaskDone:
         new_output_file = Path(f"{output_file}.{x}")
 
     print(f"your run will continue and the output trajectory will be placed into {new_output_file}")
-    perform_run(args, path, [["is_restart", "1"], ["output_file_name", str(new_output_file.relative_to(path))]])
+    perform_run(
+        args,
+        path,
+        [["is_restart", "1"], ["output_file_name", str(new_output_file.relative_to(path))]],
+    )
 
     return TaskDone()
 

@@ -8,7 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 from runpy import run_path
 from sys import argv
-from typing import List, Tuple
+from typing import Any, Sequence
 
 import numpy as np
 
@@ -18,7 +18,7 @@ from smc_lammps.reader.lammps_data import ID_TYPE, IdArray, LammpsData, Plane, g
 from smc_lammps.reader.parser import Parser
 
 
-def write(file, steps: List[int], positions: Nx3Array):
+def write(file, steps: Sequence[int], positions: Sequence[Nx3Array]):
     for step, position in zip(steps, positions):
         file.write("ITEM: TIMESTEP\n")
         file.write(f"{step}\n")
@@ -34,15 +34,14 @@ def write(file, steps: List[int], positions: Nx3Array):
         file.write(f"1 1 {position[0]} {position[1]} {position[2]}\n")
 
 
-def is_sorted(lst) -> bool:
+def is_sorted(lst: Sequence[Any]) -> bool:
     return all(lst[i] <= lst[i + 1] for i in range(len(lst) - 1))
 
 
-def split_into_index_groups(indices) -> List[List[int]]:
+def split_into_index_groups(indices: Sequence[int]) -> list[list[int]]:
     """splits a (sorted) list of integers into groups of adjacent integers"""
-    indices = list(indices)
     if not indices:
-        return indices
+        return []
 
     if not is_sorted(indices):
         raise ValueError("indices must be sorted")
@@ -98,7 +97,7 @@ def remove_outside_planar_n_gon(
 
 def handle_dna_bead(
     full_data: LammpsData, filtered_dna: LammpsData, parameters, step
-) -> Tuple[IdArray, Nx3Array]:
+) -> tuple[IdArray, Nx3Array]:
     """Finds the DNA beads that are within the SMC ring and updates the indices, positions lists."""
     fallback = (
         np.array([-1], dtype=ID_TYPE),
@@ -200,7 +199,7 @@ def get_best_match_dna_bead_in_smc(folder_path: Path):
     dna_indices_list = parameters["dna_indices_list"]
     steps = []
     indices_array = [[] for _ in range(len(dna_indices_list))]
-    positions_array = [[] for _ in range(len(dna_indices_list))]
+    positions_array: list[list[Nx3Array]] = [[] for _ in range(len(dna_indices_list))]
     while True:
         try:
             step, lmpData = par.next_step()

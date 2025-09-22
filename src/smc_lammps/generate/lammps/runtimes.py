@@ -1,13 +1,12 @@
 import math
 from sys import maxsize
-from typing import List
 
 import numpy as np
 
 from smc_lammps.generate.default_parameters import Parameters
 
 
-def get_times(apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Generator) -> List[int]:
+def get_times(apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Generator) -> list[int]:
     """Returns a list of runtimes for each SMC state [APO, ATP1, ATP2, ADP] sampled from an exponential distribution."""
 
     def mult(x):
@@ -17,7 +16,7 @@ def get_times(apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Gener
     return [math.ceil(mult(x)) for x in (apo, atp1, atp2, adp)]
 
 
-def get_times_with_max_steps(parameters: Parameters, rng_gen: np.random.Generator) -> List[int]:
+def get_times_with_max_steps(parameters: Parameters, rng_gen: np.random.Generator) -> list[int]:
     """Returns a list of runtimes for a certain number of SMC cycles that fit within the maximum number of steps."""
     run_steps = []
 

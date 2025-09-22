@@ -3,13 +3,13 @@
 from glob import glob
 from pathlib import Path
 from sys import argv
-from typing import List
+from typing import Sequence
 
 import numpy as np
 from scipy.optimize import curve_fit
 
 
-def get_npz_files_from_args(args: List[str]):
+def get_npz_files_from_args(args: Sequence[str]):
     files = []
 
     # replace glob patterns
@@ -30,7 +30,7 @@ def get_npz_files_from_args(args: List[str]):
     return files
 
 
-def get_data_raw(files: List[str]):
+def get_data_raw(files: Sequence[str]):
     if not files:
         raise ValueError("did not receive files to process")
 
@@ -133,7 +133,7 @@ def linear_fit(steps, averages):
     return popt
 
 
-def process(globs: List[str]):
+def process(globs: Sequence[str]):
     files = get_npz_files_from_args(globs)
     steps_array, indices_array = get_data_raw(files)
     steps_array, averages = get_averages(steps_array, indices_array, True)

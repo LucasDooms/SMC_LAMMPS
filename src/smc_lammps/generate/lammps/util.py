@@ -1,7 +1,7 @@
-from typing import List, Sequence
+from typing import Sequence
 
 from smc_lammps.generate.generator import AtomIdentifier, Generator
 
 
-def atomIds_to_LAMMPS_ids(gen: Generator, lst: Sequence[AtomIdentifier]) -> List[int]:
-    return [gen.get_atom_index(atomId) for atomId in lst]
+def atomIds_to_LAMMPS_ids(gen: Generator, atomIds: Sequence[AtomIdentifier]) -> list[int]:
+    return [gen.get_atom_index(atomId) for atomId in atomIds]

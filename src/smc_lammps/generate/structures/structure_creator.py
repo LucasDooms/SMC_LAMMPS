@@ -1,14 +1,12 @@
 # Copyright (c) 2024-2025 Lucas Dooms
 
-from typing import List
-
 import numpy as np
 import numpy.typing as npt
 from scipy import interpolate
 from scipy.integrate import trapezoid
 from scipy.spatial.transform import Rotation
 
-from smc_lammps.generate.generator import Nx3Array
+from smc_lammps.generate.generator import COORD_TYPE, Nx3Array
 
 
 def get_interpolated(spacing: float, values) -> Nx3Array:
@@ -67,7 +65,7 @@ def get_circle_segment_unit_radius(
 
     arange = np.arange(n) / (n - 1 if end_inclusive else n)
     thetas = theta_start + arange * (theta_end - theta_start)
-    segment = np.array([np.cos(thetas), np.sin(thetas), np.zeros(len(thetas))]).reshape(
+    segment = np.array([np.cos(thetas), np.sin(thetas), np.zeros(len(thetas))], dtype=COORD_TYPE).reshape(
         3, n
     )
 
@@ -128,7 +126,7 @@ def attach(
     return other_segment
 
 
-def attach_chain(reference_segment: Nx3Array, list_of_args) -> List[Nx3Array]:
+def attach_chain(reference_segment: Nx3Array, list_of_args) -> list[Nx3Array]:
     """returns a list of the updated segments"""
     first_segment = reference_segment
     for i in range(len(list_of_args)):

@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Lucas Dooms
 
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Callable, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -14,11 +14,15 @@ def get_project_root() -> Path:
 
 
 def create_phase(
-    generator: Generator, phase_path: Path, options: List[Generator.DynamicCoeffs]
+    generator: Generator, phase_path: Path, options: Sequence[Generator.DynamicCoeffs]
 ):
     """creates a file containing coefficients to dynamically load in LAMMPS scripts"""
 
-    def apply(function, file, list_of_args: List[Any]):
+    def apply(
+        function: Callable[[Any, Generator.DynamicCoeffs], None],
+        file,
+        list_of_args: Sequence[Generator.DynamicCoeffs],
+    ):
         for args in list_of_args:
             function(file, args)
 
