@@ -186,7 +186,7 @@ def handle_dna_bead(
     )
 
 
-def get_best_match_dna_bead_in_smc(folder_path):
+def get_best_match_dna_bead_in_smc(folder_path: Path):
     """
     For each timestep:
         create box around SMC
@@ -194,7 +194,7 @@ def get_best_match_dna_bead_in_smc(folder_path):
         remove DNA part of lower segment (we only want the upper segment here)
         find DNA closest to SMC plane
     """
-    parameters = run_path((path / "post_processing_parameters.py").as_posix())
+    parameters = run_path((folder_path / "post_processing_parameters.py").as_posix())
 
     par = Parser(folder_path / "output.lammpstrj", time_it=True)
     dna_indices_list = parameters["dna_indices_list"]
@@ -298,10 +298,16 @@ def get_msd_obstacle(folder_path):
     plt.savefig(folder_path / "msd_in_time.png")
 
 
-if __name__ == "__main__":
+def main(argv: list[str]):
     argv = argv[1:]
+
     if len(argv) != 1:
         raise Exception("Please provide a folder path")
     path = Path(argv[0])
+
     get_best_match_dna_bead_in_smc(path)
     get_msd_obstacle(path)
+
+
+if __name__ == "__main__":
+    main(argv)

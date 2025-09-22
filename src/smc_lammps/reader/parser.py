@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from io import StringIO
 from itertools import islice
+from pathlib import Path
 from typing import Dict, Tuple
 
 import numpy as np
@@ -17,8 +18,8 @@ class Parser:
     class EndOfLammpsFile(Exception):
         pass
 
-    def __init__(self, file_name: str, time_it: bool = False) -> None:
-        self.file = open(file_name, "r", encoding="utf-8")
+    def __init__(self, file: Path, time_it: bool = False) -> None:
+        self.file = open(file, "r", encoding="utf-8")
 
         self.timings = None
         if time_it:
