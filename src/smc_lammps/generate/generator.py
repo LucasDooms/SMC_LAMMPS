@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple, TypeAlias
 
 import numpy as np
 import numpy.typing as npt
@@ -93,8 +93,8 @@ class BAI_Type:
         return f"{self.index}{style} {self.coefficients}"
 
 
-COORD_TYPE = np.float32
-Nx3Array = npt.NDArray[COORD_TYPE]
+COORD_TYPE: TypeAlias = np.float32
+Nx3Array: TypeAlias = npt.NDArray[COORD_TYPE]
 """An (N, 3) array of positions"""
 
 

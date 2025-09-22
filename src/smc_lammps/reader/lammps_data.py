@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
+from typing import TypeAlias
 
 import numpy as np
 import numpy.typing as npt
@@ -66,11 +67,11 @@ def get_normal_direction(p1: Nx3Array, p2: Nx3Array, p3: Nx3Array) -> Nx3Array:
     return np.divide(perpendicular, np.linalg.norm(perpendicular))
 
 
-ID_TYPE = np.int64
-IdArray = npt.NDArray[ID_TYPE]
+ID_TYPE: TypeAlias = np.int64
+IdArray: TypeAlias = npt.NDArray[ID_TYPE]
 """An array of LAMMPS ids."""
-TYPE_TYPE = np.int64
-TypeArray = npt.NDArray[TYPE_TYPE]
+TYPE_TYPE: TypeAlias = np.int64
+TypeArray: TypeAlias = npt.NDArray[TYPE_TYPE]
 """An array of LAMMPS atom types."""
 
 
