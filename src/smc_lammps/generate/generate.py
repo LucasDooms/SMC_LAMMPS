@@ -3,11 +3,10 @@
 # Copyright (c) 2024-2025 Lucas Dooms
 
 import math
-from collections.abc import Sequence
 from pathlib import Path
 from runpy import run_path
-from sys import argv, maxsize
-from typing import Any, List
+from sys import argv
+from typing import List
 
 import numpy as np
 from numpy.random import default_rng
@@ -15,7 +14,6 @@ from numpy.random import default_rng
 from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.generate.generator import (
-    AtomIdentifier,
     AtomType,
     BAI_Kind,
     BAI_Type,
@@ -23,6 +21,15 @@ from smc_lammps.generate.generator import (
     MoleculeId,
     PairWise,
 )
+from smc_lammps.generate.lammps.parameterfile import (
+    get_index_def,
+    get_string_def,
+    get_universe_def,
+    list_to_space_str,
+    prepend_or_empty,
+)
+from smc_lammps.generate.lammps.runtimes import get_times_with_max_steps
+from smc_lammps.generate.lammps.util import atomIds_to_LAMMPS_ids
 from smc_lammps.generate.structures.dna import dna
 from smc_lammps.generate.structures.smc.smc import SMC
 from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator
@@ -619,6 +626,11 @@ create_phase(
 )
 
 
+# get run times for each SMC state
+# APO -> ATP1 -> ATP2 -> ADP -> ...
+rng = default_rng(par.seed)
+runtimes = get_times_with_max_steps(par, rng)
+
 #################################################################################
 #                           Print to post processing                            #
 #################################################################################
@@ -664,10 +676,6 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
 #################################################################################
 
 
-def atomIds_to_LAMMPS_ids(lst: Sequence[AtomIdentifier]) -> List[int]:
-    return [gen.get_atom_index(atomId) for atomId in lst]
-
-
 def get_variables_for_lammps() -> List[str]:
     """returns variable names that are needed in LAMMPS script"""
     return [
@@ -680,77 +688,6 @@ def get_variables_for_lammps() -> List[str]:
         "timestep",
         "smc_force",
     ]
-
-
-def list_to_space_str(lst: Sequence[Any], surround="") -> str:
-    """turn list into space separated string
-    example: [1, 2, 6] -> 1 2 6"""
-    return " ".join([surround + str(val) + surround for val in lst])
-
-
-def prepend_or_empty(string: str, prepend: str) -> str:
-    """prepend something if the string is non-empty
-    otherwise replace it with the string "empty"."""
-    if string:
-        return prepend + string
-    return "empty"
-
-
-def get_string_def(name: str, value: str) -> str:
-    """define a LAMMPS string"""
-    return f'variable {name} string "{value}"\n'
-
-
-def get_universe_def(name: str, values: Sequence[Any]) -> str:
-    """define a LAMMPS universe"""
-    return f"""variable {name} universe {list_to_space_str(values, surround='"')}\n"""
-
-
-def get_index_def(name: str, values: Sequence[Any]) -> str:
-    """define a LAMMPS universe"""
-    return f"variable {name} index {list_to_space_str(values)}\n"
-
-
-def get_times(apo: int, atp1: int, atp2: int, adp: int, rng_gen: np.random.Generator) -> List[int]:
-    # get run times for each SMC state
-    # APO -> ATP1 -> ATP2 -> ADP -> ...
-
-    def mult(x):
-        # use 1.0 to get (0, 1] lower exclusive
-        return -x * np.log(1.0 - rng_gen.uniform())
-
-    return [math.ceil(mult(x)) for x in (apo, atp1, atp2, adp)]
-
-
-def get_times_with_max_steps(parameters: Parameters, rng_gen: np.random.Generator) -> List[int]:
-    run_steps = []
-
-    def none_to_max(x):
-        if x is None:
-            return maxsize  # very large number!
-        return x
-
-    cycles_left = none_to_max(parameters.cycles)
-    max_steps = none_to_max(parameters.max_steps)
-
-    cum_steps = 0
-    while True:  # use do while loop since run_steps should not be empty
-        new_times = get_times(
-            parameters.steps_APO,
-            10000,
-            parameters.steps_ATP,
-            parameters.steps_ADP,
-            rng_gen,
-        )
-        run_steps += new_times
-
-        cum_steps += sum(new_times)
-        cycles_left -= 1
-
-        if cycles_left <= 0 or cum_steps >= max_steps:
-            break
-
-    return run_steps
 
 
 with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
@@ -790,7 +727,7 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     parameterfile.write("\n")
 
     # turn into LAMMPS indices
-    end_points_LAMMPS = atomIds_to_LAMMPS_ids(ppp.end_points)
+    end_points_LAMMPS = atomIds_to_LAMMPS_ids(gen, ppp.end_points)
     parameterfile.write(
         get_string_def(
             "dna_end_points",
@@ -799,14 +736,16 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     )
 
     # turn into LAMMPS indices
-    freeze_indices_LAMMPS = atomIds_to_LAMMPS_ids(ppp.freeze_indices)
+    freeze_indices_LAMMPS = atomIds_to_LAMMPS_ids(gen, ppp.freeze_indices)
     parameterfile.write(
         get_string_def("indices", prepend_or_empty(list_to_space_str(freeze_indices_LAMMPS), "id "))
     )
 
-    if isinstance(
-        dna_config, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety)
-    ) and isinstance(dna_config.tether.obstacle, dna.Tether.Wall):
+    if (
+        isinstance(dna_config, (dna.Obstacle, dna.ObstacleSafety, dna.AdvancedObstacleSafety))
+        and dna_config.tether is not None
+        and isinstance(dna_config.tether.obstacle, dna.Tether.Wall)
+    ):
         parameterfile.write(f"variable wall_y equal {dna_config.tether.group.positions[0][1]}\n")
 
         excluded = [
@@ -819,7 +758,7 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
 
     # forces
     stretching_forces_array_LAMMPS = {
-        key: atomIds_to_LAMMPS_ids(val) for key, val in ppp.stretching_forces_array.items()
+        key: atomIds_to_LAMMPS_ids(gen, val) for key, val in ppp.stretching_forces_array.items()
     }
     if stretching_forces_array_LAMMPS:
         parameterfile.write(
@@ -839,11 +778,6 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
         parameterfile.write(f"variable obstacle_id equal {obstacle_lammps_id}\n")
 
     parameterfile.write("\n")
-
-    # get run times for each SMC state
-    # APO -> ATP1 -> ATP2 -> ADP -> ...
-    rng = default_rng(par.seed)
-    runtimes = get_times_with_max_steps(par, rng)
 
     parameterfile.write(get_index_def("runtimes", runtimes))
 
