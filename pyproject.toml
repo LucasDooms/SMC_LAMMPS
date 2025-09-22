@@ -46,3 +46,6 @@ dev = [
 lint = [
     "ruff>=0.13.1",
 ]
+analysis = [
+    "notebook>=7.4.5",
+]
