@@ -669,6 +669,8 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     file.write("\n")
     file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.all_dna_groups))}\n")
     file.write(f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n")
+    file.write("\n")
+    file.write(f"runtimes = {runtimes}\n")
 
 
 #################################################################################
