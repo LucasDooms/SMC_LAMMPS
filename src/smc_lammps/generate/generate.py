@@ -4,7 +4,6 @@
 
 import math
 from pathlib import Path
-from runpy import run_path
 from sys import argv
 
 import numpy as np
@@ -32,7 +31,7 @@ from smc_lammps.generate.lammps.util import atomIds_to_LAMMPS_ids
 from smc_lammps.generate.structures.dna import dna
 from smc_lammps.generate.structures.smc.smc import SMC
 from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator
-from smc_lammps.generate.util import create_phase, get_closest
+from smc_lammps.generate.util import create_phase, get_closest, get_parameters
 
 
 def parse_inputs(argv: list[str]) -> tuple[Path, Parameters]:
@@ -47,12 +46,7 @@ def parse_inputs(argv: list[str]) -> tuple[Path, Parameters]:
     if not path_parameters.exists():
         raise ValueError(f"Could not find parameters.py: {path_parameters}")
 
-    try:
-        par = run_path((path / "parameters.py").as_posix())["p"]
-
-        assert isinstance(par, Parameters)
-    except Exception as e:
-        raise ValueError(f"Invalid parameters.py file.\n{e}")
+    par = get_parameters(path_parameters)
 
     # change seed if arg 2 provided
     if len(argv) > 2:
