@@ -166,7 +166,7 @@ def handle_dna_bead(
         return fallback
 
     # find groups
-    grps = split_into_index_groups(dna_in_smc.ids)
+    grps = split_into_index_groups(list(dna_in_smc.ids))
 
     grp = grps[0]
     grp = [np.where(dna_in_smc.ids == id)[0][0] for id in grp]
