@@ -34,13 +34,39 @@ from smc_lammps.generate.structures.smc.smc import SMC
 from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator
 from smc_lammps.generate.util import create_phase, get_closest
 
-if len(argv) < 2:
-    raise ValueError("Provide a folder path")
-path = Path(argv[1])
 
-par = run_path((path / "parameters.py").as_posix())["p"]
+def parse_inputs(argv: list[str]) -> tuple[Path, Parameters]:
+    if len(argv) < 2:
+        raise ValueError("Provide a folder path")
 
-assert isinstance(par, Parameters)
+    path = Path(argv[1])
+    if not path.exists():
+        raise ValueError(f"Path '{path}' not found!")
+
+    path_parameters = path / "parameters.py"
+    if not path_parameters.exists():
+        raise ValueError(f"Could not find parameters.py: {path_parameters}")
+
+    try:
+        par = run_path((path / "parameters.py").as_posix())["p"]
+
+        assert isinstance(par, Parameters)
+    except Exception as e:
+        raise ValueError(f"Invalid parameters.py file.\n{e}")
+
+    # change seed if arg 2 provided
+    if len(argv) > 2:
+        try:
+            seed_overwrite = int(argv[2])
+        except Exception as e:
+            raise ValueError(f"Invalid seed received!\n{e}")
+        else:
+            par.seed = seed_overwrite
+
+    return path, par
+
+
+path, par = parse_inputs(argv)
 
 nDNA = par.N
 bases_per_bead = par.n
@@ -694,10 +720,6 @@ def get_variables_for_lammps() -> list[str]:
 with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 
-    # change seed if arg 2 provided
-    if len(argv) > 2:
-        seed_overwrite = int(argv[2])
-        par.seed = seed_overwrite
     params = get_variables_for_lammps()
     for key in params:
         parameterfile.write(f"variable {key} equal {getattr(par, key)}\n\n")
