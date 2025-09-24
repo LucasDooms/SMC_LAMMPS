@@ -38,8 +38,13 @@ def is_sorted(lst: Sequence[Any]) -> bool:
     return all(lst[i] <= lst[i + 1] for i in range(len(lst) - 1))
 
 
-def split_into_index_groups(indices: Sequence[int]) -> list[list[int]]:
-    """splits a (sorted) list of integers into groups of adjacent integers"""
+def split_into_index_groups(indices: Sequence[int], margin: int = 1) -> list[list[int]]:
+    """splits a (sorted) list of integers into groups of adjacent integers.
+    adjacent means within [value, value + margin] (both bounds inclusive)."""
+
+    if margin < 0:
+        raise ValueError("Margin cannot be negative.")
+
     if not indices:
         return []
 
@@ -48,7 +53,7 @@ def split_into_index_groups(indices: Sequence[int]) -> list[list[int]]:
 
     groups = [[indices[0]]]
     for index in indices[1:]:
-        if groups[-1][-1] == index - 1:
+        if groups[-1][-1] <= index and index <= groups[-1][-1] + margin:
             groups[-1].append(index)
         else:
             groups.append([index])
@@ -166,7 +171,7 @@ def handle_dna_bead(
         return fallback
 
     # find groups
-    grps = split_into_index_groups(list(dna_in_smc.ids))
+    grps = split_into_index_groups(list(dna_in_smc.ids), margin=2)
 
     grp = grps[0]
     grp = [np.where(dna_in_smc.ids == id)[0][0] for id in grp]
