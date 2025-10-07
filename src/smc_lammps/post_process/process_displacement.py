@@ -121,50 +121,56 @@ def handle_dna_bead(
         [full_data.get_position_from_index(i) for i in parameters["kleisin_ids"]], dtype=COORD_TYPE
     )
 
-    delta = 0.51 * parameters["dna_spacing"]
-    small_delta = delta / 4.0
+    delta = 0.6 * parameters["dna_spacing"]
 
-    top_left_triangle = deepcopy(filtered_dna)
-    remove_outside_planar_n_gon(
-        top_left_triangle,
-        np.array([pos_top_left, pos_left, pos_right], dtype=COORD_TYPE),
-        delta,
-        small_delta,
-    )
-
-    top_right_triangle = deepcopy(filtered_dna)
-    remove_outside_planar_n_gon(
-        top_right_triangle,
-        np.array([pos_top_left, pos_top_right, pos_right], dtype=COORD_TYPE),
-        delta,
-        small_delta,
-    )
-
-    bottom_left_triangle = deepcopy(filtered_dna)
-    remove_outside_planar_n_gon(
-        bottom_left_triangle,
-        np.array([pos_middle_right, pos_middle_left, pos_left], dtype=COORD_TYPE),
-        delta,
-        small_delta,
-    )
-
-    bottom_right_triangle = deepcopy(filtered_dna)
-    remove_outside_planar_n_gon(
-        bottom_right_triangle,
-        np.array([pos_middle_right, pos_left, pos_right], dtype=COORD_TYPE),
-        delta,
-        small_delta,
-    )
-
-    kleisin = deepcopy(filtered_dna)
-    remove_outside_planar_n_gon(kleisin, pos_kleisins, delta, small_delta)
+    def add_slice(data: LammpsData, points: Nx3Array):
+        dup = deepcopy(filtered_dna)
+        remove_outside_planar_n_gon(
+            dup,
+            points,
+            delta,
+            4.0 * delta,
+        )
+        data.combine_by_ids(dup)
 
     dna_in_smc = LammpsData.empty()
-    dna_in_smc.combine_by_ids(top_left_triangle)
-    dna_in_smc.combine_by_ids(top_right_triangle)
-    dna_in_smc.combine_by_ids(bottom_left_triangle)
-    dna_in_smc.combine_by_ids(bottom_right_triangle)
-    dna_in_smc.combine_by_ids(kleisin)
+
+    # top left
+    add_slice(
+        dna_in_smc,
+        np.array([pos_top_left, pos_left, pos_right], dtype=COORD_TYPE),
+    )
+
+    # top right
+    add_slice(
+        dna_in_smc,
+        np.array([pos_top_left, pos_top_right, pos_right], dtype=COORD_TYPE),
+    )
+
+    # bottom left
+    add_slice(
+        dna_in_smc,
+        np.array([pos_middle_right, pos_middle_left, pos_left], dtype=COORD_TYPE),
+    )
+
+    # bottom right
+    add_slice(
+        dna_in_smc,
+        np.array([pos_middle_right, pos_left, pos_right], dtype=COORD_TYPE),
+    )
+
+    add_slice(
+        dna_in_smc,
+        np.array([pos_middle_right, pos_middle_left, pos_right], dtype=COORD_TYPE),
+    )
+
+    add_slice(
+        dna_in_smc,
+        np.array([pos_middle_left, pos_left, pos_right], dtype=COORD_TYPE),
+    )
+
+    # kleisin
+    add_slice(dna_in_smc, pos_kleisins)
 
     if len(dna_in_smc.positions) == 0:
         print(f"No DNA found! Timestep: {step}")
