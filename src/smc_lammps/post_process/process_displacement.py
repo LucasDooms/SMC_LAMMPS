@@ -75,13 +75,18 @@ def remove_outside_planar_n_gon(
     delta is the thickness of the box in each direction going out of the plane."""
     if len(points) < 3:
         raise ValueError("there must be at least 3 points in the n-gon")
-    # normal to n-gon plane
-    try:
-        normal: Nx3Array = np.cross(points[1] - points[0], points[10] - points[9])
-    except IndexError:
-        normal: Nx3Array = np.cross(points[1] - points[0], points[2] - points[1])
 
-    # normalize the normal! (will be used to apply thickness delta)
+    # Robust normal via Newell's method
+    nx = np.sum(
+        (points[:, 1] - np.roll(points[:, 1], -1)) * (points[:, 2] + np.roll(points[:, 2], -1))
+    )
+    ny = np.sum(
+        (points[:, 2] - np.roll(points[:, 2], -1)) * (points[:, 0] + np.roll(points[:, 0], -1))
+    )
+    nz = np.sum(
+        (points[:, 0] - np.roll(points[:, 0], -1)) * (points[:, 1] + np.roll(points[:, 1], -1))
+    )
+    normal = np.array([nx, ny, nz], dtype=COORD_TYPE)
     normal /= np.linalg.norm(normal)
 
     # delete points further than delta perpendicular to the n-gon
