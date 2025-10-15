@@ -76,6 +76,10 @@ class TaskDone:
 
 
 def initialize(path: Path) -> TaskDone:
+    # skip initialization for files
+    if path.is_file():
+        return TaskDone(skipped=True)
+
     destination = path / "parameters.py"
     if destination.exists():
         return TaskDone(skipped=True)
@@ -352,10 +356,19 @@ def visualize(args, path: Path) -> TaskDone:
     if not args.visualize:
         return TaskDone(skipped=True)
 
+    # if a file is provided, use that directly
+    if path.is_file():
+        file = path.name
+        path = path.parent
+    else:
+        file = None
+
+    file_arg = ["--file_name", file] if file is not None else []
+
     print("starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
-            PYRUN + ["smc_lammps.post_process.visualize", f"{path}"], check=False
+            PYRUN + ["smc_lammps.post_process.visualize", f"{path}"] + file_arg, check=False
         ),
         args.ignore_errors,
     )
