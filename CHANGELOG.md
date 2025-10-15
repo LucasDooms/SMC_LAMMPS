@@ -23,6 +23,7 @@ instead of appending to the existing output.lammpstrj file.
 
 - The `smc_perspective.py` script now correctly writes the atom types and ids in the lammpstrj format,
 this fixes the colors in VMD.
+- The `basepair_mass` is now correctly calculated (0.003 ag -> 0.001 ag)
 
 ## [0.1.2] - 2025-07-01
 

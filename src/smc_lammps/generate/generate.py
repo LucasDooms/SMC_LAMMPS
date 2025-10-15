@@ -88,7 +88,12 @@ kBT = kB * T
 #######
 
 # Mass per base pair (ag)
-basepair_mass = 2 * 3.1575 * 5.24e-4
+
+basepair_mass = (
+    2         # pair = two bases
+    * 315.75  # average mass of base in Da (Dalton)
+    * 1.66054 * 1e-6 # ag / Da (attograms per Dalton)
+)
 
 # Effective bead mass (ag)
 DNA_bead_mass = bases_per_bead * basepair_mass
