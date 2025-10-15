@@ -4,8 +4,8 @@
 # Copyright (c) 2024-2025 Lucas Dooms
 
 import argparse
-from argparse import Namespace
 import subprocess
+from argparse import Namespace
 from functools import partial
 from pathlib import Path
 from re import compile as compile_regex
@@ -85,7 +85,14 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
             lst = iter(())
         return lst
 
-    while True:
+    not_found_error = FileNotFoundError(
+        f"Could not find 'parameters.py' in '{path}' (or its parent directories).\n"
+        "Did initialization fail?"
+    )
+
+    # arbitrary limit to prevent infinite loop
+    MAX_ITER = 10000
+    for _ in range(MAX_ITER):
         file_names = get_file_names(try_path)
 
         if "parameters.py" in file_names:
@@ -98,15 +105,14 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
 
         if (
             ".git" in file_names  # do no got beyond base git directory
-            or try_path == try_path.parent  # prevent infinite recursion
+            or try_path == try_path.parent  # reached fixed point, cannot go further
         ):
-            raise FileNotFoundError(
-                f"Could not find 'parameters.py' in '{path}' (or its parent directories).\n"
-                "Did initialization fail?"
-            )
+            raise not_found_error
 
         # go up one
         try_path = try_path.parent
+    else:
+        raise not_found_error
 
     return try_path, subdir
 
@@ -430,11 +436,18 @@ def main():
     if args.continue_flag:
         args.run = True
 
-    tasks = [
-        initialize(args, path),
-    ]
+    tasks: list[TaskDone] = []
 
-    path, subdir = find_simulation_base_directory(path)
+    try:
+        # check if already inside of a simulation directory
+        path, subdir = find_simulation_base_directory(path)
+    except FileNotFoundError:
+        # no simulation directory found, try to create it
+        tasks += [
+            initialize(args, path),
+        ]
+        path, subdir = find_simulation_base_directory(path)
+
     print(f"using base directory '{path}'")
 
     tasks += [
