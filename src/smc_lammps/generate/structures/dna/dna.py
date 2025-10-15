@@ -684,9 +684,14 @@ class Folded(DnaConfiguration):
         strand = self.dna_strands[0]
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [
+            # 2 half strength forces at both ends pointing right (+x)
+            ppp.stretching_forces_array[(par.force / 2.0, 0, 0)] = [
                 strand.first_id(),
                 strand.last_id(),
+            ]
+            # 1 full strength force pointing left (-x) at midway point (fold)
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [
+                strand.get_percent_id(0.5),
             ]
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
@@ -741,6 +746,7 @@ class RightAngle(DnaConfiguration):
         strand = self.dna_strands[0]
 
         if par.force:
+            # FIX: total net force is nonzero, may cause issues?
             ppp.stretching_forces_array[(0, par.force, 0)] = [strand.first_id()]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
         else:
@@ -802,9 +808,14 @@ class Doubled(DnaConfiguration):
         # get dna beads to freeze
         for strand in self.dna_strands:
             if par.force:
-                ppp.stretching_forces_array[(par.force, 0, 0)] = [
-                    (strand.first_id()),
-                    (strand.last_id()),
+                # 2 half strength forces at both ends pointing right (+x)
+                ppp.stretching_forces_array[(par.force / 2.0, 0, 0)] = [
+                    strand.first_id(),
+                    strand.last_id(),
+                ]
+                # 1 full strength force pointing left (-x) at midway point (fold)
+                ppp.stretching_forces_array[(-par.force, 0, 0)] = [
+                    strand.get_percent_id(0.5),
                 ]
             else:
                 ppp.end_points += [strand.first_id(), strand.last_id()]
