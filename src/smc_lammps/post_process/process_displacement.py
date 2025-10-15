@@ -107,11 +107,12 @@ def remove_outside_planar_n_gon(
 
 def handle_dna_bead(
     full_data: LammpsData, filtered_dna: LammpsData, parameters, step
-) -> tuple[IdArray, Nx3Array]:
+) -> tuple[IdArray, Nx3Array, list[tuple[int, str]]]:
     """Finds the DNA beads that are within the SMC ring and updates the indices, positions lists."""
     fallback = (
         np.array([-1], dtype=ID_TYPE),
         np.array([full_data.positions[-1]], dtype=COORD_TYPE),
+        [(-1, "invalid")],
     )
     if len(filtered_dna.positions) == 0:
         return fallback
@@ -184,20 +185,39 @@ def handle_dna_bead(
     # find groups
     grps = split_into_index_groups(list(dna_in_smc.ids), margin=2)
 
-    grp = grps[0]
-    grp = [np.where(dna_in_smc.ids == id)[0][0] for id in grp]
+    # get distances to four reference points:
+    #  1. top site
+    #  2. center of arms
+    #  3. middle site
+    #  4. bottom site
+    references: dict[str, Nx3Array] = dict()
+    references["pos_top"] = (pos_top_left + pos_top_right) / 2.0
+    references["pos_center_arms"] = (pos_left + pos_right) / 2.0
+    references["pos_middle"] = (pos_middle_left + pos_middle_right) / 2.0
+    references["pos_lower"] = pos_kleisins[len(pos_kleisins) // 2]
 
-    # alternative distance method
-    # distances = get_bead_distances(new_data.positions, pos_top, pos_left, pos_right)
-    # closest_val = np.min(distances[grp])
-    # closest_bead_index = np.where(distances == closest_val)[0][0]
+    id_tag_pairs: list[tuple[int, str]] = []
+    for grp in grps:
+        distances: dict[str, COORD_TYPE] = dict()
+        min_ref = ""
+        min_distance = float("inf")
+        for ref in references:
+            distances[ref] = np.linalg.norm(
+                references[ref] - dna_in_smc.positions[np.where(dna_in_smc.ids == grp[0])[0][0]]
+            )
+            if distances[ref] < min_distance:
+                min_ref = ref
+                min_distance = distances[ref]
 
-    # TODO: assumes lowest index gives the desired bead
-    closest_bead_index = grp[0]
+        id_tag_pairs.append((grp[0], min_ref))
+
+    # backward compatibility: get lowest index
+    id = grps[0][0]
 
     return (
-        np.array([dna_in_smc.ids[closest_bead_index]], dtype=ID_TYPE),
-        np.array([dna_in_smc.positions[closest_bead_index]], dtype=COORD_TYPE),
+        np.array([id], dtype=ID_TYPE),
+        np.array([dna_in_smc.positions[np.where(dna_in_smc.ids == id)[0][0]]], dtype=COORD_TYPE),
+        id_tag_pairs,
     )
 
 
@@ -238,7 +258,7 @@ def get_best_match_dna_bead_in_smc(folder_path: Path):
         for i, (min_index, max_index) in enumerate(dna_indices_list):
             new_data_temp = deepcopy(new_data)
             new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
-            id, pos = handle_dna_bead(lmpData, new_data_temp, parameters, step)
+            id, pos, id_tag = handle_dna_bead(lmpData, new_data_temp, parameters, step)
             # TODO: handle ouputs with length > 1
             indices_array[i].append(id[0])
             positions_array[i].append(pos[0])
