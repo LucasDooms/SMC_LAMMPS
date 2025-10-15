@@ -567,6 +567,9 @@ with open(path / "styles", "w", encoding="utf-8") as stylesfile:
 with open(path / "vmd.tcl", "w", encoding="utf-8") as vmdfile:
     vmdfile.write(f"topo readlammpsdata {path / 'datafile_positions'}")
 
+# snapshots of trajectory are taken after every SMC phase
+(path / "snapshots").mkdir(exist_ok=True)
+
 #################################################################################
 #                                Phases of SMC                                  #
 #################################################################################

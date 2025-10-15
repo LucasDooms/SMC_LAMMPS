@@ -169,6 +169,9 @@ include states/apo
 run ${runtimes}
 next runtimes
 
+# take snapshot
+write_dump all custom 'snapshots/apo.end.lammpstrj' id type x y z modify append yes sort id pbc yes
+
 # ATP-bound state
 print "----------- STARTING ATP STATE -----------" screen yes
 include states/atp_bound_1
@@ -178,6 +181,9 @@ next runtimes
 include states/atp_bound_2
 run ${runtimes}
 next runtimes
+
+# take snapshot
+write_dump all custom 'snapshots/atp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
 
 if $(v_lower_site_on_delay > 0) then &
     "variable lower_site_on_delay equal $(v_lower_site_on_delay - 1)" &
@@ -190,6 +196,9 @@ print "----------- STARTING ADP STATE -----------" screen yes
 include states/adp_bound
 run ${runtimes}
 next runtimes
+
+# take snapshot
+write_dump all custom 'snapshots/adp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
 
 write_restart restartfile
 
