@@ -2,7 +2,7 @@
 
 import math
 from dataclasses import dataclass, fields
-from typing import Any, List, Tuple
+from typing import Any
 
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -28,7 +28,7 @@ class SMC_Pos:
     r_lower_site: Nx3Array
     r_hinge: Nx3Array
 
-    def iter(self) -> List[Any]:
+    def iter(self) -> list[Any]:
         """Returns a list of all fields"""
         return [getattr(self, field.name) for field in fields(SMC_Pos)]
 
@@ -37,7 +37,7 @@ class SMC_Pos:
         for field in fields(self.__class__):
             setattr(self, field.name, func(getattr(self, field.name)))
 
-    def map(self, func) -> List[Any]:
+    def map(self, func) -> list[Any]:
         """Apply a function to every field and return the resulting list"""
         return [func(x) for x in self.iter()]
 
@@ -75,7 +75,7 @@ class SMC_Creator:
     seed: int = 5894302289572
     small_noise: float = 1e-5
 
-    def get_arms(self) -> Tuple[Nx3Array, Nx3Array, Nx3Array, Nx3Array]:
+    def get_arms(self) -> tuple[Nx3Array, Nx3Array, Nx3Array, Nx3Array]:
         # Number of beads forming each arm segment (err on the high side)
         n_arm_segments = math.ceil(self.arm_length / (2 * self.SMC_spacing))
 
@@ -207,12 +207,12 @@ class SMC_Creator:
         return np.concatenate([inner_beads, *shells, end_first, end_last])
 
     @staticmethod
-    def transpose_rotate_transpose(rotation, *arrays: Nx3Array) -> Tuple[Nx3Array]:
+    def transpose_rotate_transpose(rotation, *arrays: Nx3Array) -> tuple[Nx3Array, ...]:
         return tuple(rotation.dot(arr.transpose()).transpose() for arr in arrays)
 
     def get_interaction_sites(
         self, lower_site_points_down: bool
-    ) -> Tuple[Nx3Array, Nx3Array, Nx3Array]:
+    ) -> tuple[Nx3Array, Nx3Array, Nx3Array]:
         # U = upper  interaction site
         # M = middle interaction site
         # D = lower  interaction site

@@ -132,6 +132,16 @@ class Parameters:
     arms_angle_ATP = 130.0
     "Opening angle of arms in ATP-bound state (degrees)"
 
+    #################### Binding sites ###################
+
+    lower_site_cycle_period: int = 0
+    """The number of SMC cycles between events where the lower site is disabled.
+    A value of zero disables this and uses the default lower site dynamics."""
+
+    lower_site_toggle_delay: int = 0
+    """The number of SMC cycles between the lower site being turned off and then on again.
+    A value of zero means that the site will be enabled in the same cycle."""
+
     #################### LJ energies ###################
 
     # 3 = Repulsion

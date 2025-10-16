@@ -5,10 +5,11 @@
 
 import argparse
 import subprocess
+from argparse import Namespace
 from functools import partial
 from pathlib import Path
 from re import compile as compile_regex
-from typing import List
+from typing import Callable, Iterator, Sequence
 
 import argcomplete
 from click import confirm
@@ -17,9 +18,11 @@ from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
 
 PYRUN = ["python", "-m"]
+# arbitrary limit to prevent infinite loops
+MAX_ITER = 10000
 
 
-def parse() -> argparse.Namespace:
+def parse() -> Namespace:
     # fmt: off
     parser = argparse.ArgumentParser(
         description='runs setup scripts, LAMMPS script, post-processing, and visualization',
@@ -51,7 +54,6 @@ def parse() -> argparse.Namespace:
     other.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
     other.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS')
     other.add_argument('--clean', action='store_true', help='remove all files except parameters.py from the directory')
-
     # fmt: on
 
     # shell autocompletion
@@ -60,8 +62,8 @@ def parse() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_and_handle_error(process, ignore_errors: bool):
-    completion: subprocess.CompletedProcess = process()
+def run_and_handle_error(process: Callable[[], subprocess.CompletedProcess], ignore_errors: bool):
+    completion = process()
     if completion.returncode != 0:
         message = f"\n\nprocess ended with error code {completion.returncode}\n{completion}\n"
         print(message)
@@ -71,12 +73,60 @@ def run_and_handle_error(process, ignore_errors: bool):
         raise ChildProcessError()
 
 
+def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
+    """Finds the base of a simulation directory,
+    this is the directory containing the `parameters.py` file."""
+    subdir = None
+    # use absolute path to allow finding parents
+    try_path = path.absolute()
+
+    def get_file_names(dir: Path) -> Iterator[str]:
+        try:
+            lst = (p.name for p in dir.iterdir())
+        except NotADirectoryError:
+            lst = iter(())
+        return lst
+
+    not_found_error = FileNotFoundError(
+        f"Could not find 'parameters.py' in '{path}' (or its parent directories).\n"
+        "Did initialization fail?"
+    )
+
+    for _ in range(MAX_ITER):
+        file_names = get_file_names(try_path)
+
+        if "parameters.py" in file_names:
+            break
+
+        if subdir is None:
+            subdir = Path(try_path.name)
+        else:
+            subdir = try_path.name / subdir
+
+        if (
+            ".git" in file_names  # do no got beyond base git directory
+            or try_path == try_path.parent  # reached fixed point, cannot go further
+        ):
+            raise not_found_error
+
+        # go up one
+        try_path = try_path.parent
+    else:
+        raise not_found_error
+
+    return try_path, subdir
+
+
 class TaskDone:
     def __init__(self, skipped=False) -> None:
         self.skipped = skipped
 
 
-def initialize(path: Path) -> TaskDone:
+def initialize(args: Namespace, path: Path) -> TaskDone:
+    # skip initialization for files
+    if path.is_file():
+        return TaskDone(skipped=True)
+
     destination = path / "parameters.py"
     if destination.exists():
         return TaskDone(skipped=True)
@@ -84,6 +134,13 @@ def initialize(path: Path) -> TaskDone:
     if not path.exists():
         path.mkdir(parents=True)
         print(f"created new directory: {path.absolute()}")
+    elif not args.force:
+        # only initialize if empty!
+        if any(path.iterdir()):
+            raise FileExistsError(
+                f"Cannot initialize a simulation directory inside of '{path}' because it is not empty.\n"
+                "Use --force to override this behavior."
+            )
 
     root = get_project_root()
     template_path = root / "generate" / "parameters_template.py"
@@ -95,7 +152,7 @@ def initialize(path: Path) -> TaskDone:
     return TaskDone()
 
 
-def clean(args, path: Path) -> TaskDone:
+def clean(args: Namespace, path: Path) -> TaskDone:
     if not args.clean:
         return TaskDone(skipped=True)
 
@@ -144,7 +201,7 @@ def clean(args, path: Path) -> TaskDone:
     return TaskDone()
 
 
-def generate(args, path: Path) -> TaskDone:
+def generate(args: Namespace, path: Path) -> TaskDone:
     # TODO: produce a warning when using this with --continue flag?
     if not args.generate:
         if args.seed is not None:
@@ -167,14 +224,14 @@ def generate(args, path: Path) -> TaskDone:
     return TaskDone()
 
 
-def get_lammps_args_list(lammps_vars: List[List[str]]):
+def get_lammps_args_list(lammps_vars: Sequence[list[str]]):
     out = []
     for var in lammps_vars:
         out += ["-var"] + var
     return out
 
 
-def perform_run(args, path: Path, lammps_vars: List[List[str]] | None = None):
+def perform_run(args: Namespace, path: Path, lammps_vars: list[list[str]] | None = None):
     if lammps_vars is None:
         lammps_vars = []
 
@@ -208,7 +265,7 @@ def perform_run(args, path: Path, lammps_vars: List[List[str]] | None = None):
         run_and_handle_error(run_with_output, args.ignore_errors)
 
 
-def restart_run(args, path: Path, output_file: Path) -> TaskDone:
+def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
     if not args.continue_flag:
         return TaskDone(skipped=True)
 
@@ -222,19 +279,25 @@ def restart_run(args, path: Path, output_file: Path) -> TaskDone:
         )
 
     # find a file name that is not taken yet
-    x = 1
-    new_output_file = Path(f"{output_file}.{x}")
-    while new_output_file.exists():
-        x += 1
-        new_output_file = Path(f"{output_file}.{x}")
+    for suffix in range(1, MAX_ITER):
+        new_output_file = Path(f"{output_file}.{suffix}")
+        if not new_output_file.exists():
+            # use this one
+            break
+    else:
+        raise FileExistsError(f"Could not create new '{output_file}.x' file.")
 
     print(f"your run will continue and the output trajectory will be placed into {new_output_file}")
-    perform_run(args, path, [["is_restart", "1"], ["output_file_name", str(new_output_file.relative_to(path))]])
+    perform_run(
+        args,
+        path,
+        [["is_restart", "1"], ["output_file_name", str(new_output_file.relative_to(path))]],
+    )
 
     return TaskDone()
 
 
-def run(args, path: Path) -> TaskDone:
+def run(args: Namespace, path: Path) -> TaskDone:
     if not args.run:
         return TaskDone(skipped=True)
 
@@ -261,7 +324,7 @@ def run(args, path: Path) -> TaskDone:
     return TaskDone()
 
 
-def post_process(args, path: Path) -> TaskDone:
+def post_process(args: Namespace, path: Path) -> TaskDone:
     if not args.post_process:
         return TaskDone(skipped=True)
 
@@ -278,7 +341,7 @@ def post_process(args, path: Path) -> TaskDone:
     return TaskDone()
 
 
-def visualize_datafile(args, path: Path) -> TaskDone:
+def visualize_datafile(args: Namespace, path: Path) -> TaskDone:
     if not args.visualize_datafile:
         return TaskDone(skipped=True)
 
@@ -292,7 +355,7 @@ def visualize_datafile(args, path: Path) -> TaskDone:
     return TaskDone()
 
 
-def create_perspective_file(args, path: Path, force=False):
+def create_perspective_file(args: Namespace, path: Path, force=False):
     if not force and (path / "perspective.output.lammpstrj").exists():
         print("found perspective.output.lammpstrj")
         return
@@ -314,7 +377,7 @@ def create_perspective_file(args, path: Path, force=False):
     print("created perspective.output.lammpstrj")
 
 
-def visualize_follow(args, path: Path) -> TaskDone:
+def visualize_follow(args: Namespace, path: Path) -> TaskDone:
     if args.visualize_follow is None:
         return TaskDone(skipped=True)
 
@@ -339,7 +402,7 @@ def visualize_follow(args, path: Path) -> TaskDone:
     return TaskDone()
 
 
-def visualize(args, path: Path) -> TaskDone:
+def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
     if not visualize_datafile(args, path).skipped:
         return TaskDone()
 
@@ -349,10 +412,16 @@ def visualize(args, path: Path) -> TaskDone:
     if not args.visualize:
         return TaskDone(skipped=True)
 
+    file_arg = []
+    if subdir is not None:
+        if not (path / subdir).is_file():
+            raise ValueError(f"Cannot visualize: '{path / subdir}' is not a file.")
+        file_arg = ["--file_name", subdir]
+
     print("starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
-            PYRUN + ["smc_lammps.post_process.visualize", f"{path}"], check=False
+            PYRUN + ["smc_lammps.post_process.visualize", f"{path}"] + file_arg, check=False
         ),
         args.ignore_errors,
     )
@@ -369,13 +438,26 @@ def main():
     if args.continue_flag:
         args.run = True
 
-    tasks = [
-        initialize(path),
+    tasks: list[TaskDone] = []
+
+    try:
+        # check if already inside of a simulation directory
+        path, subdir = find_simulation_base_directory(path)
+    except FileNotFoundError:
+        # no simulation directory found, try to create it
+        tasks += [
+            initialize(args, path),
+        ]
+        path, subdir = find_simulation_base_directory(path)
+
+    print(f"using base directory '{path}'")
+
+    tasks += [
         clean(args, path),
         generate(args, path),
         run(args, path),
         post_process(args, path),
-        visualize(args, path),
+        visualize(args, path, subdir),
     ]
 
     if all(map(lambda task: task.skipped, tasks)):

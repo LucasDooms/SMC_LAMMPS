@@ -16,6 +16,8 @@ pip install smc-lammps
 git clone https://github.com/LucasDooms/SMC_LAMMPS.git
 cd SMC_LAMMPS
 uv sync
+# alternatively, to include optional dependencies
+uv sync --all-groups
 source .venv/bin/activate
 ```
 or use `uv run <command>` without activating the environment.

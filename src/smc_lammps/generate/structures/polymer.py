@@ -1,5 +1,3 @@
-from typing import List, Tuple
-
 import numpy as np
 
 from smc_lammps.generate.generator import AtomGroup, AtomIdentifier, Nx3Array
@@ -9,13 +7,13 @@ class Polymer:
     """One connected polymer / strand, comprised of any number of atom groups"""
 
     def __init__(self, *atom_groups: AtomGroup) -> None:
-        self.atom_groups: List[AtomGroup] = []
+        self.atom_groups: list[AtomGroup] = []
         self.add(*atom_groups)
 
     def add(self, *atom_groups: AtomGroup) -> None:
         self.atom_groups += atom_groups
 
-    def split(self, split: AtomIdentifier) -> Tuple[AtomGroup, AtomGroup]:
+    def split(self, split: AtomIdentifier) -> tuple[AtomGroup, AtomGroup]:
         """split the polymer in two pieces, with the split atom id part of the second group.
         Note: this simply changes the underlying atom groups"""
         id = self.atom_groups.index(split[0])
@@ -67,10 +65,10 @@ class Polymer:
 
     def all_indices_list(
         self,
-    ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+    ) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         return [((dna_grp, 0), (dna_grp, -1)) for dna_grp in self.atom_groups]
 
-    def indices_list_from_to(self, from_index: int, to_index: int) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+    def indices_list_from_to(self, from_index: int, to_index: int) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         from_index = self.handle_negative_index(from_index)
         to_index = self.handle_negative_index(to_index)
 
@@ -102,7 +100,7 @@ class Polymer:
 
         raise IndexError(f"index range ({from_index}, {to_index}) out of bounds for atom groups.")
 
-    def indices_list_to(self, index: int) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+    def indices_list_to(self, index: int) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         index = self.handle_negative_index(index)
 
         lst = []
@@ -127,13 +125,13 @@ class Polymer:
 
         return index
 
-    def indices_list_from_to_percent(self, from_ratio: float, to_ratio: float) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+    def indices_list_from_to_percent(self, from_ratio: float, to_ratio: float) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         from_index = self.convert_ratio(from_ratio)
         to_index = self.convert_ratio(to_ratio)
 
         return self.indices_list_from_to(from_index, to_index)
 
-    def indices_list_to_percent(self, ratio: float) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+    def indices_list_to_percent(self, ratio: float) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         index = self.convert_ratio(ratio)
 
         return self.indices_list_to(index)

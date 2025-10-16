@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import product
-from typing import Dict, List, Tuple
+from typing import Sequence
 
 import numpy as np
 
@@ -28,7 +28,7 @@ from smc_lammps.generate.structures.polymer import Polymer
 from smc_lammps.generate.structures.smc.smc import SMC
 from smc_lammps.generate.util import get_closest, pos_from_id
 
-type StrandId = Tuple[int, int]  # strand_id, id
+type StrandId = tuple[int, int]  # strand_id, id
 
 
 @dataclass
@@ -42,7 +42,7 @@ class DnaParameters:
     angle: BAI_Type
     ssangle: BAI_Type
 
-    def create_dna_polymer(self, dna_positions: List[Nx3Array]) -> Polymer:
+    def create_dna_polymer(self, dna_positions: Sequence[Nx3Array]) -> Polymer:
         return Polymer(
             *[
                 AtomGroup(
@@ -181,13 +181,13 @@ class Tether:
         self.group.positions += vector
         self.obstacle.move(vector)
 
-    def get_all_groups(self) -> List[AtomGroup]:
+    def get_all_groups(self) -> list[AtomGroup]:
         groups = [self.group]
         if isinstance(self.obstacle, Tether.Gold):
             groups += [self.obstacle.group]
         return groups
 
-    def handle_end_points(self, end_points: List[AtomIdentifier]) -> None:
+    def handle_end_points(self, end_points: list[AtomIdentifier]) -> None:
         # freeze bottom of tether if using infinite wall
         if isinstance(self.obstacle, Tether.Wall):
             end_points += [(self.group, 0)]
@@ -272,7 +272,7 @@ class Tether:
                 self.obstacle.cut,
             )
 
-    def get_bonds(self, bond_type: BAI_Type, dna_config: DnaConfiguration) -> List[BAI]:
+    def get_bonds(self, bond_type: BAI_Type, dna_config: DnaConfiguration) -> list[BAI]:
         atom_id = dna_config.map_to_atom_id(self.dna_tether_id)
         bonds = [BAI(bond_type, (self.group, -1), atom_id)]
         if isinstance(self.obstacle, Tether.Gold):
@@ -283,7 +283,7 @@ class Tether:
 # decorator to add tether logic to DnaConfiguration classes
 def with_tether(cls):
     def new1(f):
-        def get_all_groups(self) -> List[AtomGroup]:
+        def get_all_groups(self) -> list[AtomGroup]:
             return f(self) + self.tether.get_all_groups()
 
         return get_all_groups
@@ -316,7 +316,7 @@ def with_tether(cls):
     cls.add_interactions = new3(cls.add_interactions)
 
     def new4(f):
-        def get_bonds(self) -> List[BAI]:
+        def get_bonds(self) -> list[BAI]:
             return f(self) + self.tether.get_bonds(self.dna_parameters.bond, self)
 
         return get_bonds
@@ -332,17 +332,17 @@ class DnaConfiguration:
         # LAMMPS DATA
 
         # indices to freeze permanently
-        end_points: List[AtomIdentifier]
+        end_points: list[AtomIdentifier]
         # indices to temporarily freeze, in order to equilibrate the system
-        freeze_indices: List[AtomIdentifier]
+        freeze_indices: list[AtomIdentifier]
         # forces to apply:
         # the keys are the forces (3d vectors), and the value is a list of indices to which the force will be applied
-        stretching_forces_array: Dict[Tuple[float, float, float], List[AtomIdentifier]]
+        stretching_forces_array: dict[tuple[float, float, float], list[AtomIdentifier]]
 
         # POST PROCESSING
 
         # indices to use for marked bead tracking
-        dna_indices_list: Dict[int, List[Tuple[AtomIdentifier, AtomIdentifier]]]
+        dna_indices_list: dict[int, list[tuple[AtomIdentifier, AtomIdentifier]]]
 
     @classmethod
     def set_parameters(cls, par: Parameters, inter_par: InteractionParameters) -> None:
@@ -353,21 +353,21 @@ class DnaConfiguration:
     def set_smc(cls, smc: SMC) -> None:
         cls.smc = smc
 
-    def __init__(self, dna_strands: List[Polymer], dna_parameters: DnaParameters) -> None:
+    def __init__(self, dna_strands: list[Polymer], dna_parameters: DnaParameters) -> None:
         self.dna_strands = dna_strands
         self.dna_parameters = dna_parameters
         self.kBT = self.par.kB * self.par.T
-        self.beads: List[AtomGroup] = []
-        self.bead_sizes: List[float] = []
-        self.bead_bonds: List[Tuple[BAI_Type, List[StrandId | AtomIdentifier]]] = []
-        self.molecule_overrides: List[Tuple[int, int, int]] = []  # (strand_id, index, new_mol)
+        self.beads: list[AtomGroup] = []
+        self.bead_sizes: list[float] = []
+        self.bead_bonds: list[tuple[BAI_Type, list[StrandId | AtomIdentifier]]] = []
+        self.molecule_overrides: list[tuple[int, int, int]] = []  # (strand_id, index, new_mol)
         self.tether: None | Tether = None
 
     @property
-    def all_dna_groups(self) -> List[AtomGroup]:
+    def all_dna_groups(self) -> list[AtomGroup]:
         return [grp for strand in self.dna_strands for grp in strand.atom_groups]
 
-    def get_all_groups(self) -> List[AtomGroup]:
+    def get_all_groups(self) -> list[AtomGroup]:
         return self.all_dna_groups + self.beads
 
     @classmethod
@@ -383,11 +383,11 @@ class DnaConfiguration:
         )
 
     @staticmethod
-    def strand_concat(lst: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    def strand_concat(lst: Sequence[tuple[int, int]]) -> list[tuple[int, int]]:
         if not lst:
-            return lst
+            return []
 
-        def fuse(alist: List[Tuple[int, int]], next: Tuple[int, int]):
+        def fuse(alist: list[tuple[int, int]], next: tuple[int, int]):
             if not alist or alist[-1][1] + 1 != next[0]:
                 alist.append(next)
             else:
@@ -402,17 +402,17 @@ class DnaConfiguration:
     def dna_indices_list_get_all_dna(
         self,
         strand_index: int,
-    ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+    ) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         return [tup for tup in self.dna_strands[strand_index].all_indices_list()]
 
     def dna_indices_list_get_dna_from_to(
         self, strand_index: int, from_ratio: float, to_ratio: float
-    ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+    ) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         return [tup for tup in self.dna_strands[strand_index].indices_list_from_to_percent(from_ratio, to_ratio)]
 
     def dna_indices_list_get_dna_to(
         self, strand_index: int, ratio: float
-    ) -> List[Tuple[AtomIdentifier, AtomIdentifier]]:
+    ) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         return [tup for tup in self.dna_strands[strand_index].indices_list_to_percent(ratio)]
 
     def add_interactions(self, pair_inter: PairWise) -> None:
@@ -469,7 +469,7 @@ class DnaConfiguration:
         else:
             return self.dna_strands[x].get_id_from_list_index(y)
 
-    def get_bonds(self) -> List[BAI]:
+    def get_bonds(self) -> list[BAI]:
         return [
             BAI(
                 bond[0],
@@ -505,7 +505,7 @@ class DnaConfiguration:
         middle, right = self.dna_strands[strand_index].split(to_)
 
         # add interactions/exceptions
-        bais: List[Tuple[BAI_Type, List[AtomIdentifier | StrandId]]] = [
+        bais: list[tuple[BAI_Type, list[AtomIdentifier | StrandId]]] = [
             (bond, [(strand_index, from_id - 1), (strand_index, from_id)]),
             (bond, [(strand_index, to_id - 1), (strand_index, to_id)]),
         ]
@@ -540,7 +540,7 @@ class DnaConfiguration:
         bond: None | BAI_Type,  # if None -> rigid attachment to dna_atom
         angle: None | BAI_Type,  # only used if bond is not None
         bead_size: float,
-    ) -> None:
+    ) -> AtomIdentifier:
         dna_atom = self.dna_strands[strand_index].get_id_from_list_index(dna_id)
         # place on a DNA bead
         location = pos_from_id(dna_atom)
@@ -576,7 +576,9 @@ class DnaConfiguration:
         self.bead_sizes.append(bead_size)
         self.bead_bonds += bais
 
-    def get_stopper_ids(self) -> List[StrandId]:
+        return (bead, 0)
+
+    def get_stopper_ids(self) -> list[StrandId]:
         return []
 
     @staticmethod
@@ -597,7 +599,7 @@ class DnaConfiguration:
 class Line(DnaConfiguration):
     """Straight line of DNA"""
 
-    def __init__(self, dna_strands: List[Polymer], dna_parameters: DnaParameters):
+    def __init__(self, dna_strands: list[Polymer], dna_parameters: DnaParameters):
         super().__init__(dna_strands, dna_parameters)
 
     @classmethod
@@ -649,12 +651,12 @@ class Line(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[StrandId]:
+    def get_stopper_ids(self) -> list[StrandId]:
         return [(0, -1)]
 
 
 class Folded(DnaConfiguration):
-    def __init__(self, dna_strands: List[Polymer], dna_parameters: DnaParameters, dna_center):
+    def __init__(self, dna_strands: list[Polymer], dna_parameters: DnaParameters, dna_center):
         super().__init__(dna_strands, dna_parameters)
         self.dna_center = dna_center
 
@@ -684,9 +686,14 @@ class Folded(DnaConfiguration):
         strand = self.dna_strands[0]
 
         if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [
+            # 2 half strength forces at both ends pointing right (+x)
+            ppp.stretching_forces_array[(par.force / 2.0, 0, 0)] = [
                 strand.first_id(),
                 strand.last_id(),
+            ]
+            # 1 full strength force pointing left (-x) at midway point (fold)
+            ppp.stretching_forces_array[(-par.force, 0, 0)] = [
+                strand.get_percent_id(0.5),
             ]
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
@@ -705,13 +712,13 @@ class Folded(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[StrandId]:
+    def get_stopper_ids(self) -> list[StrandId]:
         # add bead at halfway point
         return [(0, self.dna_strands[0].convert_ratio(0.5))]
 
 
 class RightAngle(DnaConfiguration):
-    def __init__(self, dna_strands: List[Polymer], dna_parameters: DnaParameters, dna_center):
+    def __init__(self, dna_strands: list[Polymer], dna_parameters: DnaParameters, dna_center):
         super().__init__(dna_strands, dna_parameters)
         self.dna_center = dna_center
 
@@ -741,6 +748,7 @@ class RightAngle(DnaConfiguration):
         strand = self.dna_strands[0]
 
         if par.force:
+            # FIX: total net force is nonzero, may cause issues?
             ppp.stretching_forces_array[(0, par.force, 0)] = [strand.first_id()]
             ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
         else:
@@ -753,12 +761,12 @@ class RightAngle(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[StrandId]:
+    def get_stopper_ids(self) -> list[StrandId]:
         return []
 
 
 class Doubled(DnaConfiguration):
-    def __init__(self, dna_strands: List[Polymer], dna_parameters: DnaParameters, dna_center):
+    def __init__(self, dna_strands: list[Polymer], dna_parameters: DnaParameters, dna_center):
         super().__init__(dna_strands, dna_parameters)
         self.dna_center = dna_center
 
@@ -802,9 +810,14 @@ class Doubled(DnaConfiguration):
         # get dna beads to freeze
         for strand in self.dna_strands:
             if par.force:
-                ppp.stretching_forces_array[(par.force, 0, 0)] = [
-                    (strand.first_id()),
-                    (strand.last_id()),
+                # 2 half strength forces at both ends pointing right (+x)
+                ppp.stretching_forces_array[(par.force / 2.0, 0, 0)] = [
+                    strand.first_id(),
+                    strand.last_id(),
+                ]
+                # 1 full strength force pointing left (-x) at midway point (fold)
+                ppp.stretching_forces_array[(-par.force, 0, 0)] = [
+                    strand.get_percent_id(0.5),
                 ]
             else:
                 ppp.end_points += [strand.first_id(), strand.last_id()]
@@ -823,7 +836,7 @@ class Doubled(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[StrandId]:
+    def get_stopper_ids(self) -> list[StrandId]:
         # TODO: see todo for folded config
         return []
 
@@ -832,7 +845,7 @@ class Doubled(DnaConfiguration):
 class Obstacle(DnaConfiguration):
     def __init__(
         self,
-        dna_strands: List[Polymer],
+        dna_strands: list[Polymer],
         dna_parameters: DnaParameters,
         tether: Tether,
         dna_start_index: int,
@@ -902,14 +915,14 @@ class Obstacle(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[StrandId]:
+    def get_stopper_ids(self) -> list[StrandId]:
         return [(0, -1)]
 
 
 class Safety(DnaConfiguration):
     def __init__(
         self,
-        dna_strands: List[Polymer],
+        dna_strands: list[Polymer],
         dna_parameters: DnaParameters,
         dna_safety_belt_index,
     ):
@@ -957,7 +970,7 @@ class Safety(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[StrandId]:
+    def get_stopper_ids(self) -> list[StrandId]:
         return [(0, -1)]
 
 
@@ -965,7 +978,7 @@ class Safety(DnaConfiguration):
 class ObstacleSafety(DnaConfiguration):
     def __init__(
         self,
-        dna_strands: List[Polymer],
+        dna_strands: list[Polymer],
         dna_parameters: DnaParameters,
         tether: Tether,
         dna_safety_belt_index: int,
@@ -1031,7 +1044,7 @@ class ObstacleSafety(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[StrandId]:
+    def get_stopper_ids(self) -> list[StrandId]:
         return [(0, -1)]
 
 
@@ -1039,7 +1052,7 @@ class ObstacleSafety(DnaConfiguration):
 class AdvancedObstacleSafety(DnaConfiguration):
     def __init__(
         self,
-        dna_strands: List[Polymer],
+        dna_strands: list[Polymer],
         dna_parameters: DnaParameters,
         tether: Tether,
         dna_safety_belt_index: int,
@@ -1109,5 +1122,5 @@ class AdvancedObstacleSafety(DnaConfiguration):
 
         return ppp
 
-    def get_stopper_ids(self) -> List[StrandId]:
+    def get_stopper_ids(self) -> list[StrandId]:
         return [(0, -1)]

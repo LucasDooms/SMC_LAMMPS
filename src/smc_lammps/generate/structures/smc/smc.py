@@ -1,7 +1,6 @@
 # Copyright (c) 2024-2025 Lucas Dooms
 
 from dataclasses import dataclass
-from typing import List
 
 import numpy as np
 
@@ -84,7 +83,7 @@ class SMC:
         self.mol_middle_site = self.mol_ATP
         self.mol_lower_site = self.mol_heads_kleisin
 
-    def get_molecule_ids(self) -> List[int]:
+    def get_molecule_ids(self) -> list[int]:
         return [
             self.mol_arm_dl,
             self.mol_arm_ul,
@@ -233,7 +232,7 @@ class SMC:
     def has_toroidal_hinge(self) -> bool:
         return self.pos.r_hinge.size != 0
 
-    def get_groups(self) -> List[AtomGroup]:
+    def get_groups(self) -> list[AtomGroup]:
         grps = [
             self.arm_dl_grp,
             self.arm_ul_grp,
@@ -253,7 +252,7 @@ class SMC:
         ]
         return [grp for grp in grps if grp.positions.size != 0]
 
-    def get_repulsive_groups(self) -> List[AtomGroup]:
+    def get_repulsive_groups(self) -> list[AtomGroup]:
         """Returns a list of groups that should have a repulsive LJ interaction
         with other (inert) beads such as obstacles."""
         grps = [
@@ -268,7 +267,7 @@ class SMC:
         ]
         return [grp for grp in grps if grp.positions.size != 0]
 
-    def get_bonds(self, hinge_opening: float | None = None) -> List[BAI]:
+    def get_bonds(self, hinge_opening: float | None = None) -> list[BAI]:
         # Every joint is kept in place through bonds
         attach = BAI_Type(
             BAI_Kind.BOND,
@@ -342,7 +341,7 @@ class SMC:
 
         return bonds
 
-    def get_angles(self) -> List[BAI]:
+    def get_angles(self) -> list[BAI]:
         angles = [
             # keep left arms rigid (prevent too much bending)
             BAI(
@@ -404,7 +403,7 @@ class SMC:
 
         return angles
 
-    def get_impropers(self) -> List[BAI]:
+    def get_impropers(self) -> list[BAI]:
         kleisin_center = len(self.pos.r_kleisin) // 2
         impropers = [
             # Fix orientation of ATP/kleisin bridge

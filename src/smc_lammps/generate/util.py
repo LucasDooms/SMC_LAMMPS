@@ -1,11 +1,13 @@
 # Copyright (c) 2025 Lucas Dooms
 
 from pathlib import Path
-from typing import Any, List
+from runpy import run_path
+from typing import Any, Callable, Sequence
 
 import numpy as np
 import numpy.typing as npt
 
+from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.generate.generator import AtomIdentifier, Generator
 
 
@@ -13,12 +15,37 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent
 
 
+def get_parameters(path: Path) -> Parameters:
+    """Load the parameters from a parameters.py file."""
+    raw = run_path(path.as_posix())
+
+    try:
+        par = raw["p"]
+    except KeyError:
+        raise ValueError(
+            f"Invalid parameters.py file: '{path}'.\nCould not extract variable named 'p'."
+        )
+
+    check_type = Parameters
+    if not isinstance(par, check_type):
+        raise TypeError(
+            f"Invalid parameters.py file: '{path}'.\n"
+            f"Parameters variable 'p' has incorrect type '{type(par)}' (expected '{check_type}')."
+        )
+
+    return par
+
+
 def create_phase(
-    generator: Generator, phase_path: Path, options: List[Generator.DynamicCoeffs]
+    generator: Generator, phase_path: Path, options: Sequence[Generator.DynamicCoeffs]
 ):
     """creates a file containing coefficients to dynamically load in LAMMPS scripts"""
 
-    def apply(function, file, list_of_args: List[Any]):
+    def apply(
+        function: Callable[[Any, Generator.DynamicCoeffs], None],
+        file,
+        list_of_args: Sequence[Generator.DynamicCoeffs],
+    ):
         for args in list_of_args:
             function(file, args)
 

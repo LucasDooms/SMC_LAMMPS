@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 # get lammps code
 ARG LAMMPS_HOME=/lammps
 ARG BUILD_DIR=${LAMMPS_HOME}/build
-RUN git clone https://github.com/lammps/lammps.git --depth=1 --branch=stable ${LAMMPS_HOME} && mkdir -p ${BUILD_DIR}
+RUN git clone https://github.com/lammps/lammps.git --depth=1 --branch=stable_22Jul2025_update1 ${LAMMPS_HOME} && mkdir -p ${BUILD_DIR}
 
 # build
 WORKDIR ${BUILD_DIR}
