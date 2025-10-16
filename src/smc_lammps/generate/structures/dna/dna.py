@@ -540,7 +540,7 @@ class DnaConfiguration:
         bond: None | BAI_Type,  # if None -> rigid attachment to dna_atom
         angle: None | BAI_Type,  # only used if bond is not None
         bead_size: float,
-    ) -> None:
+    ) -> AtomIdentifier:
         dna_atom = self.dna_strands[strand_index].get_id_from_list_index(dna_id)
         # place on a DNA bead
         location = pos_from_id(dna_atom)
@@ -575,6 +575,8 @@ class DnaConfiguration:
         self.beads.append(bead)
         self.bead_sizes.append(bead_size)
         self.bead_bonds += bais
+
+        return (bead, 0)
 
     def get_stopper_ids(self) -> list[StrandId]:
         return []

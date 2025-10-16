@@ -12,6 +12,7 @@ from numpy.random import default_rng
 from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.generate.generator import (
+    AtomIdentifier,
     AtomType,
     BAI_Kind,
     BAI_Type,
@@ -89,11 +90,13 @@ kBT = kB * T
 
 # Mass per base pair (ag)
 
+# fmt: off
 basepair_mass = (
     2         # pair = two bases
     * 315.75  # average mass of base in Da (Dalton)
     * 1.66054 * 1e-6 # ag / Da (attograms per Dalton)
 )
+# fmt: on
 
 # Effective bead mass (ag)
 DNA_bead_mass = bases_per_bead * basepair_mass
@@ -387,6 +390,7 @@ if par.add_RNA_polymerase:
         bead_type, mol_bead, st_dna_id[0], st_dna_id[1], bead_bond, bead_angle, bead_size
     )
 
+spaced_beads: list[AtomIdentifier] = []
 if par.spaced_beads_interval is not None:
     spaced_bead_type = AtomType(DNA_bead_mass)
 
@@ -408,14 +412,16 @@ if par.spaced_beads_interval is not None:
     for st_dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
         extra_mols_smc.append(mol_spaced_bead)
-        dna_config.add_bead_to_dna(
-            spaced_bead_type,
-            mol_spaced_bead,
-            0,
-            st_dna_id,
-            None,
-            None,
-            par.spaced_beads_size,
+        spaced_beads.append(
+            dna_config.add_bead_to_dna(
+                spaced_bead_type,
+                mol_spaced_bead,
+                0,
+                st_dna_id,
+                None,
+                None,
+                par.spaced_beads_size,
+            )
         )
 
         if par.spaced_beads_custom_stiffness != 1.0:
@@ -696,6 +702,8 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     file.write("\n")
     file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.all_dna_groups))}\n")
     file.write(f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n")
+    file.write("\n")
+    file.write(f"spaced_bead_indices = {atomIds_to_LAMMPS_ids(gen, spaced_beads)}\n")
     file.write("\n")
     file.write(f"runtimes = {runtimes}\n")
 
