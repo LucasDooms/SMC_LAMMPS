@@ -8,13 +8,13 @@ from copy import deepcopy
 from pathlib import Path
 from runpy import run_path
 from sys import argv
-from typing import Any, Sequence
+from typing import Any, Sequence, TypeAlias
 
 import numpy as np
 
 from smc_lammps.console import warn
 from smc_lammps.generate.generator import COORD_TYPE, Nx3Array
-from smc_lammps.reader.lammps_data import ID_TYPE, IdArray, LammpsData, Plane, get_normal_direction
+from smc_lammps.reader.lammps_data import ID_TYPE, LammpsData, Plane, get_normal_direction
 from smc_lammps.reader.parser import Parser
 
 
@@ -105,13 +105,16 @@ def remove_outside_planar_n_gon(
         data.delete_side_of_plane(side_plane, Plane.Side.INSIDE)
 
 
+ID_TAG_PAIR: TypeAlias = tuple[int, str]
+
+
 def handle_dna_bead(
     full_data: LammpsData, filtered_dna: LammpsData, parameters, step
-) -> tuple[IdArray, Nx3Array, list[tuple[int, str]]]:
+) -> tuple[ID_TYPE, Nx3Array, list[ID_TAG_PAIR]]:
     """Finds the DNA beads that are within the SMC ring and updates the indices, positions lists."""
     fallback = (
-        np.array([-1], dtype=ID_TYPE),
-        np.array([full_data.positions[-1]], dtype=COORD_TYPE),
+        ID_TYPE(-1),
+        full_data.positions[-1],
         [(-1, "invalid")],
     )
     if len(filtered_dna.positions) == 0:
@@ -196,7 +199,7 @@ def handle_dna_bead(
     references["pos_middle"] = (pos_middle_left + pos_middle_right) / 2.0
     references["pos_lower"] = pos_kleisins[len(pos_kleisins) // 2]
 
-    id_tag_pairs: list[tuple[int, str]] = []
+    id_tag_pairs: list[ID_TAG_PAIR] = []
     for grp in grps:
         distances: dict[str, COORD_TYPE] = dict()
         min_ref = ""
@@ -215,15 +218,15 @@ def handle_dna_bead(
     id = grps[0][0]
 
     return (
-        np.array([id], dtype=ID_TYPE),
-        np.array([dna_in_smc.positions[np.where(dna_in_smc.ids == id)[0][0]]], dtype=COORD_TYPE),
+        ID_TYPE(id),
+        dna_in_smc.positions[np.where(dna_in_smc.ids == id)[0][0]],
         id_tag_pairs,
     )
 
 
 def get_best_match_dna_bead_in_smc(
     base_path: Path, traj: Path = Path("output.lammpstrj"), continue_on_error: bool = False
-) -> tuple[list[int], list[list[ID_TYPE]], list[list[Nx3Array]]]:
+) -> tuple[list[int], list[list[ID_TYPE]], list[list[Nx3Array]], list[list[list[ID_TAG_PAIR]]]]:
     """Find the DNA bead that is inside of the SMC complex.
 
     :param base_path: simulation directory (containing parameters.py and post_processing_parameters.py)
@@ -243,6 +246,7 @@ def get_best_match_dna_bead_in_smc(
     par = Parser(base_path / traj, time_it=True)
     dna_indices_list = ppp["dna_indices_list"]
     steps: list[int] = []
+    id_tag_pairs_array: list[list[list[ID_TAG_PAIR]]] = [[] for _ in range(len(dna_indices_list))]
     indices_array: list[list[ID_TYPE]] = [[] for _ in range(len(dna_indices_list))]
     positions_array: list[list[Nx3Array]] = [[] for _ in range(len(dna_indices_list))]
     while True:
@@ -269,13 +273,13 @@ def get_best_match_dna_bead_in_smc(
         # split, and call for each
         for i, (min_index, max_index) in enumerate(dna_indices_list):
             new_data_temp = deepcopy(new_data)
-            new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
-            id, pos, id_tag = handle_dna_bead(lmpData, new_data_temp, ppp, step)
-            # TODO: handle ouputs with length > 1
-            indices_array[i].append(id[0])
-            positions_array[i].append(pos[0])
+            new_data_temp.filter(lambda id, *_: np.logical_and(min_index <= id, id <= max_index))
+            id, pos, id_tag_pairs = handle_dna_bead(lmpData, new_data_temp, ppp, step)
+            indices_array[i].append(id)
+            positions_array[i].append(pos)
+            id_tag_pairs_array[i].append(id_tag_pairs)
 
-    return steps, indices_array, positions_array
+    return steps, indices_array, positions_array, id_tag_pairs_array
 
 
 def create_files(
@@ -297,17 +301,29 @@ def create_files(
     for i, indices in enumerate(indices_array):
         np.savez(path / f"bead_indices{i}.npz", steps=steps, ids=indices)
 
+
+def create_plot(
+    path: Path,
+    steps: list[int],
+    indices_array: list[list[ID_TYPE]],
+):
     import matplotlib.pyplot as plt
 
-    plt.figure(figsize=(8, 6), dpi=144)
-    plt.title("Index of DNA bead inside SMC loop in time")
-    plt.xlabel("time")
-    plt.ylabel("DNA bead index")
-    for i in range(len(indices_array)):
-        plt.scatter(steps, indices_array[i], s=0.5, label=f"DNA {i}")
+    fig, ax = plt.subplots(1, 1, dpi=100)
+    fig.set_size_inches((8, 6))
 
-    plt.legend()
-    plt.savefig(path / "bead_id_in_time.png")
+    ax.set_title("Index of DNA bead within the SMC complex in time")
+
+    ax.set_xlabel("time (sim steps)")
+    ax.set_ylabel("DNA bead index")
+
+    for i in range(len(indices_array)):
+        ax.scatter(steps, indices_array[i], s=0.5, label=f"DNA {i}")
+
+    ax.legend()
+    fig.tight_layout()
+
+    fig.savefig(path / "bead_id_in_time.png")
 
 
 def get_msd_obstacle(folder_path):
@@ -368,8 +384,9 @@ def main(argv: list[str]):
     if len(argv) > 1:
         args.append(Path(argv[1]))
 
-    steps, indices_array, positions_array = get_best_match_dna_bead_in_smc(path, *args)
+    steps, indices_array, positions_array, _ = get_best_match_dna_bead_in_smc(path, *args)
     create_files(path, steps, indices_array, positions_array)
+    create_plot(path, steps, indices_array)
     get_msd_obstacle(path)
 
 
