@@ -10,11 +10,16 @@ units nano
 
 include parameterfile
 
+# if not provided, assume this is not a restart run
 if $(!is_defined(variable,is_restart)) then &
     "variable is_restart equal 0"
 
+# the lammps root dir contains the necessary lammps scripts,
+# it must be provided since it could be located anywhere depending
+# on the user's environment
 if $(!is_defined(variable,lammps_root_dir)) then &
-    "variable lammps_root_dir string ../lammps"
+    """print "variable 'lammps_root_dir' is not defined, exiting!" screen yes""" &
+    "quit 1"
 
 # Fixed boundaries in all dimensions
 boundary f f f
@@ -151,17 +156,8 @@ if $(is_defined(variable,smc_force)) then &
 variable lower_site_cycle equal ${lower_site_cycle_period} # 0 means disabled
 variable lower_site_on_delay equal -1 # -1 means disabled
 
-# Reference point in script (enter loop)
+# --- start of SMC cycle loop --- #
 label main_loop
-
-# check if lower site should be disabled
-variable lower_site_cycle equal $(v_lower_site_cycle - 1)
-# Note: if lower_site_cycle started at zero, this check
-# will never pass, which effectively disables the lower site toggling
-if $(v_lower_site_cycle == 0) then &
-    "variable lower_site_cycle equal ${lower_site_cycle_period}" &
-    "include states/lower_site_off" &
-    "variable lower_site_on_delay equal ${lower_site_toggle_delay}" &
 
 # APO state
 print "----------- STARTING APO STATE -----------" screen yes
@@ -185,11 +181,14 @@ next runtimes
 # take snapshot
 write_dump all custom 'snapshots/atp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
 
-if $(v_lower_site_on_delay > 0) then &
-    "variable lower_site_on_delay equal $(v_lower_site_on_delay - 1)" &
-elif $(v_lower_site_on_delay == 0) &
-    "variable lower_site_on_delay equal -1" &
-    "include states/lower_site_on"
+# check if lower site should be disabled
+variable lower_site_cycle equal $(v_lower_site_cycle - 1)
+# Note: if lower_site_cycle started at zero, this check
+# will never pass, which effectively disables the lower site toggling
+if $(v_lower_site_cycle == 0) then &
+    "variable lower_site_cycle equal ${lower_site_cycle_period}" &
+    "include states/lower_site_off" &
+    "variable lower_site_on_delay equal ${lower_site_toggle_delay}" &
 
 # ADP-bound state
 print "----------- STARTING ADP STATE -----------" screen yes
@@ -200,14 +199,14 @@ next runtimes
 # take snapshot
 write_dump all custom 'snapshots/adp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
 
+# check if lower site should be enabled
+if $(v_lower_site_on_delay > 0) then &
+    "variable lower_site_on_delay equal $(v_lower_site_on_delay - 1)" &
+elif $(v_lower_site_on_delay == 0) &
+    "variable lower_site_on_delay equal -1" &
+    "include states/lower_site_on"
+
 write_restart restartfile
-
-#print "${stepCurrent}" append ${timesfile} screen no
-
-#dump movie all atom ${output_steps} ${outputfile}
-#dump_modify movie sort id pbc yes append yes
-
-#run 0
 
 # Re-enter loop
 # LAMMPS will auto skip this when the runtimes variable is exhausted
