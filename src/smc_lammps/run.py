@@ -18,6 +18,8 @@ from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
 
 PYRUN = ["python", "-m"]
+# arbitrary limit to prevent infinite loops
+MAX_ITER = 10000
 
 
 def parse() -> Namespace:
@@ -90,8 +92,6 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
         "Did initialization fail?"
     )
 
-    # arbitrary limit to prevent infinite loop
-    MAX_ITER = 10000
     for _ in range(MAX_ITER):
         file_names = get_file_names(try_path)
 
@@ -279,11 +279,13 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
         )
 
     # find a file name that is not taken yet
-    x = 1
-    new_output_file = Path(f"{output_file}.{x}")
-    while new_output_file.exists():
-        x += 1
-        new_output_file = Path(f"{output_file}.{x}")
+    for suffix in range(1, MAX_ITER):
+        new_output_file = Path(f"{output_file}.{suffix}")
+        if not new_output_file.exists():
+            # use this one
+            break
+    else:
+        raise FileExistsError(f"Could not create new '{output_file}.x' file.")
 
     print(f"your run will continue and the output trajectory will be placed into {new_output_file}")
     perform_run(
