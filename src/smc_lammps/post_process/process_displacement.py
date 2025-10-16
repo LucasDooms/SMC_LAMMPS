@@ -221,20 +221,29 @@ def handle_dna_bead(
     )
 
 
-def get_best_match_dna_bead_in_smc(folder_path: Path):
-    """
-    For each timestep:
-        create box around SMC
-        remove DNA not within box
-        remove DNA part of lower segment (we only want the upper segment here)
-        find DNA closest to SMC plane
-    """
-    parameters = run_path((folder_path / "post_processing_parameters.py").as_posix())
+def get_best_match_dna_bead_in_smc(
+    base_path: Path, traj: Path = Path("output.lammpstrj"), continue_on_error: bool = False
+) -> tuple[list[int], list[list[ID_TYPE]], list[list[Nx3Array]]]:
+    """Find the DNA bead that is inside of the SMC complex.
 
-    par = Parser(folder_path / "output.lammpstrj", time_it=True)
-    dna_indices_list = parameters["dna_indices_list"]
-    steps = []
-    indices_array = [[] for _ in range(len(dna_indices_list))]
+    :param base_path: simulation directory (containing parameters.py and post_processing_parameters.py)
+    :param traj: path to lammps trajectory file to analyze (either relative to base_path or absolute)
+    :param continue_on_error: if an error occurs during parsing, try to analyze the data obtained up to that point
+    """
+
+    # -- general idea --
+    # For each timestep:
+    #     create box around SMC
+    #     remove DNA not within box
+    #     remove different DNA segments
+    #     find DNA closest to SMC plane
+
+    ppp = run_path((base_path / "post_processing_parameters.py").as_posix())
+
+    par = Parser(base_path / traj, time_it=True)
+    dna_indices_list = ppp["dna_indices_list"]
+    steps: list[int] = []
+    indices_array: list[list[ID_TYPE]] = [[] for _ in range(len(dna_indices_list))]
     positions_array: list[list[Nx3Array]] = [[] for _ in range(len(dna_indices_list))]
     while True:
         try:
@@ -242,37 +251,51 @@ def get_best_match_dna_bead_in_smc(folder_path: Path):
         except Parser.EndOfLammpsFile:
             print(par.timings)
             break
-        except UnicodeDecodeError as e:
-            print(e)
-            warn(f"Decode error after step {steps[-1]}.\nContinuing with available data...")
-            break
+        except Exception as e:
+            if continue_on_error:
+                print(e)
+                warn(f"Error after step {steps[-1]}.\nContinuing with available data...")
+                break
+            else:
+                raise e
 
         steps.append(step)
 
         # TODO: get range from post_processing_parameters.py
-        box = lmpData.create_box(parameters["SMC_types"])
+        box = lmpData.create_box(ppp["SMC_types"])
 
         new_data = lmpData.delete_outside_box(box)
-        new_data.filter_by_types(parameters["DNA_types"])
+        new_data.filter_by_types(ppp["DNA_types"])
         # split, and call for each
         for i, (min_index, max_index) in enumerate(dna_indices_list):
             new_data_temp = deepcopy(new_data)
             new_data_temp.filter(lambda id, _, __: np.logical_and(min_index <= id, id <= max_index))
-            id, pos, id_tag = handle_dna_bead(lmpData, new_data_temp, parameters, step)
+            id, pos, id_tag = handle_dna_bead(lmpData, new_data_temp, ppp, step)
             # TODO: handle ouputs with length > 1
             indices_array[i].append(id[0])
             positions_array[i].append(pos[0])
 
+    return steps, indices_array, positions_array
+
+
+def create_files(
+    path: Path,
+    steps: list[int],
+    indices_array: list[list[ID_TYPE]],
+    positions_array: list[list[Nx3Array]],
+):
     # delete old files
-    for p in folder_path.glob("marked_bead*.lammpstrj"):
+    for p in path.glob("marked_bead*.lammpstrj"):
+        print(f"deleting '{p}'")
         p.unlink()
 
     for i, positions in enumerate(positions_array):
-        with open(folder_path / f"marked_bead{i}.lammpstrj", "w", encoding="utf-8") as file:
+        with open(path / f"marked_bead{i}.lammpstrj", "w", encoding="utf-8") as file:
+            print(f"creating '{file.name}'")
             write(file, steps, positions)
 
     for i, indices in enumerate(indices_array):
-        np.savez(folder_path / f"bead_indices{i}.npz", steps=steps, ids=indices)
+        np.savez(path / f"bead_indices{i}.npz", steps=steps, ids=indices)
 
     import matplotlib.pyplot as plt
 
@@ -282,8 +305,9 @@ def get_best_match_dna_bead_in_smc(folder_path: Path):
     plt.ylabel("DNA bead index")
     for i in range(len(indices_array)):
         plt.scatter(steps, indices_array[i], s=0.5, label=f"DNA {i}")
+
     plt.legend()
-    plt.savefig(folder_path / "bead_id_in_time.png")
+    plt.savefig(path / "bead_id_in_time.png")
 
 
 def get_msd_obstacle(folder_path):
@@ -340,7 +364,8 @@ def main(argv: list[str]):
         raise Exception("Please provide a folder path")
     path = Path(argv[0])
 
-    get_best_match_dna_bead_in_smc(path)
+    steps, indices_array, positions_array = get_best_match_dna_bead_in_smc(path)
+    create_files(path, steps, indices_array, positions_array)
     get_msd_obstacle(path)
 
 
