@@ -286,12 +286,12 @@ def create_files(
 ):
     # delete old files
     for p in path.glob("marked_bead*.lammpstrj"):
-        print(f"deleting '{p}'")
+        print(f"deleting old '{p}'")
         p.unlink()
 
     for i, positions in enumerate(positions_array):
         with open(path / f"marked_bead{i}.lammpstrj", "w", encoding="utf-8") as file:
-            print(f"creating '{file.name}'")
+            print(f"creating new '{file.name}'")
             write(file, steps, positions)
 
     for i, indices in enumerate(indices_array):
@@ -360,11 +360,15 @@ def get_msd_obstacle(folder_path):
 def main(argv: list[str]):
     argv = argv[1:]
 
-    if len(argv) != 1:
+    if len(argv) < 1:
         raise Exception("Please provide a folder path")
     path = Path(argv[0])
 
-    steps, indices_array, positions_array = get_best_match_dna_bead_in_smc(path)
+    args = []
+    if len(argv) > 1:
+        args.append(Path(argv[1]))
+
+    steps, indices_array, positions_array = get_best_match_dna_bead_in_smc(path, *args)
     create_files(path, steps, indices_array, positions_array)
     get_msd_obstacle(path)
 
