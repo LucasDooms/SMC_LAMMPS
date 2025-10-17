@@ -4,6 +4,9 @@
 
 units nano
 
+# make sure snapshots directory exists
+shell mkdir snapshots
+
 
 #--------------------------------------Initial Parameters------------------------------------------#
 

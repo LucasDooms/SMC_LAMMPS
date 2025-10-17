@@ -572,9 +572,6 @@ with open(lammps_path / "styles", "w", encoding="utf-8") as stylesfile:
         pair_style += " coul/debye $(1.0/5.0) $(7.5)"
     stylesfile.write(pair_style)
 
-# snapshots of trajectory are taken after every SMC phase
-(path / "snapshots").mkdir(exist_ok=True)
-
 #################################################################################
 #                                Phases of SMC                                  #
 #################################################################################
