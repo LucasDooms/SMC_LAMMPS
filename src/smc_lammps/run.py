@@ -178,7 +178,7 @@ def clean(args: Namespace, path: Path) -> TaskDone:
         r"^lammps/.*",
         r"^post_processing_parameters\.py$",
         r"^tmp\.lammps\.variable$",
-        r"^vmd\.tcl$",
+        r"^vmd/vmd\.tcl$",
         r"^vmd\.init$",
         r"^bead_id_in_time\.\w+$",
         r"^bead_indices\d+\.npz$",
@@ -362,13 +362,25 @@ def post_process(args: Namespace, path: Path) -> TaskDone:
     return TaskDone()
 
 
-def visualize_datafile(args: Namespace, path: Path) -> TaskDone:
+def visualize_datafile(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
     if not args.visualize_datafile:
         return TaskDone(skipped=True)
 
+    vmd_dir = path / "vmd"
+    vmd_dir.mkdir(exist_ok=True)
+
+    if subdir is None:
+        subdir = Path("lammps/datafile_positions")
+
+    # create VMD tcl script to automatically run topotools command
+    tcl_script = path / "vmd" / "vmd.tcl"
+    with open(tcl_script, "w", encoding="utf-8") as vmdfile:
+        vmdfile.write(f"topo readlammpsdata {path / subdir}")
+        vmdfile.write("mol modstyle 0 0 cpk")
+
     quiet_print(args.quiet, "starting VMD")
     run_and_handle_error(
-        lambda: subprocess.run(["vmd", "-e", f"{path}/vmd.tcl"], check=False),
+        lambda: subprocess.run(["vmd", "-e", f"{tcl_script.absolute()}"], check=False),
         args.ignore_errors,
         args.quiet,
     )
@@ -427,7 +439,7 @@ def visualize_follow(args: Namespace, path: Path) -> TaskDone:
 
 
 def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
-    if not visualize_datafile(args, path).skipped:
+    if not visualize_datafile(args, path, subdir).skipped:
         return TaskDone()
 
     if not visualize_follow(args, path).skipped:
