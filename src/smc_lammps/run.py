@@ -179,7 +179,7 @@ def clean(args: Namespace, path: Path) -> TaskDone:
         r"^post_processing_parameters\.py$",
         r"^tmp\.lammps\.variable$",
         r"^vmd/vmd\.tcl$",
-        r"^vmd\.init$",
+        r"^vmd/vmd\.init$",
         r"^bead_id_in_time\.\w+$",
         r"^bead_indices\d+\.npz$",
     ]

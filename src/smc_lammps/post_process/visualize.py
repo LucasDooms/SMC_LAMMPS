@@ -28,6 +28,10 @@ path = Path(args.directory)
 
 ppp = run_path((path / "post_processing_parameters.py").as_posix())
 
+output_file = path / Path(args.file_name)
+if not output_file.exists():
+    raise FileNotFoundError(f"Cannot visualize '{output_file}', file does not exist.")
+
 
 class Molecules:
     nice_color_ids = [
@@ -37,11 +41,13 @@ class Molecules:
         6,  # silver
     ]
 
-    def __init__(self, path_to_vmd_init: Path) -> None:
+    def __init__(self, base_path: Path) -> None:
         self.index = -1
         self.rep_index = 0
         self.color_index = 0
-        self.path = path_to_vmd_init / "vmd.init"
+        path_to_vmd = base_path / "vmd"
+        path_to_vmd.mkdir(exist_ok=True)
+        self.path = path_to_vmd / "vmd.init"
         # open the file (overwrite previous contents)
         self.file = open(self.path, "w", encoding="utf-8")
 
@@ -61,21 +67,21 @@ class Molecules:
         self.color_index += 1
         return color_id
 
-    def create_new(self, file_name: str, other_args: str) -> None:
-        self.file.write(f"mol new {file_name} {other_args}\n")
+    def create_new(self, file: Path, other_args: str) -> None:
+        self.file.write(f'mol new "{file.relative_to(self.path.parent, walk_up=True)}" {other_args}\n')
         self.index += 1
 
-    def create_new_marked(self, file_name: str) -> None:
-        self.create_new(file_name, "waitfor all")
+    def create_new_marked(self, file: Path) -> None:
+        self.create_new(file, "waitfor all")
         self.file.write(f"mol modstyle 0 {self.index} vdw\n")
 
     def create_new_dna(
         self,
-        file_name: str,
+        file: Path,
         dna_pieces: Sequence[tuple[int, int]],
         remove_ranges: Sequence[tuple[int, int]],
     ) -> None:
-        self.create_new(file_name, "waitfor all")
+        self.create_new(file, "waitfor all")
         # show everything, slightly smaller
         self.file.write(f"mol modstyle 0 {self.index} cpk 1.3\n")
 
@@ -129,11 +135,11 @@ mol = Molecules(path)
 
 if args.file_name == fn_arg.default:
     for p in path.glob("marked_bead*.lammpstrj"):
-        mol.create_new_marked(p.name)
+        mol.create_new_marked(p)
 
 kleisins = ppp["kleisin_ids"]
 kleisin_rng = (min(kleisins), max(kleisins))
-mol.create_new_dna(args.file_name, ppp["dna_indices_list"], [kleisin_rng])
+mol.create_new_dna(output_file, ppp["dna_indices_list"], [kleisin_rng])
 mol.add_piece(kleisin_rng)
 mol.add_spaced_beads(ppp["spaced_bead_indices"])
 
