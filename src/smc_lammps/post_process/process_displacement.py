@@ -8,7 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 from runpy import run_path
 from sys import argv
-from typing import Any, Sequence, TypeAlias
+from typing import TYPE_CHECKING, Any, Sequence, TypeAlias
 
 import numpy as np
 
@@ -287,7 +287,7 @@ def create_files(
     steps: list[int],
     indices_array: list[list[ID_TYPE]],
     positions_array: list[list[Nx3Array]],
-):
+) -> None:
     # delete old files
     for p in path.glob("marked_bead*.lammpstrj"):
         print(f"deleting old '{p}'")
@@ -302,28 +302,90 @@ def create_files(
         np.savez(path / f"bead_indices{i}.npz", steps=steps, ids=indices)
 
 
+def get_cum_runtimes(runtimes: list[int]) -> dict[str, list[int]]:
+    """Return the number of time steps that have passed at the START of each SMC phase."""
+    cum_runtimes: list[int] = list(np.cumsum(runtimes, dtype=int))
+
+    map = {
+        "APO": [0],
+        "ATP": [],
+        "ADP": [],
+    }
+
+    index = 0
+    while index < len(cum_runtimes):
+        map["ATP"].append(cum_runtimes[index])
+        # skip over atp_bound_1
+        map["ADP"].append(cum_runtimes[index + 2])
+        map["APO"].append(cum_runtimes[index + 3])
+        index += 4
+
+    return map
+
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
+
+def add_runtime_lines(
+    path: Path,
+    indices_array: list[list[ID_TYPE]],
+    ax: Axes,
+) -> None:
+    from matplotlib.collections import LineCollection
+
+    post_par = run_path((path / "post_processing_parameters.py").as_posix())
+    for smc_phase, start_times in get_cum_runtimes(post_par["runtimes"]).items():
+        ymin, ymax = (
+            min(min(indices) for indices in indices_array),
+            max(max(indices) for indices in indices_array),
+        )
+        # extend to edges of graph
+        diff = ymax - ymin
+        ymin -= 0.2 * diff
+        ymax += 0.2 * diff
+
+        segments = [np.array([(t, ymin), (t, ymax)]) for t in start_times]
+
+        lc = LineCollection(
+            segments,
+            color={"APO": "blue", "ATP": "red", "ADP": "green"}[smc_phase],
+            label=smc_phase,
+        )
+        # draw in background
+        lc.set_zorder(-10.0)
+        lc.set_linestyle("--")
+
+        ax.add_collection(lc)
+
+
 def create_plot(
     path: Path,
     steps: list[int],
     indices_array: list[list[ID_TYPE]],
-):
+    save_to: Path = Path("bead_id_in_time.svg"),
+    plot_cycle: bool = False,
+) -> None:
     import matplotlib.pyplot as plt
 
-    fig, ax = plt.subplots(1, 1, dpi=100)
-    fig.set_size_inches((8, 6))
+    fig, ax = plt.subplots(1, 1, dpi=160)
+    fig.set_size_inches((10, 8))
 
     ax.set_title("Index of DNA bead within the SMC complex in time")
 
     ax.set_xlabel("time (sim steps)")
     ax.set_ylabel("DNA bead index")
 
-    for i in range(len(indices_array)):
-        ax.scatter(steps, indices_array[i], s=0.5, label=f"DNA {i}")
+    for i, indices in enumerate(indices_array):
+        ax.scatter(steps, indices, s=0.5, label=f"DNA {i}")
+
+    if plot_cycle:
+        add_runtime_lines(path, indices_array, ax)
 
     ax.legend()
     fig.tight_layout()
 
-    fig.savefig(path / "bead_id_in_time.png")
+    fig.savefig(path / save_to)
 
 
 def get_msd_obstacle(folder_path):
