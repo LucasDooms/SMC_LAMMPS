@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 tunable size, spacing, and angle stiffness.
 - New `lower_site_cycle_period`, `lower_site_toggle_delay` parameters allow simulating strand swapping with
 a semi-permanent lower binding site.
+- New `--quiet` flag reduces console output produced by `smc-lammps`.
 
 ### Changed
 

@@ -54,6 +54,7 @@ def parse() -> Namespace:
     other.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
     other.add_argument('-i', '-in', '--input', help='path to input file to give to LAMMPS')
     other.add_argument('--clean', action='store_true', help='remove all files except parameters.py from the directory')
+    other.add_argument('-q', '--quiet', action='store_true', help='print less output to the console (use --output to redirect LAMMPS output)')
     # fmt: on
 
     # shell autocompletion
@@ -62,13 +63,21 @@ def parse() -> Namespace:
     return parser.parse_args()
 
 
-def run_and_handle_error(process: Callable[[], subprocess.CompletedProcess], ignore_errors: bool):
+def quiet_print(quiet: bool, *args, **kwargs):
+    if not quiet:
+        print(*args, **kwargs)
+
+
+def run_and_handle_error(
+    process: Callable[[], subprocess.CompletedProcess], ignore_errors: bool, quiet: bool
+):
     completion = process()
     if completion.returncode != 0:
-        message = f"\n\nprocess ended with error code {completion.returncode}\n{completion}\n"
-        print(message)
+        quiet_print(
+            quiet, f"\n\nprocess ended with error code {completion.returncode}\n{completion}\n"
+        )
         if ignore_errors:
-            print("-n (--ignore-errors) flag is set, continuing...\n")
+            quiet_print(quiet, "-n (--ignore-errors) flag is set, continuing...\n")
             return
         raise ChildProcessError()
 
@@ -133,7 +142,7 @@ def initialize(args: Namespace, path: Path) -> TaskDone:
 
     if not path.exists():
         path.mkdir(parents=True)
-        print(f"created new directory: {path.absolute()}")
+        quiet_print(args.quiet, f"created new directory: {path.absolute()}")
     elif not args.force:
         # only initialize if empty!
         if any(path.iterdir()):
@@ -147,7 +156,7 @@ def initialize(args: Namespace, path: Path) -> TaskDone:
 
     # copy file
     destination.write_bytes(template_path.read_bytes())
-    print(f"created template parameters file: {destination.absolute()}")
+    quiet_print(args.quiet, f"created template parameters file: {destination.absolute()}")
 
     return TaskDone()
 
@@ -191,13 +200,13 @@ def clean(args: Namespace, path: Path) -> TaskDone:
             except OSError:
                 pass
             else:
-                print(f"deleted empty directory '{child}'")
+                quiet_print(args.quiet, f"deleted empty directory '{child}'")
         else:
             if not is_safe_to_delete(child.relative_to(base)):
-                print(f"unrecognized file or folder '{child}', skipping...")
+                quiet_print(args.quiet, f"unrecognized file or folder '{child}', skipping...")
                 return
             child.unlink()
-            print(f"deleted '{child}' succesfully")
+            quiet_print(args.quiet, f"deleted '{child}' succesfully")
 
     remove_recursively(path, path)
 
@@ -214,15 +223,16 @@ def generate(args: Namespace, path: Path) -> TaskDone:
     extra_args = []
     if args.seed:
         extra_args.append(args.seed)
-    print("running setup file...")
+    quiet_print(args.quiet, "running setup file...")
     run_and_handle_error(
         lambda: subprocess.run(
             PYRUN + ["smc_lammps.generate.generate", f"{path}"] + extra_args,
             check=False,
         ),
         args.ignore_errors,
+        args.quiet,
     )
-    print("successfully ran setup file")
+    quiet_print(args.quiet, "successfully ran setup file")
 
     return TaskDone()
 
@@ -259,13 +269,17 @@ def perform_run(args: Namespace, path: Path, lammps_vars: list[list[str]] | None
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as output_file:
-            print(f"running LAMMPS file {args.input}, output redirected to {args.output}")
-            print(command)
-            run_and_handle_error(lambda: run_with_output(stdout=output_file), args.ignore_errors)
+            quiet_print(
+                args.quiet, f"running LAMMPS file {args.input}, output redirected to {args.output}"
+            )
+            quiet_print(args.quiet, command)
+            run_and_handle_error(
+                lambda: run_with_output(stdout=output_file), args.ignore_errors, args.quiet
+            )
     else:
-        print(f"running LAMMPS file {args.input}, printing output to terminal")
-        print(command)
-        run_and_handle_error(run_with_output, args.ignore_errors)
+        quiet_print(args.quiet, f"running LAMMPS file {args.input}, printing output to terminal")
+        quiet_print(args.quiet, command)
+        run_and_handle_error(run_with_output, args.ignore_errors, args.quiet)
 
 
 def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
@@ -290,7 +304,10 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
     else:
         raise FileExistsError(f"Could not create new '{output_file}.x' file.")
 
-    print(f"your run will continue and the output trajectory will be placed into {new_output_file}")
+    quiet_print(
+        args.quiet,
+        f"your run will continue and the output trajectory will be placed into {new_output_file}",
+    )
     perform_run(
         args,
         path,
@@ -319,7 +336,7 @@ def run(args: Namespace, path: Path) -> TaskDone:
         warn(
             "cannot run lammps script, output.lammpstrj already exists (use -f to overwrite files)"
         )
-        print("moving on...")
+        quiet_print(args.quiet, "moving on...")
         return TaskDone()
 
     perform_run(args, path)
@@ -331,15 +348,16 @@ def post_process(args: Namespace, path: Path) -> TaskDone:
     if not args.post_process:
         return TaskDone(skipped=True)
 
-    print("running post processing...")
+    quiet_print(args.quiet, "running post processing...")
     run_and_handle_error(
         lambda: subprocess.run(
             PYRUN + ["smc_lammps.post_process.process_displacement", f"{path}"],
             check=False,
         ),
         args.ignore_errors,
+        args.quiet,
     )
-    print("succesfully ran post processing")
+    quiet_print(args.quiet, "succesfully ran post processing")
 
     return TaskDone()
 
@@ -348,22 +366,23 @@ def visualize_datafile(args: Namespace, path: Path) -> TaskDone:
     if not args.visualize_datafile:
         return TaskDone(skipped=True)
 
-    print("starting VMD")
+    quiet_print(args.quiet, "starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(["vmd", "-e", f"{path}/vmd.tcl"], check=False),
         args.ignore_errors,
+        args.quiet,
     )
-    print("VMD exited")
+    quiet_print(args.quiet, "VMD exited")
 
     return TaskDone()
 
 
 def create_perspective_file(args: Namespace, path: Path, force=False):
     if not force and (path / "perspective.output.lammpstrj").exists():
-        print("found perspective.output.lammpstrj")
+        quiet_print(args.quiet, "found perspective.output.lammpstrj")
         return
 
-    print("creating new lammpstrj file")
+    quiet_print(args.quiet, "creating new lammpstrj file")
     run_and_handle_error(
         lambda: subprocess.run(
             PYRUN
@@ -376,8 +395,9 @@ def create_perspective_file(args: Namespace, path: Path, force=False):
             check=False,
         ),
         args.ignore_errors,
+        args.quiet,
     )
-    print("created perspective.output.lammpstrj")
+    quiet_print(args.quiet, "created perspective.output.lammpstrj")
 
 
 def visualize_follow(args: Namespace, path: Path) -> TaskDone:
@@ -386,7 +406,7 @@ def visualize_follow(args: Namespace, path: Path) -> TaskDone:
 
     create_perspective_file(args, path)
 
-    print("starting VMD")
+    quiet_print(args.quiet, "starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
             PYRUN
@@ -399,8 +419,9 @@ def visualize_follow(args: Namespace, path: Path) -> TaskDone:
             check=False,
         ),
         args.ignore_errors,
+        args.quiet,
     )
-    print("VMD exited")
+    quiet_print(args.quiet, "VMD exited")
 
     return TaskDone()
 
@@ -421,14 +442,15 @@ def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
             raise ValueError(f"Cannot visualize: '{path / subdir}' is not a file.")
         file_arg = ["--file_name", subdir]
 
-    print("starting VMD")
+    quiet_print(args.quiet, "starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
             PYRUN + ["smc_lammps.post_process.visualize", f"{path}"] + file_arg, check=False
         ),
         args.ignore_errors,
+        args.quiet,
     )
-    print("VMD exited")
+    quiet_print(args.quiet, "VMD exited")
 
     return TaskDone()
 
@@ -453,7 +475,7 @@ def main():
         ]
         path, subdir = find_simulation_base_directory(path)
 
-    print(f"using base directory '{path}'")
+    quiet_print(args.quiet, f"using base directory '{path}'")
 
     tasks += [
         clean(args, path),
@@ -464,9 +486,9 @@ def main():
     ]
 
     if all(map(lambda task: task.skipped, tasks)):
-        print("nothing to do, use -gr to generate and run")
+        quiet_print(args.quiet, "nothing to do, use -gr to generate and run")
 
-    print("end of smc-lammps (run.py)")
+    quiet_print(args.quiet, "end of smc-lammps (run.py)")
 
 
 if __name__ == "__main__":
