@@ -8,7 +8,7 @@ units nano
 #--------------------------------------Initial Parameters------------------------------------------#
 
 
-include parameterfile
+include lammps/parameterfile
 
 # if not provided, assume this is not a restart run
 if $(!is_defined(variable,is_restart)) then &
@@ -28,7 +28,7 @@ boundary f f f
 #-----------------------------------------Define Styles--------------------------------------------#
 
 
-include styles
+include lammps/styles
 
 # Give weighting coef to LJ potentials (0 = turn off) between atoms that are bonded, seperated by 2 and 3 bonds
 special_bonds lj/coul 0. 0. 0.
@@ -42,13 +42,12 @@ neighbor $(4*3.5) bin
 
 #-------------------------------------------Read Data----------------------------------------------#
 
-# read_data datafile_coeffs extra/bond/per/atom 2 extra/angle/per/atom 2 extra/improper/per/atom 3
 if $(!v_is_restart) then &
-    "read_data datafile_positions" &
+    "read_data lammps/datafile_positions" &
 else &
-    "read_restart restartfile"
+    "read_restart lammps/restartfile"
 
-read_data datafile_coeffs add merge
+read_data lammps/datafile_coeffs add merge
 
 #---------------------------------------------Fixes------------------------------------------------#
 
@@ -161,7 +160,7 @@ label main_loop
 
 # APO state
 print "----------- STARTING APO STATE -----------" screen yes
-include states/apo
+include lammps/states/apo
 run ${runtimes}
 next runtimes
 
@@ -170,11 +169,11 @@ write_dump all custom 'snapshots/apo.end.lammpstrj' id type x y z modify append 
 
 # ATP-bound state
 print "----------- STARTING ATP STATE -----------" screen yes
-include states/atp_bound_1
+include lammps/states/atp_bound_1
 run ${runtimes}
 next runtimes
 
-include states/atp_bound_2
+include lammps/states/atp_bound_2
 run ${runtimes}
 next runtimes
 
@@ -187,12 +186,12 @@ variable lower_site_cycle equal $(v_lower_site_cycle - 1)
 # will never pass, which effectively disables the lower site toggling
 if $(v_lower_site_cycle == 0) then &
     "variable lower_site_cycle equal ${lower_site_cycle_period}" &
-    "include states/lower_site_off" &
+    "include lammps/states/lower_site_off" &
     "variable lower_site_on_delay equal ${lower_site_toggle_delay}" &
 
 # ADP-bound state
 print "----------- STARTING ADP STATE -----------" screen yes
-include states/adp_bound
+include lammps/states/adp_bound
 run ${runtimes}
 next runtimes
 
@@ -204,9 +203,9 @@ if $(v_lower_site_on_delay > 0) then &
     "variable lower_site_on_delay equal $(v_lower_site_on_delay - 1)" &
 elif $(v_lower_site_on_delay == 0) &
     "variable lower_site_on_delay equal -1" &
-    "include states/lower_site_on"
+    "include lammps/states/lower_site_on"
 
-write_restart restartfile
+write_restart lammps/restartfile
 
 # Re-enter loop
 # LAMMPS will auto skip this when the runtimes variable is exhausted

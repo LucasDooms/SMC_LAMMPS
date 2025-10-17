@@ -160,43 +160,46 @@ def clean(args: Namespace, path: Path) -> TaskDone:
     if not confirm("Are you sure?", default=False):
         return TaskDone()
 
+    # list of regexes for files to delete
+    # (assume posix style path)
     safe_to_delete = [
         r".*\.lammpstrj",
-        r".*\.lammpstrj\.(\d)+",
-        r"log\.lammps",
-        r"parameterfile",
-        r"datafile.*",
-        r"post_processing_parameters\.py",
-        r"styles",
-        r"tmp\.lammps\.variable",
-        r"vmd\.tcl",
-        r"states",
-        r"restartfile",
-        r"vmd.init",
+        r".*\.lammpstrj\.\d+",
+        r"^log\.lammps$",
+        r"^lammps/.*",
+        r"^post_processing_parameters\.py$",
+        r"^tmp\.lammps\.variable$",
+        r"^vmd\.tcl$",
+        r"^vmd\.init$",
+        r"^bead_id_in_time\.\w+$",
+        r"^bead_indices\d+\.npz$",
     ]
     safe_to_delete = [compile_regex(string) for string in safe_to_delete]
 
     def is_safe_to_delete(path: Path) -> bool:
-        name = path.name
-        return any(regex.match(name) for regex in safe_to_delete)
+        return any(regex.match(path.as_posix()) for regex in safe_to_delete)
 
-    def remove_recursively(path: Path):
-        try:
-            path.unlink()
-        except IsADirectoryError:
-            for child in path.iterdir():
-                remove_recursively(child)
-            path.rmdir()
+    def remove_recursively(child: Path, base: Path):
+        if child.relative_to(base) == Path("parameters.py"):
+            return
 
-    for child in path.iterdir():
-        if child.name == "parameters.py":
-            continue
-        if not is_safe_to_delete(child):
-            print(f"unrecognized file or folder '{child}', skipping...")
-            continue
+        if child.is_dir():
+            for subchild in child.iterdir():
+                remove_recursively(subchild, base)
+            try:
+                child.rmdir()
+            except OSError:
+                pass
+            else:
+                print(f"deleted empty directory '{child}'")
+        else:
+            if not is_safe_to_delete(child.relative_to(base)):
+                print(f"unrecognized file or folder '{child}', skipping...")
+                return
+            child.unlink()
+            print(f"deleted '{child}' succesfully")
 
-        remove_recursively(child)
-        print(f"deleted '{child}' succesfully")
+    remove_recursively(path, path)
 
     return TaskDone()
 

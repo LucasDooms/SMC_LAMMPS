@@ -555,13 +555,16 @@ if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.S
     #     smc_1.mol_lower_site
     # )
 
-with open(path / "datafile_coeffs", "w", encoding="utf-8") as datafile:
+lammps_path = path / "lammps"
+lammps_path.mkdir(exist_ok=True)
+
+with open(lammps_path / "datafile_coeffs", "w", encoding="utf-8") as datafile:
     gen.write_coeffs(datafile)
 
-with open(path / "datafile_positions", "w", encoding="utf-8") as datafile:
+with open(lammps_path / "datafile_positions", "w", encoding="utf-8") as datafile:
     gen.write_positions_and_bonds(datafile)
 
-with open(path / "styles", "w", encoding="utf-8") as stylesfile:
+with open(lammps_path / "styles", "w", encoding="utf-8") as stylesfile:
     stylesfile.write(gen.get_atom_style_command())
     stylesfile.write(gen.get_BAI_styles_command())
     pair_style = "pair_style hybrid/overlay lj/cut $(3.5) soft $(3.5)"
@@ -571,7 +574,7 @@ with open(path / "styles", "w", encoding="utf-8") as stylesfile:
 
 # VMD visualization of initial configuration
 with open(path / "vmd.tcl", "w", encoding="utf-8") as vmdfile:
-    vmdfile.write(f"topo readlammpsdata {path / 'datafile_positions'}")
+    vmdfile.write(f"topo readlammpsdata {lammps_path / 'datafile_positions'}")
 
 # snapshots of trajectory are taken after every SMC phase
 (path / "snapshots").mkdir(exist_ok=True)
@@ -581,7 +584,7 @@ with open(path / "vmd.tcl", "w", encoding="utf-8") as vmdfile:
 #################################################################################
 
 # make sure the directory exists
-states_path = path / "states"
+states_path = lammps_path / "states"
 states_path.mkdir(exist_ok=True)
 
 # if par.lower_site_cycle_period is not zero, the lower site is handled elsewhere
@@ -727,7 +730,7 @@ def get_variables_for_lammps() -> list[str]:
     ]
 
 
-with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
+with open(lammps_path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 
     params = get_variables_for_lammps()
