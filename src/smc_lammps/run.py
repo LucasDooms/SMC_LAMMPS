@@ -385,8 +385,8 @@ def visualize_datafile(args: Namespace, path: Path, subdir: Path | None) -> Task
     # create VMD tcl script to automatically run topotools command
     tcl_script = path / "vmd" / "vmd.tcl"
     with open(tcl_script, "w", encoding="utf-8") as vmdfile:
-        vmdfile.write(f"topo readlammpsdata {path / subdir}")
-        vmdfile.write("mol modstyle 0 0 cpk")
+        vmdfile.write(f"topo readlammpsdata {path / subdir}\n")
+        vmdfile.write("mol modstyle 0 0 cpk\n")
 
     quiet_print(args.quiet, "starting VMD")
     run_and_handle_error(
