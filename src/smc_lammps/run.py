@@ -18,8 +18,17 @@ from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
 
 PYRUN = ["python", "-m"]
-# arbitrary limit to prevent infinite loops
-MAX_ITER = 10000
+
+
+class MaxIterationExceeded(RuntimeError):
+    # arbitrary limit to prevent infinite loops
+    MAX_ITER = 10000
+
+    def __str__(self):
+        return (
+            f"MAX_ITER ({self.MAX_ITER}) exceeded while performing the following action:\n\t"
+            + super().__str__()
+        )
 
 
 def parse() -> Namespace:
@@ -101,7 +110,7 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
         "Did initialization fail?"
     )
 
-    for _ in range(MAX_ITER):
+    for _ in range(MaxIterationExceeded.MAX_ITER):
         file_names = get_file_names(try_path)
 
         if "parameters.py" in file_names:
@@ -111,7 +120,6 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
             subdir = Path(try_path.name)
         else:
             subdir = try_path.name / subdir
-
         if (
             ".git" in file_names  # do no got beyond base git directory
             or try_path == try_path.parent  # reached fixed point, cannot go further
@@ -121,7 +129,7 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
         # go up one
         try_path = try_path.parent
     else:
-        raise not_found_error
+        raise not_found_error from MaxIterationExceeded("Searching for 'parameters.py'.")
 
     return try_path, subdir
 
@@ -296,13 +304,15 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
         )
 
     # find a file name that is not taken yet
-    for suffix in range(1, MAX_ITER):
+    for suffix in range(1, MaxIterationExceeded.MAX_ITER):
         new_output_file = Path(f"{output_file}.{suffix}")
         if not new_output_file.exists():
             # use this one
             break
     else:
-        raise FileExistsError(f"Could not create new '{output_file}.x' file.")
+        raise FileExistsError(
+            f"Could not create new '{output_file}.x' file."
+        ) from MaxIterationExceeded("Searching for available file name.")
 
     quiet_print(
         args.quiet,
@@ -480,7 +490,12 @@ def main():
     try:
         # check if already inside of a simulation directory
         path, subdir = find_simulation_base_directory(path)
-    except FileNotFoundError:
+    except FileNotFoundError as e:
+        if isinstance(e.__cause__, MaxIterationExceeded):
+            warn(
+                f"could not find base directory, see details below\n\n{e}\n**caused by**\n{e.__cause__}"
+            )
+
         # no simulation directory found, try to create it
         tasks += [
             initialize(args, path),
