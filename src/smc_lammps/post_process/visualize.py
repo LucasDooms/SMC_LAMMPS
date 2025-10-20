@@ -120,6 +120,9 @@ class Molecules:
         self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
     def add_spaced_beads(self, spaced_beads: Sequence[int]) -> None:
+        if not spaced_beads:
+            return
+
         self.file.write("mol rep vdw\n")
         self.file.write(f"mol addrep {self.index}\n")
         self.rep_index += 1
