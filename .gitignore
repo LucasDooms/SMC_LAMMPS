@@ -8,7 +8,7 @@ datafile_coeffs
 datafile_positions
 restartfile
 parameterfile
-*/states/*
+**/states/*
 post_processing_parameters.py
 
 # lammps dumps and outputs
@@ -18,12 +18,14 @@ log.lammps
 tmp.lammps.variable
 
 # vmd
-*/vmd.init
-*/vmd.tcl
+**/vmd.init
+**/vmd.tcl
 
 # other saved data
 *.npz
 
 # generated images
 bead_id_in_time.png
+bead_id_in_time.svg
 msd_in_time.png
+msd_in_time.svg
