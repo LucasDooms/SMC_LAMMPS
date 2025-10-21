@@ -89,7 +89,15 @@ def run_and_handle_error(
         if ignore_errors:
             quiet_print(quiet, "-n (--ignore-errors) flag is set, continuing...\n")
             return
-        raise ChildProcessError()
+
+        quiet_print(
+            quiet,
+            "\n\n"
+            "------------------------------------------------\n"
+            "-- exiting smc-lammps due to subprocess error --\n"
+            "------------------------------------------------\n",
+        )
+        exit(completion.returncode)
 
 
 def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
