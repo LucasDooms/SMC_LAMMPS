@@ -3,17 +3,18 @@
 from pathlib import Path
 from runpy import run_path
 from sys import argv
+from typing import Any, Sequence
 
 import numpy as np
 
 
-def read_lammpstrj(file_path):
-    timesteps = []
-    num_atoms = []
-    box_bounds = []
-    atom_data = []
+def read_lammpstrj(trajectory_file: Path):
+    timesteps: list[int] = []
+    num_atoms: list[int] = []
+    box_bounds: list[list[list[float]]] = []
+    atom_data: list[list[list[Any]]] = []
 
-    with open(file_path, "r") as file:
+    with open(trajectory_file, "r") as file:
         lines = file.readlines()
 
     i = 0
@@ -41,12 +42,12 @@ def read_lammpstrj(file_path):
             i += 4
 
         elif lines[i].strip() == "ITEM: ATOMS id type x y z":
-            atoms = []
+            atoms: list[list[Any]] = []
 
             for j in range(num_atoms[-1]):
                 components = lines[i + 1 + j].strip().split()
                 # convert x,y,z to float
-                components = [*components[:2], *map(float, components[2:])]
+                components: list[Any] = [*components[:2], *map(float, components[2:])]
 
                 atoms.append(components)
 
@@ -60,7 +61,13 @@ def read_lammpstrj(file_path):
     return timesteps, num_atoms, box_bounds, atom_data
 
 
-def write_lammpstrj(file_path, timesteps, num_atoms, box_bounds, atom_data):
+def write_lammpstrj(
+    file_path: Path,
+    timesteps: Sequence[int],
+    num_atoms: Sequence[int],
+    box_bounds: Sequence[Sequence[list[float]]],
+    atom_data: Sequence[Sequence[Sequence[Any]]],
+):
     with open(file_path, "w") as file:
         for t, n, bounds, atoms in zip(timesteps, num_atoms, box_bounds, atom_data):
             file.write("ITEM: TIMESTEP\n")
@@ -131,8 +138,8 @@ def transform_atoms(atom_data, index1, index2, index3, v0, v1, v2):
     return atom_data
 
 
-def main(input_file, output_file, index1, index2, index3):
-    timesteps, num_atoms, box_bounds, atom_data = read_lammpstrj(input_file)
+def main(trajectory_file: Path, output_file: Path, index1: int, index2: int, index3: int):
+    timesteps, num_atoms, box_bounds, atom_data = read_lammpstrj(trajectory_file)
 
     # Extract initial positions for the three atoms
     initial_pos1 = atom_data[0][index1 - 1][2:5]
@@ -149,26 +156,35 @@ def main(input_file, output_file, index1, index2, index3):
 
 if __name__ == "__main__":
     argv = argv[1:]
-    if len(argv) < 2:
-        raise ValueError("2 inputs required: output.lammpstrj and post_processing_parameters.py")
+    if len(argv) < 3:
+        raise ValueError(
+            "3 inputs required: output.lammpstrj, file_name, and post_processing_parameters.py"
+        )
 
-    output_file = Path(argv[0])
-
-    post_processing_parameters_file = Path(argv[1])
+    trajectory_file = Path(argv[0])
+    write_to_file = Path(argv[1])
+    post_processing_parameters_file = Path(argv[2])
     parameters = run_path(post_processing_parameters_file.as_posix())
 
-    argv = argv[2:]
-    if argv:
-        use_reference = argv[0]
+    if len(argv) > 3:
+        use_reference = argv[3]
     else:
         # default is arms
         use_reference = "arms"
 
+    if len(argv) > 4:
+        force = argv[4].lower() in {"1", "true", "yes"}
+    else:
+        force = False
+
+    if not force and write_to_file.exists():
+        raise FileExistsError(f"cannot write to '{write_to_file}', file exists")
+
     if use_reference == "kleisin":
-        kleisin_ids = parameters["kleisin_ids"]
+        kleisin_ids: list[int] = parameters["kleisin_ids"]
         ref_ids = [kleisin_ids[1], kleisin_ids[len(kleisin_ids) // 2], kleisin_ids[-2]]
     elif use_reference == "arms":
-        ref_ids = [
+        ref_ids: list[int] = [
             parameters["top_left_bead_id"],
             parameters["left_bead_id"],
             parameters["right_bead_id"],
@@ -176,4 +192,4 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Unknown reference option {use_reference}")
 
-    main(output_file, output_file.parent / f"perspective.{output_file.name}", *ref_ids)
+    main(trajectory_file, write_to_file, *ref_ids)

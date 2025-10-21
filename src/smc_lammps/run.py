@@ -39,6 +39,7 @@ def parse() -> Namespace:
     )
 
     parser.add_argument('directory', help='the directory containing parameters for LAMMPS')
+    parser.add_argument('sub_args', nargs=argparse.REMAINDER, help='arguments passed to subcommand')
 
     generate_and_run = parser.add_argument_group(title='generate & run')
     generate_and_run.add_argument('-g', '--generate', action='store_true', help='run the python setup scripts before executing LAMMPS')
@@ -135,7 +136,7 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
 
 
 class TaskDone:
-    def __init__(self, skipped=False) -> None:
+    def __init__(self, skipped: bool = False) -> None:
         self.skipped = skipped
 
 
@@ -399,10 +400,17 @@ def visualize_datafile(args: Namespace, path: Path, subdir: Path | None) -> Task
     return TaskDone()
 
 
-def create_perspective_file(args: Namespace, path: Path, force=False):
-    if not force and (path / "perspective.output.lammpstrj").exists():
-        quiet_print(args.quiet, "found perspective.output.lammpstrj")
-        return
+def create_perspective_file(args: Namespace, path: Path, subdir: Path | None) -> Path:
+    if subdir is None:
+        read_from_file = path / "output.lammpstrj"
+    else:
+        read_from_file = path / subdir
+
+    prefix = f"perspective.{args.visualize_follow}"
+    perspective_file = read_from_file.parent / f"{prefix}.{read_from_file.name}"
+    if not args.force and perspective_file.exists():
+        quiet_print(args.quiet, f"found '{perspective_file}'")
+        return perspective_file
 
     quiet_print(args.quiet, "creating new lammpstrj file")
     run_and_handle_error(
@@ -410,40 +418,44 @@ def create_perspective_file(args: Namespace, path: Path, force=False):
             PYRUN
             + [
                 "smc_lammps.post_process.smc_perspective",
-                f"{path / 'output.lammpstrj'}",
+                f"{read_from_file}",
+                f"{perspective_file}",
                 f"{path / 'post_processing_parameters.py'}",
                 f"{args.visualize_follow}",
+                f"{str(args.force).lower()}",
             ],
             check=False,
         ),
         args.ignore_errors,
         args.quiet,
     )
-    quiet_print(args.quiet, "created perspective.output.lammpstrj")
+    quiet_print(args.quiet, f"created '{perspective_file}'")
+
+    return perspective_file
 
 
-def visualize_follow(args: Namespace, path: Path) -> TaskDone:
-    if args.visualize_follow is None:
-        return TaskDone(skipped=True)
-
-    create_perspective_file(args, path)
-
+def start_visualize_script(args: Namespace, path: Path, other_args: list[str]):
     quiet_print(args.quiet, "starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
-            PYRUN
-            + [
-                "smc_lammps.post_process.visualize",
-                f"{path}",
-                "--file_name",
-                "perspective.output.lammpstrj",
-            ],
+            PYRUN + ["smc_lammps.post_process.visualize", f"{path}"] + other_args,
             check=False,
         ),
         args.ignore_errors,
         args.quiet,
     )
     quiet_print(args.quiet, "VMD exited")
+
+
+def visualize_follow(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
+    if args.visualize_follow is None:
+        return TaskDone(skipped=True)
+
+    perspective_file = create_perspective_file(args, path, subdir)
+
+    file_arg = ["--file_name", perspective_file.relative_to(path)]
+
+    start_visualize_script(args, path, file_arg + args.sub_args)
 
     return TaskDone()
 
@@ -452,7 +464,7 @@ def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
     if not visualize_datafile(args, path, subdir).skipped:
         return TaskDone()
 
-    if not visualize_follow(args, path).skipped:
+    if not visualize_follow(args, path, subdir).skipped:
         return TaskDone()
 
     if not args.visualize:
@@ -464,15 +476,7 @@ def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
             raise ValueError(f"Cannot visualize: '{path / subdir}' is not a file.")
         file_arg = ["--file_name", subdir]
 
-    quiet_print(args.quiet, "starting VMD")
-    run_and_handle_error(
-        lambda: subprocess.run(
-            PYRUN + ["smc_lammps.post_process.visualize", f"{path}"] + file_arg, check=False
-        ),
-        args.ignore_errors,
-        args.quiet,
-    )
-    quiet_print(args.quiet, "VMD exited")
+    start_visualize_script(args, path, file_arg + args.sub_args)
 
     return TaskDone()
 
