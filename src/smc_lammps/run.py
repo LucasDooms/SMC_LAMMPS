@@ -158,6 +158,27 @@ def initialize(args: Namespace, path: Path) -> TaskDone:
         return TaskDone(skipped=True)
 
     if not path.exists():
+        action_flags = [
+            args.clean,
+            args.generate,
+            args.run,
+            args.post_process,
+            args.visualize_datafile,
+            args.visualize_follow,
+            args.visualize,
+        ]
+        # if any flags were specified, ask for confirmation
+        if (
+            not args.force
+            and any(action_flags)
+            and not confirm(
+                f"Looks like '{path}' is not a simulation directory, do you want to create it?",
+                default=False,
+            )
+        ):
+            quiet_print(args.quiet, "no simulation directory set, exiting")
+            exit(1)
+
         path.mkdir(parents=True)
         quiet_print(args.quiet, f"created new directory: {path.absolute()}")
     elif not args.force:
