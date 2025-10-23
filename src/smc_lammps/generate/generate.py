@@ -118,7 +118,7 @@ SMC_total_mass = 0.25
 ################
 
 # DNA-DNA repulsion radius (nm)
-radius_DNA_DNA = 3.5
+radius_DNA_DNA = 2.0
 
 
 #######
