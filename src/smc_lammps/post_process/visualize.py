@@ -110,6 +110,12 @@ class Molecules:
             for rep_index in range(self._rep_index[mol_index] + 1):
                 self.file.write(f"mol smoothrep {mol_index} {rep_index} {smoothing}\n")
 
+    def set_animate_once(self) -> None:
+        self.file.write("animate style once\n")
+
+    def set_animate_start(self) -> None:
+        self.file.write("animate goto start\n")
+
     def create_new(self, file: Path, other_args: str) -> None:
         self.index += 1
         self.file.write(f"\n# >>> mol {self.index}\n")
@@ -194,5 +200,10 @@ mol.add_spaced_beads(ppp["spaced_bead_indices"])
 
 # run after all mols which should be smoothed have been added
 mol.set_all_smoothing(args.smoothing)
+mol.file.write("\n")
+mol.file.write("# === other options ===\n")
+mol.file.write("\n")
+mol.set_animate_once()
+mol.set_animate_start()
 
 mol.run_vmd()
