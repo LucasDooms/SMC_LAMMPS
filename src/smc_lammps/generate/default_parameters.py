@@ -137,6 +137,10 @@ class Parameters:
 
     #################### Binding sites ###################
 
+    add_side_site: bool = False
+    """Add a binding site on the lower SMC arm to act as the lower_site.
+    If enabled, the lower site operates normally."""
+
     lower_site_cycle_period: int = 0
     """The number of SMC cycles between events where the lower site is disabled.
     A value of zero disables this and uses the default lower site dynamics."""

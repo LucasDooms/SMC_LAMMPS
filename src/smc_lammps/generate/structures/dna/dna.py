@@ -216,9 +216,18 @@ class Tether:
             ip.sigma_DNA_DNA,
             ip.rcut_DNA_DNA,
         )
+        # Tether repels arms
         pair_inter.add_interaction(
             tether_type,
-            smc.t_arms_heads_kleisin,
+            smc.t_arms_heads,
+            ip.epsilon_SMC_DNA * kBT,
+            ip.sigma_SMC_DNA,
+            ip.rcut_SMC_DNA,
+        )
+        # Tether repels kleisin
+        pair_inter.add_interaction(
+            tether_type,
+            smc.t_kleisin,
             ip.epsilon_SMC_DNA * kBT,
             ip.sigma_SMC_DNA,
             ip.rcut_SMC_DNA,
@@ -249,9 +258,18 @@ class Tether:
                 self.obstacle.radius,
                 self.obstacle.cut,
             )
+            # Obstacle repels arms
             pair_inter.add_interaction(
                 self.obstacle.group.type,
-                smc.t_arms_heads_kleisin,
+                smc.t_arms_heads,
+                ip.epsilon_DNA_DNA * kBT,
+                self.obstacle.radius,
+                self.obstacle.cut,
+            )
+            # Obstacle repels kleisin
+            pair_inter.add_interaction(
+                self.obstacle.group.type,
+                smc.t_kleisin,
                 ip.epsilon_DNA_DNA * kBT,
                 self.obstacle.radius,
                 self.obstacle.cut,
@@ -426,12 +444,29 @@ class DnaConfiguration:
             ip.sigma_DNA_DNA,
             ip.rcut_DNA_DNA,
         )
+        # DNA repels arms
         pair_inter.add_interaction(
             dna_type,
-            self.smc.t_arms_heads_kleisin,
+            self.smc.t_arms_heads,
             ip.epsilon_SMC_DNA * kBT,
             ip.sigma_SMC_DNA,
             ip.rcut_SMC_DNA,
+        )
+        # DNA repels kleisin
+        pair_inter.add_interaction(
+            dna_type,
+            self.smc.t_kleisin,
+            ip.epsilon_SMC_DNA * kBT,
+            ip.sigma_SMC_DNA,
+            ip.rcut_SMC_DNA,
+        )
+        # DNA repels shields, allow closer interaction
+        pair_inter.add_interaction(
+            dna_type,
+            self.smc.t_shield,
+            ip.epsilon_SMC_DNA * kBT,
+            ip.sigma_SMC_DNA / 2.0,
+            ip.rcut_SMC_DNA / 2.0,
         )
         if self.smc.has_toroidal_hinge():
             pair_inter.add_interaction(
@@ -441,6 +476,14 @@ class DnaConfiguration:
                 ip.sigma_SMC_DNA,
                 ip.rcut_SMC_DNA,
             )
+        # if self.smc.has_side_site():
+        #     pair_inter.add_interaction(
+        #         dna_type,
+        #         self.smc.t_side_site,
+        #         ip.epsilon_upper_site_DNA * kBT,
+        #         ip.sigma_upper_site_DNA,
+        #         ip.rcut_lower_site_DNA,
+        #     )
         pair_inter.add_interaction(
             dna_type,
             self.smc.t_lower_site,
@@ -673,7 +716,7 @@ class Folded(DnaConfiguration):
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        start = np.array([dna_center[0] + 10.0 * dna_parameters.DNA_bond_length, r_DNA[-1][1], 0])
+        start = np.array([dna_center[0] + 100.0 * dna_parameters.DNA_bond_length, r_DNA[-1][1], 0])
         shift = (goal - start).reshape(1, 3)
         r_DNA += shift
 

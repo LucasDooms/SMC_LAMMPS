@@ -27,6 +27,7 @@ class SMC_Pos:
     r_middle_site: Nx3Array
     r_lower_site: Nx3Array
     r_hinge: Nx3Array
+    r_side_site: Nx3Array
 
     def iter(self) -> list[Any]:
         """Returns a list of all fields"""
@@ -67,6 +68,8 @@ class SMC_Creator:
     # Not used if use_toroidal_hinge = False
     hinge_radius: float
     hinge_opening: float
+
+    add_side_site: bool
 
     kleisin_radius: float
 
@@ -334,6 +337,28 @@ class SMC_Creator:
         r_middle_site += r_ATP[len(r_ATP) // 2]
         r_lower_site += r_kleisin[len(r_kleisin) // 2]
 
+        if self.add_side_site:
+            r_side_site = (
+                self.shielded_site_template(1, 4, self.middle_site_h / 2.0, 1) * self.SMC_spacing
+            )
+
+            rotate_around_x_axis = Rotation.from_rotvec(
+                math.pi / 2.0 * np.array([1.0, 0.0, 0.0])
+            ).as_matrix()
+            (r_side_site,) = self.transpose_rotate_transpose(rotate_around_x_axis, r_side_site)
+
+            site_index = -4
+            r_side_site += r_arm_dr[site_index]
+            surround = 1
+            r_arm_dr = np.concatenate(
+                (
+                    r_arm_dr[: site_index - surround],
+                    r_arm_dr[site_index + 1 + surround :],
+                )
+            )
+        else:
+            r_side_site: Nx3Array = np.empty(shape=(0, 3), dtype=r_arm_dr.dtype)
+
         ############################# Fold upper compartment ############################
 
         # Rotation matrix (clockwise about z axis)
@@ -342,7 +367,8 @@ class SMC_Creator:
         ).as_matrix()
 
         # Rotate upper segments only
-        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_upper_site, r_middle_site, r_hinge = (
+        # fmt: off
+        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_upper_site, r_middle_site, r_hinge, r_side_site = (
             self.transpose_rotate_transpose(
                 rotation,
                 r_arm_dl,
@@ -352,8 +378,10 @@ class SMC_Creator:
                 r_upper_site,
                 r_middle_site,
                 r_hinge,
+                r_side_site,
             )
         )
+        # fmt: on
 
         self.generated_positions = SMC_Pos(
             r_arm_dl=r_arm_dl,
@@ -366,6 +394,7 @@ class SMC_Creator:
             r_middle_site=r_middle_site,
             r_lower_site=r_lower_site,
             r_hinge=r_hinge,
+            r_side_site=r_side_site,
         )
 
         # apply extra rotation to entire SMC

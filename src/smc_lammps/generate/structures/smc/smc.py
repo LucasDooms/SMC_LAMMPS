@@ -24,13 +24,16 @@ class SMC:
 
     pos: SMC_Pos
 
-    t_arms_heads_kleisin: AtomType
+    t_arms_heads: AtomType
+    t_kleisin: AtomType
+    t_shield: AtomType
     t_hinge: AtomType
     t_atp: AtomType
     t_upper_site: AtomType
     t_middle_site: AtomType
     t_lower_site: AtomType
     t_ref_site: AtomType
+    t_side_site: AtomType
 
     # bonds
     k_bond: float
@@ -157,13 +160,34 @@ class SMC:
         self._set_angles()
         self._set_impropers()
         # create groups
-        self.arm_dl_grp = AtomGroup(self.pos.r_arm_dl, self.t_arms_heads_kleisin, self.mol_arm_dl)
-        self.arm_ul_grp = AtomGroup(self.pos.r_arm_ul, self.t_arms_heads_kleisin, self.mol_arm_ul)
-        self.arm_ur_grp = AtomGroup(self.pos.r_arm_ur, self.t_arms_heads_kleisin, self.mol_arm_ur)
-        self.arm_dr_grp = AtomGroup(self.pos.r_arm_dr, self.t_arms_heads_kleisin, self.mol_arm_dr)
-        self.hk_grp = AtomGroup(
-            self.pos.r_kleisin, self.t_arms_heads_kleisin, self.mol_heads_kleisin
-        )
+        self.arm_dl_grp = AtomGroup(self.pos.r_arm_dl, self.t_arms_heads, self.mol_arm_dl)
+        self.arm_ul_grp = AtomGroup(self.pos.r_arm_ul, self.t_arms_heads, self.mol_arm_ul)
+        self.arm_ur_grp = AtomGroup(self.pos.r_arm_ur, self.t_arms_heads, self.mol_arm_ur)
+        self.arm_dr_grp = AtomGroup(self.pos.r_arm_dr, self.t_arms_heads, self.mol_arm_dr)
+
+        if self.has_side_site():
+            # split S in two parts
+
+            cut = 1
+            self.side_site_grp = AtomGroup(
+                self.pos.r_side_site[:cut], self.t_side_site, self.mol_arm_dr
+            )
+            self.side_site_arm_grp = AtomGroup(
+                self.pos.r_side_site[cut:], self.t_shield, self.mol_arm_dr
+            )
+        else:
+            self.side_site_grp = AtomGroup(
+                np.empty(shape=(0, 3), dtype=self.pos.r_arm_dr.dtype),
+                self.t_side_site,
+                self.mol_arm_dr,
+            )
+            self.side_site_arm_grp = AtomGroup(
+                np.empty(shape=(0, 3), dtype=self.pos.r_arm_dr.dtype),
+                self.t_kleisin,
+                self.mol_arm_dr,
+            )
+
+        self.hk_grp = AtomGroup(self.pos.r_kleisin, self.t_kleisin, self.mol_heads_kleisin)
 
         self.atp_grp = AtomGroup(self.pos.r_ATP, self.t_atp, self.mol_ATP)
 
@@ -186,7 +210,7 @@ class SMC:
             )
             self.upper_site_arm_grp = AtomGroup(
                 np.empty(shape=(0, 3), dtype=self.pos.r_upper_site.dtype),
-                self.t_arms_heads_kleisin,
+                self.t_arms_heads,
                 self.mol_hinge_l,
             )
         else:
@@ -195,7 +219,7 @@ class SMC:
                 self.pos.r_upper_site[:cut], self.t_upper_site, self.mol_hinge_l
             )
             self.upper_site_arm_grp = AtomGroup(
-                self.pos.r_upper_site[cut:], self.t_arms_heads_kleisin, self.mol_hinge_l
+                self.pos.r_upper_site[cut:], self.t_arms_heads, self.mol_hinge_l
             )
 
         # split M in three parts
@@ -219,7 +243,7 @@ class SMC:
             self.pos.r_lower_site[:cut], self.t_lower_site, self.mol_lower_site
         )
         self.lower_site_arm_grp = AtomGroup(
-            self.pos.r_lower_site[cut:], self.t_arms_heads_kleisin, self.mol_lower_site
+            self.pos.r_lower_site[cut:], self.t_arms_heads, self.mol_lower_site
         )
 
         if self.has_toroidal_hinge():
@@ -231,6 +255,9 @@ class SMC:
 
     def has_toroidal_hinge(self) -> bool:
         return self.pos.r_hinge.size != 0
+
+    def has_side_site(self) -> bool:
+        return self.pos.r_side_site.size != 0
 
     def get_groups(self) -> list[AtomGroup]:
         grps = [
@@ -249,6 +276,8 @@ class SMC:
             self.lower_site_arm_grp,
             self.hinge_l_grp,
             self.hinge_r_grp,
+            self.side_site_grp,
+            self.side_site_arm_grp,
         ]
         return [grp for grp in grps if grp.positions.size != 0]
 
@@ -487,6 +516,17 @@ class SMC:
                     (self.atp_grp, -1),
                 ),
             ]
+        if self.has_side_site():
+            impropers += [
+                # align back of side site shield with ATP bridge
+                BAI(
+                    self.imp_t1,
+                    (self.side_site_arm_grp, 1),
+                    (self.side_site_arm_grp, 2),
+                    (self.atp_grp, -1),
+                    (self.atp_grp, 0),
+                ),
+            ]
 
         return impropers
 
@@ -508,7 +548,7 @@ class SMC:
             )
             # prevent upper site from overlapping with arms
             pair_inter.add_interaction(
-                self.t_arms_heads_kleisin,
+                self.t_arms_heads,
                 self.t_upper_site,
                 eps,
                 sigma_short,

@@ -267,6 +267,8 @@ smc_creator = SMC_Creator(
     # allow ssDNA passage but not dsDNA
     hinge_opening=2.2 * SMC_spacing,
     #
+    add_side_site=par.add_side_site,
+    #
     kleisin_radius=par.kleisin_radius,
     folding_angle_APO=par.folding_angle_APO,
 )
@@ -334,13 +336,16 @@ smc_1 = SMC(
     use_rigid_hinge=par.rigid_hinge,
     pos=smc_positions,
     #
-    t_arms_heads_kleisin=AtomType(mSMC),
+    t_arms_heads=AtomType(mSMC),
+    t_kleisin=AtomType(mSMC),
+    t_shield=AtomType(mSMC),
     t_hinge=AtomType(mSMC, unused=not par.use_toroidal_hinge),
     t_atp=AtomType(mSMC),
     t_upper_site=AtomType(mSMC),
     t_middle_site=AtomType(mSMC),
     t_lower_site=AtomType(mSMC),
     t_ref_site=AtomType(mSMC),
+    t_side_site=AtomType(mSMC, unused=not par.add_side_site),
     #
     k_bond=k_bond_SMC,
     k_hinge=k_bond_hinge,
@@ -520,6 +525,21 @@ middle_site_soft_on = Generator.DynamicCoeffs(
     [dna_type, smc_1.t_middle_site],
 )
 
+use_side_site_off: list[Generator.DynamicCoeffs] = []
+use_side_site_on: list[Generator.DynamicCoeffs] = []
+if par.add_side_site:
+    use_side_site_off = [
+        Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_side_site])
+    ]
+    factor = 0.33
+    use_side_site_on = [
+        Generator.DynamicCoeffs(
+            None,
+            f"lj/cut {par.epsilon6 * kBT} {par.sigma * factor} {par.cutoff6}\n",
+            [dna_type, smc_1.t_side_site],
+        )
+    ]
+
 gen.bais += [*smc_1.get_bonds(smc_creator.hinge_opening), *dna_config.get_bonds()]
 
 gen.bais += smc_1.get_angles()
@@ -581,22 +601,25 @@ states_path = lammps_path / "states"
 states_path.mkdir(exist_ok=True)
 
 # if par.lower_site_cycle_period is not zero, the lower site is handled elsewhere
-use_lower_site_off = [lower_site_off] if par.lower_site_cycle_period == 0 else []
-use_lower_site_on = [lower_site_on] if par.lower_site_cycle_period == 0 else []
+site_cond = par.lower_site_cycle_period == 0 or par.add_side_site
+use_lower_site_off = [lower_site_off] if site_cond else []
+use_lower_site_on = [lower_site_on] if site_cond else []
 
 if par.lower_site_cycle_period > 0:
     create_phase(
         gen,
-        states_path / "lower_site_on",
+        states_path / "lower_site_on",  # TODO: rename this
         [
-            lower_site_on,
+            *([lower_site_on] if not site_cond else []),
+            *use_side_site_on,
         ],
     )
     create_phase(
         gen,
         states_path / "lower_site_off",
         [
-            lower_site_off,
+            *([lower_site_off] if not site_cond else []),
+            *use_side_site_off,
         ],
     )
 
