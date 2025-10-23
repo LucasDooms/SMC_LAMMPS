@@ -67,6 +67,9 @@ class Parameters:
     steps_ADP = 2000000
     "Average number of steps spent in ADP state (waiting for return to APO)"
 
+    non_random_steps = False
+    "Disables the exponential sampling for APO,ATP,ADP steps"
+
     ##################### DNA #######################
 
     dna_config = "folded"

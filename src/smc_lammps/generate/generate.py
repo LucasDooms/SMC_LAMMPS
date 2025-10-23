@@ -658,7 +658,11 @@ create_phase(
 # get run times for each SMC state
 # APO -> ATP1 -> ATP2 -> ADP -> ...
 rng = default_rng(par.seed)
-runtimes = get_times_with_max_steps(par, rng)
+if par.non_random_steps:
+    warn("Parameter `non_random_steps` is enabled, this should only be used for testing!")
+    runtimes = get_times_with_max_steps(par, None)
+else:
+    runtimes = get_times_with_max_steps(par, rng)
 
 #################################################################################
 #                           Print to post processing                            #
