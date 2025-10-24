@@ -29,6 +29,9 @@ from smc_lammps.console import warn
 class AtomType:
     __index = 0
 
+    class UnusedIndex(AttributeError):
+        pass
+
     def __init__(self, mass: float = 1.0, unused: bool = False) -> None:
         self._index = None
         self.mass = mass
@@ -42,7 +45,9 @@ class AtomType:
     @property
     def index(self) -> int:
         if self.unused:
-            raise ValueError("This AtomType is marked as unused, cannot obtain a LAMMPS index!")
+            raise self.UnusedIndex(
+                "This AtomType is marked as unused, cannot obtain a LAMMPS index!"
+            )
         if self._index is None:
             self._index = self._get_next()
         return self._index
@@ -163,9 +168,18 @@ class PairWise:
         self.default = default
         self.pairs: list[tuple[AtomType, AtomType, list[Any]]] = []
 
-    def add_interaction(self, atom_type1: AtomType, atom_type2: AtomType, *args: Any) -> PairWise:
+    def add_interaction(
+        self, atom_type1: AtomType, atom_type2: AtomType, *args: Any, **kwargs: bool
+    ) -> PairWise:
         """Add an iteraction. Will sort the indices automatically."""
-        ordered = sorted([atom_type1, atom_type2], key=lambda at: at.index)
+        try:
+            ordered = sorted([atom_type1, atom_type2], key=lambda at: at.index)
+        except AtomType.UnusedIndex as e:
+            if kwargs.get("allow_unused", False):
+                # simply return without changing the self.pairs list
+                return self
+            raise e
+
         self.pairs.append((ordered[0], ordered[1], list(args)))
 
         return self

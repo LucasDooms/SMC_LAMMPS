@@ -338,7 +338,7 @@ smc_1 = SMC(
     #
     t_arms_heads=AtomType(mSMC),
     t_kleisin=AtomType(mSMC),
-    t_shield=AtomType(mSMC),
+    t_shield=AtomType(mSMC, unused=not par.add_side_site),  # currently only used for side site
     t_hinge=AtomType(mSMC, unused=not par.use_toroidal_hinge),
     t_atp=AtomType(mSMC),
     t_upper_site=AtomType(mSMC),

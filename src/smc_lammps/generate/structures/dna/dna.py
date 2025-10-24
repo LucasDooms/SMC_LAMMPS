@@ -426,7 +426,12 @@ class DnaConfiguration:
     def dna_indices_list_get_dna_from_to(
         self, strand_index: int, from_ratio: float, to_ratio: float
     ) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
-        return [tup for tup in self.dna_strands[strand_index].indices_list_from_to_percent(from_ratio, to_ratio)]
+        return [
+            tup
+            for tup in self.dna_strands[strand_index].indices_list_from_to_percent(
+                from_ratio, to_ratio
+            )
+        ]
 
     def dna_indices_list_get_dna_to(
         self, strand_index: int, ratio: float
@@ -467,24 +472,24 @@ class DnaConfiguration:
             ip.epsilon_SMC_DNA * kBT,
             ip.sigma_SMC_DNA / 2.0,
             ip.rcut_SMC_DNA / 2.0,
+            allow_unused=True,
         )
-        if self.smc.has_toroidal_hinge():
-            pair_inter.add_interaction(
-                dna_type,
-                self.smc.t_hinge,
-                ip.epsilon_SMC_DNA * kBT,
-                ip.sigma_SMC_DNA,
-                ip.rcut_SMC_DNA,
-            )
-        if self.smc.has_side_site():
-            factor = 0.33
-            pair_inter.add_interaction(
-                dna_type,
-                self.smc.t_side_site,
-                ip.epsilon_upper_site_DNA * kBT,
-                ip.sigma_upper_site_DNA * factor,
-                ip.rcut_lower_site_DNA * factor,
-            )
+        pair_inter.add_interaction(
+            dna_type,
+            self.smc.t_hinge,
+            ip.epsilon_SMC_DNA * kBT,
+            ip.sigma_SMC_DNA,
+            ip.rcut_SMC_DNA,
+            allow_unused=True,
+        )
+        pair_inter.add_interaction(
+            dna_type,
+            self.smc.t_side_site,
+            ip.epsilon_upper_site_DNA * kBT,
+            ip.sigma_upper_site_DNA * 0.33,
+            ip.rcut_lower_site_DNA * 0.66,
+            allow_unused=True,
+        )
         pair_inter.add_interaction(
             dna_type,
             self.smc.t_lower_site,
@@ -752,7 +757,9 @@ class Folded(DnaConfiguration):
         ]
 
         ppp.dna_indices_list[0] = self.dna_indices_list_get_dna_to(0, ratio=0.5)
-        ppp.dna_indices_list[1] = self.dna_indices_list_get_dna_from_to(0, from_ratio=0.5, to_ratio=1.0)
+        ppp.dna_indices_list[1] = self.dna_indices_list_get_dna_from_to(
+            0, from_ratio=0.5, to_ratio=1.0
+        )
 
         return ppp
 
