@@ -198,6 +198,18 @@ class PairWise:
 
         return all_inters
 
+    def pair_in_inter(
+        self,
+        interaction: tuple[AtomType, AtomType],
+    ) -> tuple[AtomType, AtomType, list[Any]] | None:
+        for pair in self.pairs:
+            if interaction[0] == pair[0] and interaction[1] == pair[1]:
+                return pair
+            if interaction[1] == pair[0] and interaction[0] == pair[1]:
+                return pair
+
+        return None
+
     def get_all_interactions(
         self, all_atom_types: list[AtomType]
     ) -> list[tuple[AtomType, AtomType, str]]:
@@ -205,21 +217,10 @@ class PairWise:
         applying the default where no interaction was specified by the user."""
         all_inters = self.get_all_interaction_pairs(all_atom_types)
 
-        def pair_in_inter(
-            interaction: tuple[AtomType, AtomType],
-        ) -> tuple[AtomType, AtomType, list[Any]] | None:
-            for pair in self.pairs:
-                if interaction[0] == pair[0] and interaction[1] == pair[1]:
-                    return pair
-                if interaction[1] == pair[0] and interaction[0] == pair[1]:
-                    return pair
-
-            return None
-
         final_pairs: list[tuple[AtomType, AtomType, str]] = []
 
         for inter in all_inters:
-            pair = pair_in_inter(inter)
+            pair = self.pair_in_inter(inter)
             if pair is None:
                 if self.default is not None:
                     final_pairs.append((inter[0], inter[1], self.template.format(*self.default)))
@@ -639,6 +640,28 @@ class Generator:
         pair_or_BAI: None | BAI_Kind
         coeff_string: str
         args: list[Any]
+
+        @classmethod
+        def create_from_pairwise(
+            cls, pairwise: PairWise, type1: AtomType, type2: AtomType, values: list[Any] | None
+        ) -> Generator.DynamicCoeffs:
+            if values is not None:
+                coeff_string = pairwise.template.format(*values)
+            else:
+                # search for values in PairWise
+                # NOTE: we are not using the inferred get_all_interactions values,
+                # only the explicitly user defined onces!
+                pair = pairwise.pair_in_inter((type1, type2))
+                if pair is None:
+                    raise RuntimeError(
+                        "This pair interaction has no assigned values (yet).\n"
+                        "To resolve this, do one of the following\n"
+                        "\t- make sure the interaction has been added via PairWise.add_interaction\n"
+                        "\t- define the values explicitly in create_from_pairwise (don't pass None)\n"
+                    )
+                coeff_string = pairwise.template.format(*pair[2])
+
+            return cls(None, coeff_string, [type1, type2])
 
     def write_script_bai_coeffs(self, file, coeffs: DynamicCoeffs) -> None:
         """Write a LAMMPS command for a pair / BAI interaction to a file."""
