@@ -601,15 +601,15 @@ with open(lammps_path / "styles", "w", encoding="utf-8") as stylesfile:
 states_path = lammps_path / "states"
 states_path.mkdir(exist_ok=True)
 
-# if par.lower_site_cycle_period is not zero, the lower site is handled elsewhere
-site_cond = par.lower_site_cycle_period == 0 or par.add_side_site
+# if par.site_cycle_period is not zero, the lower site is handled elsewhere
+site_cond = par.site_cycle_period == 0 or par.add_side_site
 use_lower_site_off = [lower_site_off] if site_cond else []
 use_lower_site_on = [lower_site_on] if site_cond else []
 
-if par.lower_site_cycle_period > 0:
+if par.site_cycle_period > 0:
     create_phase(
         gen,
-        states_path / "lower_site_on",  # TODO: rename this
+        states_path / "cycle_site_on",
         [
             *([lower_site_on] if not site_cond else []),
             *use_side_site_on,
@@ -617,7 +617,7 @@ if par.lower_site_cycle_period > 0:
     )
     create_phase(
         gen,
-        states_path / "lower_site_off",
+        states_path / "cycle_site_off",
         [
             *([lower_site_off] if not site_cond else []),
             *use_side_site_off,
@@ -840,5 +840,5 @@ with open(lammps_path / "parameterfile", "w", encoding="utf-8") as parameterfile
 
     parameterfile.write("\n")
 
-    parameterfile.write(f"variable lower_site_toggle_delay equal {par.lower_site_toggle_delay}\n")
-    parameterfile.write(f"variable lower_site_cycle_period equal {par.lower_site_cycle_period}\n")
+    parameterfile.write(f"variable site_toggle_delay equal {par.site_toggle_delay}\n")
+    parameterfile.write(f"variable site_cycle_period equal {par.site_cycle_period}\n")

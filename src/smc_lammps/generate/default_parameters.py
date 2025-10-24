@@ -138,15 +138,15 @@ class Parameters:
     #################### Binding sites ###################
 
     add_side_site: bool = False
-    """Add a binding site on the lower SMC arm to act as the lower_site.
+    """Add a binding site on the lower SMC arm to act as the cycling site.
     If enabled, the lower site operates normally."""
 
-    lower_site_cycle_period: int = 0
-    """The number of SMC cycles between events where the lower site is disabled.
-    A value of zero disables this and uses the default lower site dynamics."""
+    site_cycle_period: int = 0
+    """The number of SMC cycles between events where the cycling site is disabled.
+    A value of zero disables this and uses the default site dynamics."""
 
-    lower_site_toggle_delay: int = 0
-    """The number of SMC cycles between the lower site being turned off and then on again.
+    site_toggle_delay: int = 0
+    """The number of SMC cycles between the cycling site being turned off and then on again.
     A value of zero means that the site will be enabled in the same cycle."""
 
     #################### LJ energies ###################

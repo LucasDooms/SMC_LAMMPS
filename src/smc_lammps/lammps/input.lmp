@@ -155,8 +155,8 @@ if $(is_defined(variable,obstacle_id)) then &
 if $(is_defined(variable,smc_force)) then &
 	"fix smc_force SMC addforce $(-v_smc_force) $(v_smc_force) 0"
 
-variable lower_site_cycle equal ${lower_site_cycle_period} # 0 means disabled
-variable lower_site_on_delay equal -1 # -1 means disabled
+variable site_cycle equal ${site_cycle_period} # 0 means disabled
+variable site_on_delay equal -1 # -1 means disabled
 
 # --- start of SMC cycle loop --- #
 label main_loop
@@ -183,14 +183,14 @@ next runtimes
 # take snapshot
 write_dump all custom 'snapshots/atp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
 
-# check if lower site should be disabled
-variable lower_site_cycle equal $(v_lower_site_cycle - 1)
-# Note: if lower_site_cycle started at zero, this check
-# will never pass, which effectively disables the lower site toggling
-if $(v_lower_site_cycle == 0) then &
-    "variable lower_site_cycle equal ${lower_site_cycle_period}" &
-    "include lammps/states/lower_site_off" &
-    "variable lower_site_on_delay equal ${lower_site_toggle_delay}" &
+# check if cycling site should be disabled
+variable site_cycle equal $(v_site_cycle - 1)
+# Note: if site_cycle started at zero, this check
+# will never pass, which effectively disables the cycling site toggling
+if $(v_site_cycle == 0) then &
+    "variable site_cycle equal ${site_cycle_period}" &
+    "include lammps/states/cycle_site_off" &
+    "variable site_on_delay equal ${site_toggle_delay}" &
 
 # ADP-bound state
 print "----------- STARTING ADP STATE -----------" screen yes
@@ -202,11 +202,11 @@ next runtimes
 write_dump all custom 'snapshots/adp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
 
 # check if lower site should be enabled
-if $(v_lower_site_on_delay > 0) then &
-    "variable lower_site_on_delay equal $(v_lower_site_on_delay - 1)" &
-elif $(v_lower_site_on_delay == 0) &
-    "variable lower_site_on_delay equal -1" &
-    "include lammps/states/lower_site_on"
+if $(v_site_on_delay > 0) then &
+    "variable site_on_delay equal $(v_site_on_delay - 1)" &
+elif $(v_site_on_delay == 0) &
+    "variable site_on_delay equal -1" &
+    "include lammps/states/cycle_site_on"
 
 write_restart lammps/restartfile
 
