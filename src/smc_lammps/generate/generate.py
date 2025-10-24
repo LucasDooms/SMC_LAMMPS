@@ -608,7 +608,6 @@ use_lower_site_on = [lower_site_on] if site_cond else []
 
 if par.site_cycle_period > 0:
     create_phase(
-        gen,
         states_path / "cycle_site_on",
         [
             *([lower_site_on] if not site_cond else []),
@@ -616,7 +615,6 @@ if par.site_cycle_period > 0:
         ],
     )
     create_phase(
-        gen,
         states_path / "cycle_site_off",
         [
             *([lower_site_off] if not site_cond else []),
@@ -625,7 +623,6 @@ if par.site_cycle_period > 0:
     )
 
 create_phase(
-    gen,
     states_path / "adp_bound",
     [
         bridge_off,
@@ -639,7 +636,6 @@ create_phase(
 )
 
 create_phase(
-    gen,
     states_path / "apo",
     [
         bridge_off,
@@ -651,10 +647,8 @@ create_phase(
         smc_1.kleisin_unfolds2,
     ],
 )
-# gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
 
 create_phase(
-    gen,
     states_path / "atp_bound_1",
     [
         bridge_soft_on,
@@ -663,7 +657,6 @@ create_phase(
 )
 
 create_phase(
-    gen,
     states_path / "atp_bound_2",
     [
         bridge_soft_off,
