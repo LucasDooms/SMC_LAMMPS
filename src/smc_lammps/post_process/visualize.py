@@ -128,15 +128,14 @@ class Molecules:
         self.create_new(file, "waitfor all")
         self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw\n")
 
-    def create_new_dna(
+    def load_trajectory(
         self,
         file: Path,
-        dna_pieces: Sequence[tuple[int, int]],
         remove_ranges: Sequence[tuple[int, int]],
     ) -> None:
         self.create_new(file, "waitfor all")
         # show everything, slightly smaller
-        self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.3\n")
+        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 0.4\n")
 
         # remove from ranges
         selections = []
@@ -146,11 +145,8 @@ class Molecules:
             f"mol modselect {self.rep_index} {self.index} " + " and ".join(selections) + "\n"
         )
 
-        self.add_dna_pieces(dna_pieces)
-
     def add_dna_pieces(self, dna_pieces: Sequence[tuple[int, int]]) -> None:
         # color the pieces differently
-        self.file.write("mol rep cpk\n")
         for piece in dna_pieces:
             self.add_rep()
             self.file.write(
@@ -162,7 +158,6 @@ class Molecules:
             self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
     def add_piece(self, rng: tuple[int, int]) -> None:
-        self.file.write("mol rep cpk\n")
         self.add_rep()
         self.file.write(
             f"mol modselect {self.rep_index} {self.index} index >= {rng[0] - 1} and index <= {rng[1] - 1}\n"
@@ -176,14 +171,13 @@ class Molecules:
         if not spaced_beads:
             return
 
-        self.file.write("mol rep vdw\n")
         self.add_rep()
         vmd_indices = " ".join(str(id - 1) for id in spaced_beads)
         self.file.write(f"mol modselect {self.rep_index} {self.index} index {vmd_indices}\n")
         # choose color based on index
         self.file.write(f"mol modcolor {self.rep_index} {self.index} PosX\n")
         # TODO: get size dynamically
-        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 3.5\n")
+        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 1.5\n")
 
 
 mol = Molecules(path)
@@ -194,7 +188,8 @@ if args.file_name == fn_arg.default:
 
 kleisins = ppp["kleisin_ids"]
 kleisin_rng = (min(kleisins), max(kleisins))
-mol.create_new_dna(output_file, ppp["dna_indices_list"], [kleisin_rng])
+mol.load_trajectory(output_file, [*ppp["dna_indices_list"], kleisin_rng])
+mol.add_dna_pieces(ppp["dna_indices_list"])
 mol.add_piece(kleisin_rng)
 mol.add_spaced_beads(ppp["spaced_bead_indices"])
 
