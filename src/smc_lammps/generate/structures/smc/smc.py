@@ -61,6 +61,8 @@ class SMC:
     arms_angle_ATP: float
     folding_angle_ATP: float
     folding_angle_APO: float
+    elbow_attraction: float
+    elbow_spacing: float
 
     @property
     def hinge_radius(self) -> float:
@@ -99,6 +101,22 @@ class SMC:
             self.mol_middle_site,
             self.mol_lower_site,
         ]
+
+    def _set_bonds(self) -> None:
+        if self.elbow_attraction == 0:
+            self.elbows = None
+            self.elbows_on = None
+            self.elbows_off = None
+        else:
+            self.elbows = BAI_Type(BAI_Kind.BOND, "harmonic/shift/cut", "0 0 0.1\n")
+            self.elbows_on = Generator.DynamicCoeffs(
+                f"harmonic/shift/cut {self.elbow_attraction} {self.elbow_spacing} {2.5 * self.elbow_spacing}\n",
+                self.elbows,
+            )
+            self.elbows_off = Generator.DynamicCoeffs(
+                "harmonic/shift/cut 0 0 0.1\n",
+                self.elbows,
+            )
 
     def _set_angles(self) -> None:
         self.align_arms = BAI_Type(BAI_Kind.ANGLE, "harmonic", f"{self.k_elbow} {180.0}\n")
@@ -151,6 +169,7 @@ class SMC:
 
     def __post_init__(self) -> None:
         self._set_molecule_ids()
+        self._set_bonds()
         self._set_angles()
         self._set_impropers()
         # create groups
@@ -309,6 +328,12 @@ class SMC:
             BAI(attach, (self.atp_grp, -1), (self.hk_grp, 0)),
             BAI(attach, (self.hk_grp, -1), (self.atp_grp, 0)),
         ]
+
+        if self.elbows is not None:
+            bonds += [
+                # elbows come together (for stronger arm closing effect)
+                BAI(self.elbows, (self.arm_dl_grp, -1), (self.arm_dr_grp, 0)),
+            ]
 
         if self.has_toroidal_hinge():
             bonds += [

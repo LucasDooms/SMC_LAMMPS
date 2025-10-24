@@ -187,6 +187,14 @@ class Parameters:
     asymmetry_stiffness = 100.0
     "Folding asymmetry stiffness of lower compartment (kT units)"
 
+    ################# Bonds #################
+
+    elbow_attraction = 30.0
+    "Attractive energy between elbows in the APO state (kT units)"
+
+    elbow_spacing = 2.5
+    "Rest length between elbows in the APO state (nm)"
+
     ################# Other #################
 
     smc_force = 0.0

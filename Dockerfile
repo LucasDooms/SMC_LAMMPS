@@ -24,7 +24,7 @@ RUN git clone https://github.com/lammps/lammps.git --depth=1 --branch=stable_22J
 # build
 WORKDIR ${BUILD_DIR}
 
-ARG LAMMPS_BUILD_OPTIONS="-D PKG_MOLECULE=yes -D PKG_RIGID=yes"
+ARG LAMMPS_BUILD_OPTIONS="-D PKG_MOLECULE=yes -D PKG_EXTRA-MOLECULE=yes -D PKG_RIGID=yes"
 RUN cmake ${LAMMPS_BUILD_OPTIONS} -D CMAKE_INSTALL_PREFIX=${LAMMPS_INSTALL_DIR} -D BUILD_SHARED_LIBS=yes ../cmake
 RUN cmake --build . -j10 --target lammps
 RUN make

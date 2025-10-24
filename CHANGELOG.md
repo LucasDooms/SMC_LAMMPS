@@ -15,10 +15,13 @@ tunable size, spacing, and angle stiffness.
 a semi-permanent binding site.
 - New `--quiet` flag reduces console output produced by `smc-lammps`.
 - New `non_random_steps` parameter disables exponential sampling of SMC cycle steps
+- New `elbow_attraction`, and `elbow_spacing` parameters provide attractive potential
+between elbows to better push DNA out of the upper compartment during the APO phase.
+(requires LAMMPS package `EXTRA-MOLECULE` if enabled)
 
 ### Changed
 
-- Simulations run with the --continue flag will now produce output.lammpstrj.1, output.lammpstrj.2, ... files
+- Simulations run with the `--continue` flag will now produce output.lammpstrj.1, output.lammpstrj.2, ... files
 instead of appending to the existing output.lammpstrj file.
 - Various improvements to the `smc-lammps` cli (`run.py`).
 

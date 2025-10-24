@@ -43,6 +43,12 @@ def create_phase(phase_path: Path, options: Sequence[Generator.DynamicCoeffs]):
             args.write_script_bai_coeffs(phase_file)
 
 
+def create_phase_wrapper(phase_path: Path, options: Sequence[Generator.DynamicCoeffs | None]):
+    """filters out None values and then calls create_phase"""
+    filtered_options = [opt for opt in options if opt is not None]
+    create_phase(phase_path, filtered_options)
+
+
 def get_closest(array, position) -> int:
     """returns the index of the array that is closest to the given position"""
     distances = np.linalg.norm(array - position, axis=1)

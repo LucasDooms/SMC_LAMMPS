@@ -33,7 +33,7 @@ pip install -e .
 
 ### LAMMPS
 
-You will need a LAMMPS executable with the `MOLECULE` and `RIGID` packages.  
+You will need a LAMMPS executable with the `MOLECULE`, `EXTRA-MOLECULE`, and `RIGID` packages.  
 See https://docs.lammps.org/Install.html for more information.
 
 Simple example:
@@ -42,7 +42,7 @@ git clone https://github.com/lammps/lammps --depth=1000 mylammps
 cd mylammps
 git checkout stable # or release for a more recent version
 mkdir build && cd build
-cmake -D CMAKE_INSTALL_PREFIX="$HOME/lammps" -D PKG_MOLECULE=yes -D PKG_RIGID=yes ../cmake
+cmake -D CMAKE_INSTALL_PREFIX="$HOME/lammps" -D PKG_MOLECULE=yes -D PKG_EXTRA-MOLECULE=yes -D PKG_RIGID=yes ../cmake
 cmake --build . -j8
 make
 make install

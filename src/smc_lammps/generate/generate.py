@@ -32,7 +32,7 @@ from smc_lammps.generate.lammps.util import atomIds_to_LAMMPS_ids
 from smc_lammps.generate.structures.dna import dna
 from smc_lammps.generate.structures.smc.smc import SMC
 from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator
-from smc_lammps.generate.util import create_phase, get_closest, get_parameters
+from smc_lammps.generate.util import create_phase_wrapper, get_closest, get_parameters
 
 
 def parse_inputs(argv: list[str]) -> tuple[Path, Parameters]:
@@ -364,6 +364,8 @@ smc_1 = SMC(
     arms_angle_ATP=par.arms_angle_ATP,
     folding_angle_ATP=par.folding_angle_ATP,
     folding_angle_APO=par.folding_angle_APO,
+    elbow_attraction=par.elbow_attraction,
+    elbow_spacing=par.elbow_spacing,
 )
 
 dna_config.set_smc(smc_1)
@@ -529,17 +531,17 @@ middle_site_soft_on = Generator.DynamicCoeffs.create_from_pairwise(
     [par.epsilon5 * kBT, par.sigma * 2 ** (1 / 6)],
 )
 
-use_side_site_off: list[Generator.DynamicCoeffs] = []
-use_side_site_on: list[Generator.DynamicCoeffs] = []
+side_site_off = None
+side_site_on = None
 if par.add_side_site:
-    use_side_site_off = [
-        Generator.DynamicCoeffs.create_from_pairwise(
-            pair_inter, dna_type, smc_1.t_side_site, [0, 0, 0]
-        )
-    ]
-    use_side_site_on = [
-        Generator.DynamicCoeffs.create_from_pairwise(pair_inter, dna_type, smc_1.t_side_site, None)
-    ]
+    side_site_off = Generator.DynamicCoeffs.create_from_pairwise(
+        pair_inter, dna_type, smc_1.t_side_site, [0, 0, 0]
+    )
+
+    side_site_on = Generator.DynamicCoeffs.create_from_pairwise(
+        pair_inter, dna_type, smc_1.t_side_site, None
+    )
+
 
 gen.bais += [*smc_1.get_bonds(smc_creator.hinge_opening), *dna_config.get_bonds()]
 
@@ -607,48 +609,50 @@ use_lower_site_off = [lower_site_off] if site_cond else []
 use_lower_site_on = [lower_site_on] if site_cond else []
 
 if par.site_cycle_period > 0:
-    create_phase(
+    create_phase_wrapper(
         states_path / "cycle_site_on",
         [
             *([lower_site_on] if not site_cond else []),
-            *use_side_site_on,
+            side_site_on,
         ],
     )
-    create_phase(
+    create_phase_wrapper(
         states_path / "cycle_site_off",
         [
             *([lower_site_off] if not site_cond else []),
-            *use_side_site_off,
+            side_site_off,
         ],
     )
 
-create_phase(
+create_phase_wrapper(
     states_path / "adp_bound",
     [
         bridge_off,
         hinge_attraction_on,
         middle_site_off,
         *use_lower_site_off,
+        smc_1.elbows_off,
         smc_1.arms_open,
         smc_1.kleisin_unfolds1,
         smc_1.kleisin_unfolds2,
     ],
 )
 
-create_phase(
+create_phase_wrapper(
     states_path / "apo",
     [
         bridge_off,
         hinge_attraction_off,
         middle_site_off,
         *use_lower_site_on,
+        smc_1.elbows_on,
         smc_1.arms_close,
         smc_1.kleisin_unfolds1,
         smc_1.kleisin_unfolds2,
     ],
 )
 
-create_phase(
+create_phase_wrapper(
     states_path / "atp_bound_1",
     [
         bridge_soft_on,
@@ -656,7 +660,7 @@ create_phase(
     ],
 )
 
-create_phase(
+create_phase_wrapper(
     states_path / "atp_bound_2",
     [
         bridge_soft_off,
@@ -665,6 +669,7 @@ create_phase(
         hinge_attraction_on,
         middle_site_on,
         *use_lower_site_on,
+        smc_1.elbows_off,
         smc_1.arms_open,
         smc_1.kleisin_folds1,
         smc_1.kleisin_folds2,
