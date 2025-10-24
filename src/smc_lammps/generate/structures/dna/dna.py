@@ -476,14 +476,15 @@ class DnaConfiguration:
                 ip.sigma_SMC_DNA,
                 ip.rcut_SMC_DNA,
             )
-        # if self.smc.has_side_site():
-        #     pair_inter.add_interaction(
-        #         dna_type,
-        #         self.smc.t_side_site,
-        #         ip.epsilon_upper_site_DNA * kBT,
-        #         ip.sigma_upper_site_DNA,
-        #         ip.rcut_lower_site_DNA,
-        #     )
+        if self.smc.has_side_site():
+            factor = 0.33
+            pair_inter.add_interaction(
+                dna_type,
+                self.smc.t_side_site,
+                ip.epsilon_upper_site_DNA * kBT,
+                ip.sigma_upper_site_DNA * factor,
+                ip.rcut_lower_site_DNA * factor,
+            )
         pair_inter.add_interaction(
             dna_type,
             self.smc.t_lower_site,

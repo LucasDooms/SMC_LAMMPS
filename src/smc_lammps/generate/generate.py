@@ -473,71 +473,72 @@ if gen.use_charges:
     gen.pair_interactions.append(PairWise("PairIJ Coeffs # hybrid\n\n", "coul/debye {}\n", [""]))
 
 # Interactions that change for different phases of SMC
-bridge_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_atp])
-bridge_on = Generator.DynamicCoeffs(
-    None,
-    f"lj/cut {epsilon_SMC_DNA * kBT} {par.sigma} {par.sigma * 2 ** (1 / 6)}\n",
-    [dna_type, smc_1.t_atp],
+bridge_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_atp, [0, 0, 0]
+)
+bridge_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter,
+    dna_type,
+    smc_1.t_atp,
+    [epsilon_SMC_DNA * kBT, par.sigma, par.sigma * 2 ** (1 / 6)],
 )
 
-bridge_soft_off = Generator.DynamicCoeffs(None, "soft 0 0\n", [dna_type, smc_1.t_atp])
-bridge_soft_on = Generator.DynamicCoeffs(
-    None,
-    f"soft {epsilon_SMC_DNA * kBT} {par.sigma * 2 ** (1 / 6)}\n",
-    [dna_type, smc_1.t_atp],
+bridge_soft_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_soft_inter, dna_type, smc_1.t_atp, [0, 0]
+)
+bridge_soft_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_soft_inter, dna_type, smc_1.t_atp, [epsilon_SMC_DNA * kBT, par.sigma * 2 ** (1 / 6)]
 )
 
-hinge_attraction_off = Generator.DynamicCoeffs(
-    None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_upper_site]
-)
-hinge_attraction_on = Generator.DynamicCoeffs(
-    None,
-    f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n",
-    [dna_type, smc_1.t_upper_site],
+
+hinge_attraction_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_upper_site, [0, 0, 0]
 )
 
-if False:  # isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
-    # always keep site on
-    lower_site_off = Generator.DynamicCoeffs(
-        None,
-        f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n",
-        [dna_type, smc_1.t_lower_site],
-    )
-else:
-    lower_site_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_lower_site])
-lower_site_on = Generator.DynamicCoeffs(
-    None,
-    f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n",
-    [dna_type, smc_1.t_lower_site],
+hinge_attraction_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_upper_site, [par.epsilon4 * kBT, par.sigma, par.cutoff4]
 )
 
-middle_site_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_middle_site])
-middle_site_on = Generator.DynamicCoeffs(
+lower_site_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_lower_site, [0, 0, 0]
+)
+lower_site_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter,
+    dna_type,
+    smc_1.t_lower_site,
     None,
-    f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n",
-    [dna_type, smc_1.t_middle_site],
 )
 
-middle_site_soft_off = Generator.DynamicCoeffs(None, "soft 0 0\n", [dna_type, smc_1.t_middle_site])
-middle_site_soft_on = Generator.DynamicCoeffs(
-    None,
-    "soft " + f"{par.epsilon5 * kBT} {par.sigma * 2 ** (1 / 6)}\n",
-    [dna_type, smc_1.t_middle_site],
+middle_site_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_middle_site, [0, 0, 0]
+)
+middle_site_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter,
+    dna_type,
+    smc_1.t_middle_site,
+    [par.epsilon5 * kBT, par.sigma, par.cutoff5],
+)
+
+middle_site_soft_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_soft_inter, dna_type, smc_1.t_middle_site, [0, 0]
+)
+middle_site_soft_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_soft_inter,
+    dna_type,
+    smc_1.t_middle_site,
+    [par.epsilon5 * kBT, par.sigma * 2 ** (1 / 6)],
 )
 
 use_side_site_off: list[Generator.DynamicCoeffs] = []
 use_side_site_on: list[Generator.DynamicCoeffs] = []
 if par.add_side_site:
     use_side_site_off = [
-        Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_side_site])
-    ]
-    factor = 0.33
-    use_side_site_on = [
-        Generator.DynamicCoeffs(
-            None,
-            f"lj/cut {par.epsilon6 * kBT} {par.sigma * factor} {par.cutoff6}\n",
-            [dna_type, smc_1.t_side_site],
+        Generator.DynamicCoeffs.create_from_pairwise(
+            pair_inter, dna_type, smc_1.t_side_site, [0, 0, 0]
         )
+    ]
+    use_side_site_on = [
+        Generator.DynamicCoeffs.create_from_pairwise(pair_inter, dna_type, smc_1.t_side_site, None)
     ]
 
 gen.bais += [*smc_1.get_bonds(smc_creator.hinge_opening), *dna_config.get_bonds()]
