@@ -1,18 +1,32 @@
 # Copyright (c) 2025 Lucas Dooms
 
+from dataclasses import dataclass
 from pathlib import Path
 from runpy import run_path
 from sys import argv
-from typing import Any, Sequence
+from typing import Sequence
 
 import numpy as np
+from numpy.typing import NDArray
+
+
+@dataclass
+class Atom:
+    _id: str
+    _type: str
+    xyz: tuple[float, float, float]
+    rounding: int = 2
+
+    def to_string(self) -> str:
+        rounded = map(lambda val: round(val, self.rounding), self.xyz)
+        return f"{self._id} {self._type} {' '.join(map(str, rounded))}"
 
 
 def read_lammpstrj(trajectory_file: Path):
     timesteps: list[int] = []
     num_atoms: list[int] = []
     box_bounds: list[list[list[float]]] = []
-    atom_data: list[list[list[Any]]] = []
+    atom_data: list[list[Atom]] = []
 
     with open(trajectory_file, "r") as file:
         lines = file.readlines()
@@ -42,14 +56,19 @@ def read_lammpstrj(trajectory_file: Path):
             i += 4
 
         elif lines[i].strip() == "ITEM: ATOMS id type x y z":
-            atoms: list[list[Any]] = []
+            atoms: list[Atom] = []
 
             for j in range(num_atoms[-1]):
                 components = lines[i + 1 + j].strip().split()
+                assert len(components) == 5
                 # convert x,y,z to float
-                components: list[Any] = [*components[:2], *map(float, components[2:])]
+                atom = Atom(
+                    _id=components[0],
+                    _type=components[1],
+                    xyz=(float(components[2]), float(components[3]), float(components[4])),
+                )
 
-                atoms.append(components)
+                atoms.append(atom)
 
             atom_data.append(atoms)
 
@@ -66,7 +85,7 @@ def write_lammpstrj(
     timesteps: Sequence[int],
     num_atoms: Sequence[int],
     box_bounds: Sequence[Sequence[list[float]]],
-    atom_data: Sequence[Sequence[Sequence[Any]]],
+    atom_data: Sequence[Sequence[Atom]],
 ):
     with open(file_path, "w") as file:
         for t, n, bounds, atoms in zip(timesteps, num_atoms, box_bounds, atom_data):
@@ -86,10 +105,10 @@ def write_lammpstrj(
             file.write("ITEM: ATOMS id type x y z\n")
 
             for atom in atoms:
-                file.write(" ".join(map(str, atom)) + "\n")
+                file.write(atom.to_string() + "\n")
 
 
-def rigid_transform_3D(A, B):
+def rigid_transform_3D(A, B) -> tuple[NDArray, NDArray]:
     """implementation of Kabsch algorithm"""
     assert len(A) == len(B)
 
@@ -114,13 +133,21 @@ def rigid_transform_3D(A, B):
     return R.transpose(), t.transpose()
 
 
-def transform_atoms(atom_data, index1, index2, index3, v0, v1, v2):
+def transform_atoms(
+    atom_data: Sequence[Sequence[Atom]],
+    index1: int,
+    index2: int,
+    index3: int,
+    v0: Sequence[float],
+    v1: Sequence[float],
+    v2: Sequence[float],
+):
     for timestep_data in atom_data:
         A = np.array(
             [
-                timestep_data[index1 - 1][2:5],
-                timestep_data[index2 - 1][2:5],
-                timestep_data[index3 - 1][2:5],
+                timestep_data[index1 - 1].xyz,
+                timestep_data[index2 - 1].xyz,
+                timestep_data[index3 - 1].xyz,
             ]
         )
 
@@ -129,11 +156,11 @@ def transform_atoms(atom_data, index1, index2, index3, v0, v1, v2):
         R, t = rigid_transform_3D(A, B)
 
         for atom in timestep_data:
-            atom_pos = np.array(atom[2:5])
+            atom_pos = np.array(atom.xyz)
 
             transformed_pos = np.dot(R, atom_pos) + t
 
-            atom[2:5] = transformed_pos.tolist()
+            atom.xyz = transformed_pos.tolist()
 
     return atom_data
 
@@ -142,9 +169,9 @@ def main(trajectory_file: Path, output_file: Path, index1: int, index2: int, ind
     timesteps, num_atoms, box_bounds, atom_data = read_lammpstrj(trajectory_file)
 
     # Extract initial positions for the three atoms
-    initial_pos1 = atom_data[0][index1 - 1][2:5]
-    initial_pos2 = atom_data[0][index2 - 1][2:5]
-    initial_pos3 = atom_data[0][index3 - 1][2:5]
+    initial_pos1 = atom_data[0][index1 - 1].xyz
+    initial_pos2 = atom_data[0][index2 - 1].xyz
+    initial_pos3 = atom_data[0][index3 - 1].xyz
 
     # Transform the atom positions to keep index1, index2, and index3 at their initial positions
     transformed_atom_data = transform_atoms(
