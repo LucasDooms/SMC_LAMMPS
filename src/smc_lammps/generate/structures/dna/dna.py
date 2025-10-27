@@ -216,13 +216,13 @@ class Tether:
             ip.sigma_DNA_DNA,
             ip.rcut_DNA_DNA,
         )
-        # Tether repels arms
+        # Tether repels arms, smaller interaction distance
         pair_inter.add_interaction(
             tether_type,
             smc.t_arms_heads,
             ip.epsilon_SMC_DNA * kBT,
-            ip.sigma_SMC_DNA,
-            ip.rcut_SMC_DNA,
+            ip.sigma_SMC_DNA / 2.0,
+            ip.rcut_SMC_DNA / 2.0,
         )
         # Tether repels kleisin
         pair_inter.add_interaction(
