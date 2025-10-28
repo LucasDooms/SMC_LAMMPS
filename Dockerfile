@@ -64,6 +64,7 @@ LABEL org.opencontainers.image.authors="Lucas Dooms <lucas.dooms@kuleuven.be>"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.title="SMC_LAMMPS"
 LABEL org.opencontainers.image.url="https://github.com/LucasDooms/SMC_LAMMPS"
+LABEL org.opencontainers.image.source="https://github.com/LucasDooms/SMC_LAMMPS"
 
 # global values
 ARG LAMMPS_INSTALL_DIR
