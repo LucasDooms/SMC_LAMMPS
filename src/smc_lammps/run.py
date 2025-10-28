@@ -330,7 +330,7 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
         if args.force:
             return TaskDone(skipped=True)
         raise FileNotFoundError(
-            "Make sure the following file exists to restart a simulation:", output_file
+            f"Make sure the following file exists to restart a simulation: {output_file}"
         )
 
     # find a file name that is not taken yet
