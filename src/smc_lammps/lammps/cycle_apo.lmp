@@ -1,0 +1,13 @@
+# -- cycle site: enable halfway through the APO state --
+
+# check if cycling site should be enabled
+if $(v_site_on_delay > 0) then &
+    "variable site_on_delay equal $(v_site_on_delay - 1)" &
+    "run ${runtimes}" &
+elif $(v_site_on_delay == 0) &
+    "run $(floor(v_runtimes / 2))" &
+    "variable site_on_delay equal -1" &
+    "include lammps/states/cycle_site_on" &
+    "run $(ceil(v_runtimes / 2))" &
+else &
+    "run ${runtimes}"

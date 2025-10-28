@@ -1,0 +1,8 @@
+# -- cycle site: enable at end of ADP state --
+
+# check if lower site should be enabled
+if $(v_site_on_delay > 0) then &
+    "variable site_on_delay equal $(v_site_on_delay - 1)" &
+elif $(v_site_on_delay == 0) &
+    "variable site_on_delay equal -1" &
+    "include lammps/states/cycle_site_on"

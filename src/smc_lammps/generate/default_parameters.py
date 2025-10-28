@@ -50,6 +50,8 @@ class Parameters:
     runs = 10
     "Number of independent runs"
 
+    ##################### SMC cycle #######################
+
     cycles: int | None = 2
     """Number of SMC cycles (if set to None, will find approximate value using max_steps)
     Note: cycles are stochastic, so time per cycle is variable"""
@@ -148,6 +150,9 @@ class Parameters:
     site_toggle_delay: int = 0
     """The number of SMC cycles between the cycling site being turned off and then on again.
     A value of zero means that the site will be enabled in the same cycle."""
+
+    site_cycle_when: str = "apo"
+    """When to re-enable the cycling site. Allowed values: "apo", "adp"."""
 
     #################### LJ energies ###################
 

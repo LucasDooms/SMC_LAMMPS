@@ -21,6 +21,7 @@ from smc_lammps.generate.generator import (
     PairWise,
 )
 from smc_lammps.generate.lammps.parameterfile import (
+    get_def_dynamically,
     get_index_def,
     get_string_def,
     get_universe_def,
@@ -746,6 +747,9 @@ def get_variables_for_lammps() -> list[str]:
         "sigma",
         "timestep",
         "smc_force",
+        "site_cycle_period",
+        "site_toggle_delay",
+        "site_cycle_when",
     ]
 
 
@@ -754,7 +758,7 @@ with open(lammps_path / "parameterfile", "w", encoding="utf-8") as parameterfile
 
     params = get_variables_for_lammps()
     for key in params:
-        parameterfile.write(f"variable {key} equal {getattr(par, key)}\n\n")
+        parameterfile.write(get_def_dynamically(key, getattr(par, key)))
 
     # write molecule ids
     # NOTE: indices are allowed to be the same, LAMMPS will ignore duplicates
@@ -835,8 +839,3 @@ with open(lammps_path / "parameterfile", "w", encoding="utf-8") as parameterfile
     parameterfile.write("\n")
 
     parameterfile.write(get_index_def("runtimes", runtimes))
-
-    parameterfile.write("\n")
-
-    parameterfile.write(f"variable site_toggle_delay equal {par.site_toggle_delay}\n")
-    parameterfile.write(f"variable site_cycle_period equal {par.site_cycle_period}\n")

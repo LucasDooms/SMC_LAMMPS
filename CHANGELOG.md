@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - New `spaced_beads` parameters allow simulating arrays of obstacles on a DNA strand with
 tunable size, spacing, and angle stiffness.
-- New `site_cycle_period`, `site_toggle_delay` parameters allow simulating strand swapping with
+- New `site_cycle_period`, `site_toggle_delay`, `site_cycle_when` parameters allow simulating strand swapping with
 a semi-permanent binding site.
 - New `--quiet` flag reduces console output produced by `smc-lammps`.
 - New `non_random_steps` parameter disables exponential sampling of SMC cycle steps

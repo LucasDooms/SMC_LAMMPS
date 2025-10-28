@@ -55,7 +55,7 @@ read_data lammps/datafile_coeffs add merge
 #---------------------------------------------Fixes------------------------------------------------#
 
 
-# Group all type 1 molecules as 'DNA' and all other types as 'SMC'
+# Set groups for DNA and SMC based on molecule ids
 group DNA molecule ${DNA_mols}
 group SMC molecule ${SMC_mols}
 
@@ -164,7 +164,12 @@ label main_loop
 # APO state
 print "----------- STARTING APO STATE -----------" screen yes
 include lammps/states/apo
-run ${runtimes}
+
+if "${site_cycle_when} == apo" then &
+    "include ${lammps_root_dir}/cycle_apo.lmp" &
+else &
+    "run ${runtimes}"
+
 next runtimes
 
 # take snapshot
@@ -201,12 +206,8 @@ next runtimes
 # take snapshot
 write_dump all custom 'snapshots/adp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
 
-# check if lower site should be enabled
-if $(v_site_on_delay > 0) then &
-    "variable site_on_delay equal $(v_site_on_delay - 1)" &
-elif $(v_site_on_delay == 0) &
-    "variable site_on_delay equal -1" &
-    "include lammps/states/cycle_site_on"
+if "${site_cycle_when} == adp" then &
+    "include ${lammps_root_dir}/cycle_apo.lmp"
 
 write_restart lammps/restartfile
 
