@@ -1,5 +1,11 @@
 # DNA Loop Extrusion by SMCCs in LAMMPS
 
+<details>
+<summary>Loop extrusion simulation
+</summary>
+<img src='assets/loop_extrusion.gif' width=480/>
+</details>
+
 ## Installation
 
 ### Python
@@ -64,7 +70,7 @@ Now you can run an interactive session using
 ```sh
 docker run -it -v .:/data smc-lammps
 ```
-Or, to run directly (see Usage)
+Or, to run directly (see [Usage](#usage))
 ```sh
 docker run -v .:/data smc-lammps smc-lammps ...
 ```
