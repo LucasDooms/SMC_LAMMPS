@@ -18,6 +18,8 @@ a semi-permanent binding site.
 - New `elbow_attraction`, and `elbow_spacing` parameters provide attractive potential
 between elbows to better push DNA out of the upper compartment during the APO phase.
 (requires LAMMPS package `EXTRA-MOLECULE` if enabled)
+- Allow passing extra arguments to subprocesses, for example: `smc-lammps -v mysim -- -s3` will
+set trajectory smoothing to 3 in VMD via the `src/smc_lammps/post_process/visualize.py` script.
 
 ### Changed
 

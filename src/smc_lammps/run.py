@@ -9,6 +9,7 @@ from argparse import Namespace
 from functools import partial
 from pathlib import Path
 from re import compile as compile_regex
+from sys import argv
 from typing import Callable, Iterator, Sequence
 
 import argcomplete
@@ -31,7 +32,25 @@ class MaxIterationExceeded(RuntimeError):
         )
 
 
-def parse() -> Namespace:
+def parse_with_double_dash(
+    parser: argparse.ArgumentParser, args: list[str]
+) -> tuple[Namespace, list[str]]:
+    """Parse arguments by splitting before and after '--'.
+    Arguments before '--' are parsed by the provided parser,
+    everything after is collected into a separate, non-parsed list"""
+    try:
+        separator_index = args.index("--")
+    except ValueError:
+        normal_args = args
+        extra_args: list[str] = []
+    else:
+        normal_args = args[:separator_index]
+        extra_args = args[separator_index + 1 :]  # skip over the '--'
+
+    return parser.parse_args(normal_args), extra_args
+
+
+def get_parser() -> argparse.ArgumentParser:
     # fmt: off
     parser = argparse.ArgumentParser(
         description='runs setup scripts, LAMMPS script, post-processing, and visualization',
@@ -39,7 +58,6 @@ def parse() -> Namespace:
     )
 
     parser.add_argument('directory', help='the directory containing parameters for LAMMPS')
-    parser.add_argument('sub_args', nargs=argparse.REMAINDER, help='arguments passed to subcommand')
 
     generate_and_run = parser.add_argument_group(title='generate & run')
     generate_and_run.add_argument('-g', '--generate', action='store_true', help='run the python setup scripts before executing LAMMPS')
@@ -70,7 +88,7 @@ def parse() -> Namespace:
     # shell autocompletion
     argcomplete.autocomplete(parser)
 
-    return parser.parse_args()
+    return parser
 
 
 def quiet_print(quiet: bool, *args, **kwargs):
@@ -511,7 +529,10 @@ def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
 
 
 def main():
-    args = parse()
+    parser = get_parser()
+    # remove first argument from argv (name of exe)
+    args, extra_args = parse_with_double_dash(parser, argv[1:])
+    args.sub_args = extra_args
     path = Path(args.directory)
 
     # --continue flag implies the --run flag
