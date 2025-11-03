@@ -325,6 +325,7 @@ def create_plot(
 
     fig, ax = plt.subplots(1, 1, dpi=160)
     fig.set_size_inches((10, 8))
+    ax.margins(0.003)
 
     ax.set_title("Position of SMC complex along DNA in time")
 
