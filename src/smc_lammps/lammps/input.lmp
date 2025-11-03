@@ -2,11 +2,12 @@
 ################################## SMC with DNA (Worm Like Chain) ##################################
 ####################################################################################################
 
+# units:
+#  nanoseconds, nanometers, attograms, Kelvin, ...
 units nano
 
-# make sure snapshots directory exists
-shell mkdir snapshots
-
+# fixed boundaries in all dimensions
+boundary f f f
 
 #--------------------------------------Initial Parameters------------------------------------------#
 
@@ -24,8 +25,12 @@ if $(!is_defined(variable,lammps_root_dir)) then &
     """print "variable 'lammps_root_dir' is not defined, exiting!" screen yes""" &
     "quit 1"
 
-# Fixed boundaries in all dimensions
-boundary f f f
+if $(!is_defined(variable,output_path)) then &
+    "variable output_path string output"
+
+# make sure the necessary directories exist
+# WARNING: output_path must not contain spaces (surrounding with quotes breaks LAMMPS variable substitution)
+shell mkdir ${output_path}/snapshots
 
 
 #-----------------------------------------Define Styles--------------------------------------------#
@@ -116,7 +121,7 @@ if $(!is_defined(variable,output_file_name)) then &
     "variable output_file_name string output.lammpstrj"
 
 # For VMD visualisation
-dump movie all custom ${output_steps} ${output_file_name} id type x y z
+dump movie all custom ${output_steps} ${output_path}/${output_file_name} id type x y z
 dump_modify movie sort id pbc yes
 
 # Computes SMC potential energy due to angles and impropers
@@ -148,7 +153,7 @@ if $(v_current_step >= v_runtimes) then &
 # collect msd for obstacle
 if $(is_defined(variable,obstacle_id)) then &
 	"group obst_group id ${obstacle_id}" &
-	"dump obst_dump obst_group custom ${output_steps} obstacle.lammpstrj id type x y z" &
+	"dump obst_dump obst_group custom ${output_steps} ${output_path}/obstacle.lammpstrj id type x y z" &
 	"dump_modify obst_dump pbc yes append yes"
 
 # apply force to smc
@@ -173,7 +178,7 @@ else &
 next runtimes
 
 # take snapshot
-write_dump all custom 'snapshots/apo.end.lammpstrj' id type x y z modify append yes sort id pbc yes
+write_dump all custom ${output_path}/snapshots/apo.end.lammpstrj id type x y z modify append yes sort id pbc yes
 
 # ATP-bound state
 print "----------- STARTING ATP STATE -----------" screen yes
@@ -186,7 +191,7 @@ run ${runtimes}
 next runtimes
 
 # take snapshot
-write_dump all custom 'snapshots/atp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
+write_dump all custom ${output_path}/snapshots/atp.end.lammpstrj id type x y z modify append yes sort id pbc yes
 
 # check if cycling site should be disabled
 variable site_cycle equal $(v_site_cycle - 1)
@@ -204,7 +209,7 @@ run ${runtimes}
 next runtimes
 
 # take snapshot
-write_dump all custom 'snapshots/adp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
+write_dump all custom ${output_path}/snapshots/adp.end.lammpstrj id type x y z modify append yes sort id pbc yes
 
 if "${site_cycle_when} == adp" then &
     "include ${lammps_root_dir}/cycle_apo.lmp"

@@ -225,7 +225,7 @@ def handle_dna_bead(
 
 
 def get_best_match_dna_bead_in_smc(
-    base_path: Path, traj: Path = Path("output.lammpstrj"), continue_on_error: bool = False
+    base_path: Path, traj: Path = Path("output/output.lammpstrj"), continue_on_error: bool = False
 ) -> tuple[list[int], list[list[ID_TYPE]], list[list[Nx3Array]], list[list[list[ID_TAG_PAIR]]]]:
     """Find the DNA bead that is inside of the SMC complex.
 

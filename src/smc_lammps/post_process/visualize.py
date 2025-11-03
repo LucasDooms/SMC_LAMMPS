@@ -20,8 +20,8 @@ parser.add_argument("directory", help="the directory containing LAMMPS output fi
 fn_arg = parser.add_argument(
     "-f",
     "--file_name",
-    help="name of file, default: 'output.lammpstrj'",
-    default="output.lammpstrj",
+    help="name of file, default: 'output/output.lammpstrj'",
+    default="output/output.lammpstrj",
 )
 parser.add_argument(
     "-s",

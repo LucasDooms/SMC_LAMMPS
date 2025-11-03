@@ -23,7 +23,7 @@ def get_times_with_max_steps(
     """Returns a list of runtimes for a certain number of SMC cycles that fit within the maximum number of steps."""
     run_steps = []
 
-    def none_to_max(x):
+    def none_to_max(x: int | None) -> int:
         if x is None:
             return maxsize  # very large number!
         return x
