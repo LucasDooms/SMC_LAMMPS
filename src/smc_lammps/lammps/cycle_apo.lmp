@@ -8,6 +8,7 @@ elif $(v_site_on_delay == 0) &
     "run $(floor(v_runtimes / 2))" &
     "variable site_on_delay equal -1" &
     "include lammps/states/cycle_site_on" &
+    """print "$(step),on" append ${output_path}/site_cycle_times.csv""" &
     "run $(ceil(v_runtimes / 2))" &
 else &
     "run ${runtimes}"
