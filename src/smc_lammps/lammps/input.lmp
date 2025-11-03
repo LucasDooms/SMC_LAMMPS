@@ -193,14 +193,7 @@ next runtimes
 # take snapshot
 write_dump all custom ${output_path}/snapshots/atp.end.lammpstrj id type x y z modify append yes sort id pbc yes
 
-# check if cycling site should be disabled
-variable site_cycle equal $(v_site_cycle - 1)
-# Note: if site_cycle started at zero, this check
-# will never pass, which effectively disables the cycling site toggling
-if $(v_site_cycle == 0) then &
-    "variable site_cycle equal ${site_cycle_period}" &
-    "include lammps/states/cycle_site_off" &
-    "variable site_on_delay equal ${site_toggle_delay}" &
+include ${lammps_root_dir}/cycle_disable.lmp
 
 # ADP-bound state
 print "----------- STARTING ADP STATE -----------" screen yes
