@@ -6,10 +6,9 @@ from typing import Any
 
 @dataclass
 class Parameters:
-    def __setattr__(self, name: str, value: Any, /) -> None:
-        if not hasattr(self, name):
-            raise AttributeError("You cannot define new parameters.")
-        super().__setattr__(name, value)
+    """
+    Class that stores all simulation parameters defined by the user.
+    """
 
     ################ General parameters ################
 
@@ -207,3 +206,13 @@ class Parameters:
 
     use_charges = False
     "Enable Coulomb interactions in LAMMPS"
+
+    ################# Methods #################
+
+    def average_steps_per_cycle(self) -> int:
+        return self.steps_APO + self.steps_ATP + self.steps_ADP
+
+    def __setattr__(self, name: str, value: Any, /) -> None:
+        if not hasattr(self, name):
+            raise AttributeError("You cannot define new parameters.")
+        super().__setattr__(name, value)

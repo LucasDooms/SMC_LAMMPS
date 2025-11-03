@@ -6,14 +6,21 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
-from runpy import run_path
 from sys import argv
-from typing import TYPE_CHECKING, Any, Sequence, TypeAlias
+from typing import Any, Sequence, TypeAlias
 
 import numpy as np
 
 from smc_lammps.console import warn
 from smc_lammps.generate.generator import COORD_TYPE, Nx3Array
+from smc_lammps.generate.util import get_parameters
+from smc_lammps.post_process.util import (
+    get_moving_average,
+    get_post_processing_parameters,
+    get_scaling,
+    scale_indices,
+    scale_times,
+)
 from smc_lammps.reader.lammps_data import ID_TYPE, LammpsData, Plane, get_normal_direction
 from smc_lammps.reader.parser import Parser
 
@@ -241,7 +248,7 @@ def get_best_match_dna_bead_in_smc(
     #     remove different DNA segments
     #     find DNA closest to SMC plane
 
-    ppp = run_path((base_path / "post_processing_parameters.py").as_posix())
+    ppp = get_post_processing_parameters(base_path)
 
     par = Parser(base_path / traj, time_it=True)
     dna_indices_list = ppp["dna_indices_list"]
@@ -302,85 +309,58 @@ def create_files(
         np.savez(path / f"bead_indices{i}.npz", steps=steps, ids=indices)
 
 
-def get_cum_runtimes(runtimes: list[int]) -> dict[str, list[int]]:
-    """Return the number of time steps that have passed at the START of each SMC phase."""
-    cum_runtimes: list[int] = list(np.cumsum(runtimes, dtype=int))
-
-    map = {
-        "APO": [0],
-        "ATP": [],
-        "ADP": [],
-    }
-
-    index = 0
-    while index < len(cum_runtimes):
-        map["ATP"].append(cum_runtimes[index])
-        # skip over atp_bound_1
-        map["ADP"].append(cum_runtimes[index + 2])
-        map["APO"].append(cum_runtimes[index + 3])
-        index += 4
-
-    return map
-
-
-if TYPE_CHECKING:
-    from matplotlib.axes import Axes
-
-
-def add_runtime_lines(
-    path: Path,
-    indices_array: list[list[ID_TYPE]],
-    ax: Axes,
-) -> None:
-    from matplotlib.collections import LineCollection
-
-    post_par = run_path((path / "post_processing_parameters.py").as_posix())
-    for smc_phase, start_times in get_cum_runtimes(post_par["runtimes"]).items():
-        ymin, ymax = (
-            min(min(indices) for indices in indices_array),
-            max(max(indices) for indices in indices_array),
-        )
-        # extend to edges of graph
-        diff = ymax - ymin
-        ymin -= 0.2 * diff
-        ymax += 0.2 * diff
-
-        segments = [np.array([(t, ymin), (t, ymax)]) for t in start_times]
-
-        lc = LineCollection(
-            segments,
-            color={"APO": "blue", "ATP": "red", "ADP": "green"}[smc_phase],
-            label=smc_phase,
-        )
-        # draw in background
-        lc.set_zorder(-10.0)
-        lc.set_linestyle("--")
-
-        ax.add_collection(lc)
-
-
 def create_plot(
     path: Path,
     steps: list[int],
     indices_array: list[list[ID_TYPE]],
     save_to: Path = Path("bead_id_in_time.svg"),
+    use_real_units: bool = True,
     plot_cycle: bool = False,
+    moving_average: int = 0,
 ) -> None:
     import matplotlib.pyplot as plt
+
+    parameters = get_parameters(path / "parameters.py")
+    tscale, iscale, tunits, iunits = get_scaling(use_real_units, parameters)
 
     fig, ax = plt.subplots(1, 1, dpi=160)
     fig.set_size_inches((10, 8))
 
-    ax.set_title("Index of DNA bead within the SMC complex in time")
+    ax.set_title("Position of SMC complex along DNA in time")
 
-    ax.set_xlabel("time (sim steps)")
-    ax.set_ylabel("DNA bead index")
+    ax.set_xlabel(f"time ({tunits})")
+    ax.set_ylabel(f"position ({iunits})")
 
     for i, indices in enumerate(indices_array):
-        ax.scatter(steps, indices, s=0.5, label=f"DNA {i}")
+        times = scale_times(steps, tscale=tscale)
+        positions = scale_indices(indices, iscale=iscale)
+
+        if moving_average == 0:
+            ax.scatter(
+                times,
+                positions,
+                s=0.5,
+                label=f"DNA {i}",
+            )
+        else:
+            times = times[: len(times) - moving_average + 1]
+            positions = get_moving_average(positions, n=moving_average)
+            ax.plot(times, positions, label=f"DNA {i}")
 
     if plot_cycle:
-        add_runtime_lines(path, indices_array, ax)
+        from smc_lammps.post_process.matplotlib.draw import (
+            fill_between_runtime_lines,
+            get_runtime_lines,
+        )
+
+        for lc in get_runtime_lines(ax, path, indices_array, tscale=tscale, iscale=iscale):
+            ax.add_collection(lc)
+
+        fill_between_runtime_lines(
+            ax,
+            path,
+            tscale=tscale,
+        )
 
     ax.legend()
     fig.tight_layout()
@@ -448,7 +428,7 @@ def main(argv: list[str]):
 
     steps, indices_array, positions_array, _ = get_best_match_dna_bead_in_smc(path, *args)
     create_files(path, steps, indices_array, positions_array)
-    create_plot(path, steps, indices_array)
+    create_plot(path, steps, indices_array, plot_cycle=True, moving_average=5)
     get_msd_obstacle(path)
 
 
