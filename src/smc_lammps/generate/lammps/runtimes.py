@@ -31,10 +31,13 @@ def get_times_with_max_steps(
     cycles_left = none_to_max(parameters.cycles)
     max_steps = none_to_max(parameters.max_steps)
 
+    soft_steps = 10000
     average_times = [
         parameters.steps_APO,
-        10000,
-        parameters.steps_ATP,
+        # use first 10000 steps for soft potentials (atp_bound_1)
+        soft_steps,
+        # remainder is real ATP phase (atp_bound_2)
+        parameters.steps_ATP - soft_steps,
         parameters.steps_ADP,
     ]
 
