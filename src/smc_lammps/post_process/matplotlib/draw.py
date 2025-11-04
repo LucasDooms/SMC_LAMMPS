@@ -2,10 +2,12 @@
 
 from functools import partial
 from pathlib import Path
+from typing import Sequence
 
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
+from matplotlib.typing import ColorType
 
 from smc_lammps.post_process.util import (
     get_post_processing_parameters,
@@ -86,3 +88,34 @@ def fill_between_runtime_lines(ax: Axes, path: Path, tscale: float = 1.0):
     finally:
         ax.set_xlim(xlims)
         ax.set_ylim(ymin, ymax)
+
+
+def get_colored_axis_segments(
+    colors: Sequence[ColorType],
+    starts: Sequence[float],
+    ends: Sequence[float],
+    line_width=3.0,
+    zorder=0.5,
+) -> LineCollection:
+    if not (len(colors) == len(starts) == len(ends)):
+        raise ValueError(
+            f"These arrays must have the same size: colors ({len(colors)}), starts ({len(starts)}), ends ({len(ends)})"
+        )
+
+    segments: list[list[tuple[float, float]]] = []
+    for start, end in zip(starts, ends):
+        segments.append([(start, 5.0), (end, 5.0)])
+
+    lc = LineCollection(
+        segments,
+        colors=colors,
+        linewidths=line_width,
+        capstyle="butt",
+        zorder=zorder,
+        clip_on=True,
+    )
+
+    # Ensure the x-axis spine is visible and ticks draw over the segments
+    # ax.spines["bottom"].set_visible(True)
+
+    return lc

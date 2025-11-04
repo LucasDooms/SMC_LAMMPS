@@ -1,11 +1,13 @@
 # Copyright (c) 2025 Lucas Dooms
 
+import csv
 from pathlib import Path
 from runpy import run_path
 from typing import Any, Iterator, Sequence, TypeVar
 
 import numpy as np
 
+from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.reader.lammps_data import ID_TYPE
 
@@ -104,3 +106,41 @@ def get_moving_average(array, n: int) -> np.typing.NDArray:
         window.append(np.average(values))
 
     return np.array(window)
+
+
+def get_site_cycle_segments(path: Path) -> list[tuple[int, int]]:
+    """Return timesteps when cycling site is on: list[(start_timestep, end_timestep)]."""
+    data: list[tuple[int, bool]] = []
+    with open(path / "output" / "site_cycle_times.csv", "r", encoding="utf-8") as file:
+        csv_data = csv.reader(file, delimiter=",")
+        for row in csv_data:
+            assert row[1] in {"on", "off"}
+            data.append((int(row[0]), row[1] == "on"))
+
+    if not data:
+        return []
+
+    if data[0][0] != 0:
+        # prepend zero timestep, with opposite on/off state of next recorded step
+        data.insert(0, (0, not data[0][1]))
+
+    on_states: list[tuple[int, int]] = []
+    # get (start, end) values for the on states
+    current: int | None = None  # start off
+    for step, on in data:
+        if on:
+            if current is None:
+                current = step
+            else:
+                warn("Invalid data: site toggled on twice in a row!")
+        else:
+            if current is None:
+                warn("Invalid data: site toggled off twice in a row!")
+            else:
+                on_states.append((current, step))
+                current = None
+
+    if current is not None:
+        on_states.append((current, -1))
+
+    return on_states
