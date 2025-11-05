@@ -23,6 +23,7 @@ def get_runtime_lines(
     indices_array: list[list[ID_TYPE]],
     tscale: float = 1.0,
     iscale: float = 1.0,
+    cut_at_axes: bool = True,
 ) -> list[LineCollection]:
     scaled_array = list(map(partial(scale_indices, iscale=iscale), indices_array))
 
@@ -35,10 +36,13 @@ def get_runtime_lines(
         max(max(val) for val in scaled_array),
     )
 
-    # extend to edges of graph
-    diff = ymax - ymin
-    ymin -= 0.2 * diff
-    ymax += 0.2 * diff
+    if cut_at_axes:
+        ymin, ymax = ax.get_ylim()
+    else:
+        # extend to edges of graph
+        diff = ymax - ymin
+        ymin -= 0.2 * diff
+        ymax += 0.2 * diff
 
     lines = []
     for smc_phase, start_times in get_scaled_cum_runtimes(ppp["runtimes"], tscale=tscale).items():
