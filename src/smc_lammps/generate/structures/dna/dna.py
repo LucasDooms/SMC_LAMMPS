@@ -223,24 +223,44 @@ class Tether:
         bond_length: float,
         mass: float,
         bond_type: BAI_Type,
-        angle_type: BAI_Type,
+        ssangle_type: BAI_Type,
+        dsangle_type: BAI_Type,
         obstacle: Tether.Obstacle,
     ) -> Tether:
         tether_positions = (
             structure_creator.get_straight_segment(tether_length, [0, 1, 0]) * bond_length
         )
+        sstype = AtomType(mass / 2.0)
+        dstype = AtomType(mass)
         tether_group = AtomGroup(
             positions=tether_positions,
-            atom_type=AtomType(mass),
+            atom_type=sstype,
             molecule_index=MoleculeId.get_next(),
             polymer_bond_type=bond_type,
-            polymer_angle_type=angle_type,
+            polymer_angle_type=dsangle_type,
             charge=0.2,
         )
+
         polymer = Polymer(tether_group)
 
+        # split into left (ds) and right (ss) DNA
+        left, right = polymer.split(polymer.get_percent_id(0.5))
+        left.polymer_angle_type = dsangle_type
+        left.type = dstype
+        right.polymer_angle_type = ssangle_type
+        right.type = sstype
+
+        # create a bond between the two strands
+        tether_bond = BAI(bond_type, (left, -1), (right, 0))
+        # create angle, based on dsdna
+        tether_angle = BAI(dsangle_type, (left, -2), (left, -1), (right, 0))
+
         return Tether(
-            polymer=polymer, dna_tether_id=dna_tether_id, obstacle=obstacle, bonds=[], angles=[]
+            polymer=polymer,
+            dna_tether_id=dna_tether_id,
+            obstacle=obstacle,
+            bonds=[tether_bond],
+            angles=[tether_angle],
         )
 
     def move(self, vector) -> None:
@@ -1045,6 +1065,7 @@ class Obstacle(DnaConfiguration):
             dna_parameters.DNA_mass,
             dna_parameters.bond,
             dna_parameters.ssangle,
+            dna_parameters.angle,
             Tether.Obstacle(),
         )
         obstacle = Tether.get_obstacle(True, cls.inter_par, tether.polymer.atom_groups[0])
@@ -1170,6 +1191,7 @@ class ObstacleSafety(DnaConfiguration):
             dna_parameters.DNA_mass,
             dna_parameters.bond,
             dna_parameters.ssangle,
+            dna_parameters.angle,
             Tether.Obstacle(),
         )
         obstacle = Tether.get_obstacle(True, cls.inter_par, tether.polymer.atom_groups[0])
@@ -1249,6 +1271,7 @@ class AdvancedObstacleSafety(DnaConfiguration):
             dna_parameters.DNA_mass,
             dna_parameters.bond,
             dna_parameters.ssangle,
+            dna_parameters.angle,
             Tether.Obstacle(),
         )
         obstacle = Tether.get_obstacle(True, cls.inter_par, tether.polymer.atom_groups[0])
