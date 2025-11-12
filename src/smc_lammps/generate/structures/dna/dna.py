@@ -99,6 +99,16 @@ class Tether:
         def get_all_groups(self) -> list[AtomGroup]:
             return []
 
+        def add_interactions(
+            self,
+            pair_inter: PairWise,
+            dna_type: AtomType,
+            ip: InteractionParameters,
+            kBT: float,
+            smc: SMC,
+        ) -> None:
+            pass
+
     class Wall(Obstacle):
         def __init__(self, y_pos: float) -> None:
             super().__init__()
@@ -124,9 +134,53 @@ class Tether:
         def get_all_groups(self) -> list[AtomGroup]:
             return super().get_all_groups() + [self.group]
 
+        def add_interactions(
+            self,
+            pair_inter: PairWise,
+            dna_type: AtomType,
+            ip: InteractionParameters,
+            kBT: float,
+            smc: SMC,
+        ) -> None:
+            super().add_interactions(pair_inter, dna_type, ip, kBT, smc)
+
+            pair_inter.add_interaction(
+                self.group.type,
+                dna_type,
+                ip.epsilon_DNA_DNA * kBT,
+                self.radius,
+                self.cut,
+            )
+            # Obstacle repels arms
+            pair_inter.add_interaction(
+                self.group.type,
+                smc.t_arms_heads,
+                ip.epsilon_DNA_DNA * kBT,
+                self.radius,
+                self.cut,
+            )
+            # Obstacle repels kleisin
+            pair_inter.add_interaction(
+                self.group.type,
+                smc.t_kleisin,
+                ip.epsilon_DNA_DNA * kBT,
+                self.radius,
+                self.cut,
+            )
+            if smc.has_toroidal_hinge():
+                pair_inter.add_interaction(
+                    self.group.type,
+                    smc.t_hinge,
+                    ip.epsilon_DNA_DNA * kBT,
+                    self.radius,
+                    self.cut,
+                )
+
     polymer: Polymer
     dna_tether_id: StrandId | AtomIdentifier
     obstacle: Tether.Obstacle
+    bonds: list[BAI]
+    angles: list[BAI]
 
     @staticmethod
     def get_gold_mass(radius: float) -> float:
@@ -184,7 +238,7 @@ class Tether:
         )
         polymer = Polymer(tether_group)
 
-        return Tether(polymer=polymer, dna_tether_id=dna_tether_id, obstacle=obstacle)
+        return Tether(polymer=polymer, dna_tether_id=dna_tether_id, obstacle=obstacle, bonds=[], angles=[])
 
     def move(self, vector) -> None:
         for group in self.polymer.atom_groups:
@@ -207,8 +261,33 @@ class Tether:
         smc: SMC,
         kBT: float,
     ) -> None:
-        # TODO: add interactions for all groups
-        tether_type = self.polymer.atom_groups[0].type
+        self.obstacle.add_interactions(pair_inter, dna_type, ip, kBT, smc)
+
+        unique_types = set()
+        for grp in self.polymer.atom_groups:
+            tether_type = grp.type
+            if tether_type in unique_types:
+                continue
+            unique_types.add(tether_type)
+
+            if tether_type.mass == dna_type.mass:
+                factor = 1.0
+            elif tether_type.mass == dna_type.mass / 2.0:
+                factor = 2.0
+            else:
+                raise RuntimeError("unexpected mass for tether type")
+            self.add_tether_interactions(tether_type, factor, pair_inter, ip, dna_type, smc, kBT)
+
+    def add_tether_interactions(
+        self,
+        tether_type: AtomType,
+        factor: float,
+        pair_inter: PairWise,
+        ip: InteractionParameters,
+        dna_type: AtomType,
+        smc: SMC,
+        kBT: float,
+    ) -> None:
         # tether
         pair_inter.add_interaction(
             tether_type,
@@ -229,8 +308,8 @@ class Tether:
             tether_type,
             smc.t_arms_heads,
             ip.epsilon_SMC_DNA * kBT,
-            ip.sigma_SMC_DNA / 2.0,
-            ip.rcut_SMC_DNA / 2.0,
+            ip.sigma_SMC_DNA / factor,
+            ip.rcut_SMC_DNA / factor,
         )
         # Tether repels kleisin
         pair_inter.add_interaction(
@@ -245,8 +324,8 @@ class Tether:
                 tether_type,
                 smc.t_hinge,
                 ip.epsilon_SMC_DNA * kBT,
-                ip.sigma_SMC_DNA / 2.0,
-                ip.rcut_SMC_DNA / 2.0,
+                ip.sigma_SMC_DNA / factor,
+                ip.rcut_SMC_DNA / factor,
             )
         # Optional: don't allow bridge to go through tether
         # pair_inter.add_interaction(
@@ -261,37 +340,6 @@ class Tether:
         if isinstance(self.obstacle, Tether.Gold):
             pair_inter.add_interaction(
                 self.obstacle.group.type,
-                dna_type,
-                ip.epsilon_DNA_DNA * kBT,
-                self.obstacle.radius,
-                self.obstacle.cut,
-            )
-            # Obstacle repels arms
-            pair_inter.add_interaction(
-                self.obstacle.group.type,
-                smc.t_arms_heads,
-                ip.epsilon_DNA_DNA * kBT,
-                self.obstacle.radius,
-                self.obstacle.cut,
-            )
-            # Obstacle repels kleisin
-            pair_inter.add_interaction(
-                self.obstacle.group.type,
-                smc.t_kleisin,
-                ip.epsilon_DNA_DNA * kBT,
-                self.obstacle.radius,
-                self.obstacle.cut,
-            )
-            if smc.has_toroidal_hinge():
-                pair_inter.add_interaction(
-                    self.obstacle.group.type,
-                    smc.t_hinge,
-                    ip.epsilon_DNA_DNA * kBT,
-                    self.obstacle.radius,
-                    self.obstacle.cut,
-                )
-            pair_inter.add_interaction(
-                self.obstacle.group.type,
                 tether_type,
                 ip.epsilon_DNA_DNA * kBT,
                 self.obstacle.radius,
@@ -301,53 +349,67 @@ class Tether:
     def get_bonds(self, bond_type: BAI_Type, dna_config: DnaConfiguration) -> list[BAI]:
         atom_id = dna_config.map_to_atom_id(self.dna_tether_id)
         bonds = [BAI(bond_type, self.polymer.get_id_from_list_index(-1), atom_id)]
+        bonds += self.bonds
         if isinstance(self.obstacle, Tether.Gold):
             bonds += [self.obstacle.tether_bond]
         return bonds
 
+    def get_angles(self) -> list[BAI]:
+        return self.angles
+
+
+# redefine a method in a class using the old_method
+# this avoids infinite recursion caused by a function calling itself
+def class_decorator_factory(old_method):
+    def class_decorator(function):
+        def new_function(*args, **kwargs):
+            return function(old_method, *args, **kwargs)
+
+        return new_function
+
+    return class_decorator
+
 
 # decorator to add tether logic to DnaConfiguration classes
 def with_tether(cls):
-    def new1(f):
-        def get_all_groups(self) -> list[AtomGroup]:
-            return f(self) + self.tether.get_all_groups()
+    @class_decorator_factory(old_method=cls.get_all_groups)
+    def get_all_groups(f, self) -> list[AtomGroup]:
+        return f(self) + self.tether.get_all_groups()
 
-        return get_all_groups
+    cls.get_all_groups = get_all_groups
 
-    cls.get_all_groups = new1(cls.get_all_groups)
+    @class_decorator_factory(old_method=cls.get_post_process_parameters)
+    def get_post_process_parameters(f, self) -> DnaConfiguration.PostProcessParameters:
+        ppp = f(self)
+        self.tether.handle_end_points(ppp.end_points)
+        return ppp
 
-    def new2(f):
-        def get_post_process_parameters(self) -> DnaConfiguration.PostProcessParameters:
-            ppp = f(self)
-            self.tether.handle_end_points(ppp.end_points)
-            return ppp
+    cls.get_post_process_parameters = get_post_process_parameters
 
-        return get_post_process_parameters
+    @class_decorator_factory(old_method=cls.add_interactions)
+    def add_interactions(f, self, pair_inter: PairWise) -> None:
+        f(self, pair_inter)
+        self.tether.add_interactions(
+            pair_inter,
+            self.inter_par,
+            self.dna_parameters.type,
+            self.smc,
+            self.par.kB * self.par.T,
+        )
 
-    cls.get_post_process_parameters = new2(cls.get_post_process_parameters)
+    cls.add_interactions = add_interactions
 
-    def new3(f):
-        def add_interactions(self, pair_inter: PairWise) -> None:
-            f(self, pair_inter)
-            self.tether.add_interactions(
-                pair_inter,
-                self.inter_par,
-                self.dna_parameters.type,
-                self.smc,
-                self.par.kB * self.par.T,
-            )
+    @class_decorator_factory(old_method=cls.get_bonds)
+    def get_bonds(f, self) -> list[BAI]:
+        return f(self) + self.tether.get_bonds(self.dna_parameters.bond, self)
 
-        return add_interactions
+    cls.get_bonds = get_bonds
 
-    cls.add_interactions = new3(cls.add_interactions)
+    @class_decorator_factory(old_method=cls.get_angles)
+    def get_angles(f, self) -> list[BAI]:
+        return f(self) + self.tether.get_angles()
 
-    def new4(f):
-        def get_bonds(self) -> list[BAI]:
-            return f(self) + self.tether.get_bonds(self.dna_parameters.bond, self)
-
-        return get_bonds
-
-    cls.get_bonds = new4(cls.get_bonds)
+    cls.get_angles = get_angles
 
     return cls
 
@@ -534,6 +596,9 @@ class DnaConfiguration:
             )
             for bond in self.bead_bonds
         ]
+
+    def get_angles(self) -> list[BAI]:
+        return []
 
     def update_tether_bond(self, old_id: AtomIdentifier, bead: None | AtomIdentifier) -> None:
         assert isinstance(self.tether, Tether)

@@ -547,7 +547,7 @@ if par.add_side_site:
 
 gen.bais += [*smc_1.get_bonds(smc_creator.hinge_opening), *dna_config.get_bonds()]
 
-gen.bais += smc_1.get_angles()
+gen.bais += [*smc_1.get_angles(), *dna_config.get_angles()]
 
 gen.bais += smc_1.get_impropers()
 
