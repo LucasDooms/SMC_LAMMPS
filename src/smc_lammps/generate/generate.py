@@ -193,18 +193,6 @@ rcut_upper_site_DNA = par.cutoff6
 # Epsilon parameter of LJ attraction
 epsilon_upper_site_DNA = par.epsilon6
 
-interaction_parameters = dna.InteractionParameters(
-    sigma_DNA_DNA=sigma_DNA_DNA,
-    epsilon_DNA_DNA=epsilon_DNA_DNA,
-    rcut_DNA_DNA=rcut_DNA_DNA,
-    sigma_SMC_DNA=sigma_SMC_DNA,
-    epsilon_SMC_DNA=epsilon_SMC_DNA,
-    rcut_SMC_DNA=rcut_SMC_DNA,
-    sigma_upper_site_DNA=sigma_upper_site_DNA,
-    rcut_lower_site_DNA=rcut_upper_site_DNA,
-    epsilon_upper_site_DNA=epsilon_upper_site_DNA,
-)
-
 # Even More Parameters
 
 
@@ -234,6 +222,19 @@ max_bond_length_SMC = SMC_spacing * bond_max_extension
 k_angle_DNA = DNA_persistence_length * kBT / DNA_bond_length
 k_angle_ssDNA = ssDNA_persistence_length * kBT / DNA_bond_length
 
+
+interaction_parameters = dna.InteractionParameters(
+    sigma_DNA_DNA=sigma_DNA_DNA,
+    epsilon_DNA_DNA=epsilon_DNA_DNA,
+    rcut_DNA_DNA=rcut_DNA_DNA,
+    k_bond_DNA_DNA=k_bond_DNA,
+    sigma_SMC_DNA=sigma_SMC_DNA,
+    epsilon_SMC_DNA=epsilon_SMC_DNA,
+    rcut_SMC_DNA=rcut_SMC_DNA,
+    sigma_upper_site_DNA=sigma_upper_site_DNA,
+    rcut_lower_site_DNA=rcut_upper_site_DNA,
+    epsilon_upper_site_DNA=epsilon_upper_site_DNA,
+)
 
 #################################################################################
 #                                 Start Setup                                   #

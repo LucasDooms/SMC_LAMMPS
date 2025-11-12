@@ -66,6 +66,7 @@ class InteractionParameters:
     sigma_DNA_DNA: float
     epsilon_DNA_DNA: float
     rcut_DNA_DNA: float
+    k_bond_DNA_DNA: float
 
     ###########
     # SMC-DNA #
@@ -92,15 +93,15 @@ class InteractionParameters:
 @dataclass
 class Tether:
     class Obstacle:
-        def move(self, vector) -> None:
-            raise NotImplementedError("don't use Tether.Obstacle directly")
+        def move(self, vector: Nx3Array) -> None:
+            raise NotImplementedError(f"don't use Tether.Obstacle directly {vector}")
 
     class Wall(Obstacle):
         def __init__(self, y_pos: float) -> None:
             super().__init__()
             self.y_pos = y_pos
 
-        def move(self, vector) -> None:
+        def move(self, vector: Nx3Array) -> None:
             self.y_pos += vector[1]
 
     class Gold(Obstacle):
@@ -111,7 +112,7 @@ class Tether:
             self.cut = cut
             self.tether_bond = tether_bond
 
-        def move(self, vector) -> None:
+        def move(self, vector: Nx3Array) -> None:
             self.group.positions[0] += vector
 
     group: AtomGroup
@@ -133,7 +134,7 @@ class Tether:
             obstacle_radius = 100  # nanometers
             obstacle_cut = obstacle_radius * 2 ** (1 / 6)
             pos = tether_group.positions[0] - np.array(
-                [0, obstacle_radius - ip.sigma_DNA_DNA, 0], dtype=float
+                [0, obstacle_radius, 0], dtype=float
             )
             obstacle_type = AtomType(cls.get_gold_mass(obstacle_radius))
             obstacle_group = AtomGroup(
@@ -145,7 +146,7 @@ class Tether:
             obstacle_bond = BAI_Type(
                 BAI_Kind.BOND,
                 "fene/expand",
-                f"{1.0} {obstacle_radius} {0.0} {0.0} {ip.sigma_DNA_DNA}\n",
+                f"{ip.k_bond_DNA_DNA} {obstacle_radius} {0.0} {0.0} {obstacle_radius}\n",
             )
             tether_obstacle_bond = BAI(obstacle_bond, (tether_group, 0), (obstacle_group, 0))
             return Tether.Gold(obstacle_group, obstacle_radius, obstacle_cut, tether_obstacle_bond)
