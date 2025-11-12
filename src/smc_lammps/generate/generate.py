@@ -806,12 +806,16 @@ with open(lammps_path / "parameterfile", "w", encoding="utf-8") as parameterfile
         and dna_config.tether is not None
         and isinstance(dna_config.tether.obstacle, dna.Tether.Wall)
     ):
-        parameterfile.write(f"variable wall_y equal {dna_config.tether.group.positions[0][1]}\n")
+        parameterfile.write(
+            f"variable wall_y equal {dna_config.tether.polymer.atom_groups[0].positions[0][1]}\n"
+        )
 
-        excluded = [
-            gen.get_atom_index((dna_config.tether.group, 0)),
-            gen.get_atom_index((dna_config.tether.group, 1)),
-        ]
+        excluded = []
+        for group in dna_config.tether.polymer.atom_groups:
+            excluded += [
+                gen.get_atom_index((group, 0)),
+                gen.get_atom_index((group, 1)),
+            ]
         parameterfile.write(
             get_string_def("excluded", prepend_or_empty(list_to_space_str(excluded), "id "))
         )

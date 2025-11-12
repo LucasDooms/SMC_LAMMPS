@@ -96,6 +96,9 @@ class Tether:
         def move(self, vector: Nx3Array) -> None:
             raise NotImplementedError(f"don't use Tether.Obstacle directly {vector}")
 
+        def get_all_groups(self) -> list[AtomGroup]:
+            return []
+
     class Wall(Obstacle):
         def __init__(self, y_pos: float) -> None:
             super().__init__()
@@ -103,6 +106,9 @@ class Tether:
 
         def move(self, vector: Nx3Array) -> None:
             self.y_pos += vector[1]
+
+        def get_all_groups(self) -> list[AtomGroup]:
+            return super().get_all_groups()
 
     class Gold(Obstacle):
         def __init__(self, group: AtomGroup, radius: float, cut: float, tether_bond: BAI) -> None:
@@ -115,7 +121,10 @@ class Tether:
         def move(self, vector: Nx3Array) -> None:
             self.group.positions[0] += vector
 
-    group: AtomGroup
+        def get_all_groups(self) -> list[AtomGroup]:
+            return super().get_all_groups() + [self.group]
+
+    polymer: Polymer
     dna_tether_id: StrandId | AtomIdentifier
     obstacle: Tether.Obstacle
 
@@ -133,9 +142,7 @@ class Tether:
         if real_obstacle:
             obstacle_radius = 100  # nanometers
             obstacle_cut = obstacle_radius * 2 ** (1 / 6)
-            pos = tether_group.positions[0] - np.array(
-                [0, obstacle_radius, 0], dtype=float
-            )
+            pos = tether_group.positions[0] - np.array([0, obstacle_radius, 0], dtype=float)
             obstacle_type = AtomType(cls.get_gold_mass(obstacle_radius))
             obstacle_group = AtomGroup(
                 positions=np.array([pos]),
@@ -175,23 +182,22 @@ class Tether:
             polymer_angle_type=angle_type,
             charge=0.2,
         )
+        polymer = Polymer(tether_group)
 
-        return Tether(group=tether_group, dna_tether_id=dna_tether_id, obstacle=obstacle)
+        return Tether(polymer=polymer, dna_tether_id=dna_tether_id, obstacle=obstacle)
 
     def move(self, vector) -> None:
-        self.group.positions += vector
+        for group in self.polymer.atom_groups:
+            group.positions += vector
         self.obstacle.move(vector)
 
     def get_all_groups(self) -> list[AtomGroup]:
-        groups = [self.group]
-        if isinstance(self.obstacle, Tether.Gold):
-            groups += [self.obstacle.group]
-        return groups
+        return self.polymer.atom_groups + self.obstacle.get_all_groups()
 
     def handle_end_points(self, end_points: list[AtomIdentifier]) -> None:
         # freeze bottom of tether if using infinite wall
         if isinstance(self.obstacle, Tether.Wall):
-            end_points += [(self.group, 0)]
+            end_points += [self.polymer.get_id_from_list_index(0)]
 
     def add_interactions(
         self,
@@ -201,7 +207,8 @@ class Tether:
         smc: SMC,
         kBT: float,
     ) -> None:
-        tether_type = self.group.type
+        # TODO: add interactions for all groups
+        tether_type = self.polymer.atom_groups[0].type
         # tether
         pair_inter.add_interaction(
             tether_type,
@@ -293,7 +300,7 @@ class Tether:
 
     def get_bonds(self, bond_type: BAI_Type, dna_config: DnaConfiguration) -> list[BAI]:
         atom_id = dna_config.map_to_atom_id(self.dna_tether_id)
-        bonds = [BAI(bond_type, (self.group, -1), atom_id)]
+        bonds = [BAI(bond_type, self.polymer.get_id_from_list_index(-1), atom_id)]
         if isinstance(self.obstacle, Tether.Gold):
             bonds += [self.obstacle.tether_bond]
         return bonds
@@ -942,10 +949,10 @@ class Obstacle(DnaConfiguration):
             dna_parameters.ssangle,
             Tether.Obstacle(),
         )
-        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
+        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.polymer.atom_groups[0])
         tether.obstacle = obstacle
         # place the tether next to the DNA bead
-        tether.move(r_DNA[dna_bead_to_tether_id] - tether.group.positions[-1])
+        tether.move(r_DNA[dna_bead_to_tether_id] - pos_from_id(tether.polymer.get_id_from_list_index(-1)))
         # move down a little
         tether.move(np.array([0, -dna_parameters.DNA_bond_length, 0], dtype=float))
 
@@ -1065,10 +1072,10 @@ class ObstacleSafety(DnaConfiguration):
             dna_parameters.ssangle,
             Tether.Obstacle(),
         )
-        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
+        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.polymer.atom_groups[0])
         tether.obstacle = obstacle
 
-        tether.move(r_DNA[dna_bead_to_tether_id] - tether.group.positions[-1])
+        tether.move(r_DNA[dna_bead_to_tether_id] - pos_from_id(tether.polymer.get_id_from_list_index(-1)))
         # move down a little
         tether.move(np.array([0, -dna_parameters.DNA_bond_length, 0], dtype=float))
 
@@ -1142,11 +1149,11 @@ class AdvancedObstacleSafety(DnaConfiguration):
             dna_parameters.ssangle,
             Tether.Obstacle(),
         )
-        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.group)
+        obstacle = Tether.get_obstacle(True, cls.inter_par, tether.polymer.atom_groups[0])
         tether.obstacle = obstacle
 
         # place the tether next to the DNA bead
-        tether.move(r_DNA[dna_bead_to_tether_id] - tether.group.positions[-1])
+        tether.move(r_DNA[dna_bead_to_tether_id] - pos_from_id(tether.polymer.get_id_from_list_index(-1)))
         # move down a little
         tether.move(np.array([0, -dna_parameters.DNA_bond_length, 0], dtype=float))
 
