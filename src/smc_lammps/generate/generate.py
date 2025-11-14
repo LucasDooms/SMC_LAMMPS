@@ -31,6 +31,8 @@ from smc_lammps.generate.lammps.parameterfile import (
 from smc_lammps.generate.lammps.runtimes import get_times_with_max_steps
 from smc_lammps.generate.lammps.util import atomIds_to_LAMMPS_ids
 from smc_lammps.generate.structures.dna import dna
+from smc_lammps.generate.structures.inert_smc import inert_smc
+from smc_lammps.generate.structures.inert_smc.inert_smc import InertSMC
 from smc_lammps.generate.structures.smc.smc import SMC
 from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator
 from smc_lammps.generate.util import create_phase_wrapper, get_closest, get_parameters
@@ -482,9 +484,14 @@ if par.add_stopper_bead:
         )
 
 
+inert_smc = InertSMC(inert_smc.get_structure())
+extra_mols_smc.append(inert_smc.group.molecule_index)
+
+
 gen.add_atom_groups(
     *dna_config.get_all_groups(),
     *smc_1.get_groups(),
+    inert_smc.group,
 )
 
 
@@ -493,6 +500,29 @@ pair_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "lj/cut {} {} {}\n", [0.0, 0
 
 dna_config.add_interactions(pair_inter)
 smc_1.add_repel_interactions(pair_inter, epsilon_SMC_DNA * kBT, sigma_SMC_DNA, rcut_SMC_DNA)
+
+# DNA repels inert smc
+pair_inter.add_interaction(
+    dna_type,
+    inert_smc.group.type,
+    interaction_parameters.epsilon_SMC_DNA * kBT,
+    interaction_parameters.sigma_SMC_DNA,
+    interaction_parameters.rcut_SMC_DNA,
+)
+pair_inter.add_interaction(
+    smc_1.t_arms_heads,
+    inert_smc.group.type,
+    interaction_parameters.epsilon_SMC_DNA * kBT,
+    interaction_parameters.sigma_SMC_DNA / 2.0,
+    interaction_parameters.rcut_SMC_DNA / 2.0,
+)
+pair_inter.add_interaction(
+    smc_1.t_hinge,
+    inert_smc.group.type,
+    interaction_parameters.epsilon_SMC_DNA * kBT,
+    interaction_parameters.sigma_SMC_DNA / 2.0,
+    interaction_parameters.rcut_SMC_DNA / 2.0,
+)
 
 # soft interactions
 pair_soft_inter = PairWise("PairIJ Coeffs # hybrid\n\n", "soft {} {}\n", [0.0, 0.0])
