@@ -102,6 +102,9 @@ class Parameters:
     spaced_beads_custom_stiffness: float = 1.0
     "multiple of the default DNA stiffness"
 
+    spaced_beads_type = 1
+    "0: fene/expand bonds, 1: rigid molecules"
+
     ##################### Geometry #####################
 
     arm_length = 50.0

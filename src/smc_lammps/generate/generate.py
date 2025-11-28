@@ -420,18 +420,38 @@ if par.spaced_beads_interval is not None:
 
     for st_dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
-        extra_mols_smc.append(mol_spaced_bead)
-        spaced_beads.append(
-            dna_config.add_bead_to_dna(
-                spaced_bead_type,
-                mol_spaced_bead,
-                0,
-                st_dna_id,
-                None,
-                None,
-                par.spaced_beads_size,
+        if par.spaced_beads_type == 0:
+            bead_dna_bond = BAI_Type(
+                BAI_Kind.BOND,
+                "fene/expand",
+                f"{k_bond_DNA} {par.spaced_beads_size} {0.0} {0.0} {par.spaced_beads_size}\n",
             )
-        )
+            spaced_beads.append(
+                dna_config.add_bead_to_dna(
+                    spaced_bead_type,
+                    mol_spaced_bead,
+                    0,
+                    st_dna_id,
+                    bead_dna_bond,
+                    dna_angle,
+                    par.spaced_beads_size,
+                )
+            )
+        elif par.spaced_beads_type == 1:
+            extra_mols_smc.append(mol_spaced_bead)
+            spaced_beads.append(
+                dna_config.add_bead_to_dna(
+                    spaced_bead_type,
+                    mol_spaced_bead,
+                    0,
+                    st_dna_id,
+                    None,
+                    None,
+                    par.spaced_beads_size,
+                )
+            )
+        else:
+            raise ValueError(f"unknown spaced_beads_type, {par.spaced_beads_type}")
 
         if par.spaced_beads_custom_stiffness != 1.0:
             offset = int(par.spaced_beads_size / DNA_bond_length)
