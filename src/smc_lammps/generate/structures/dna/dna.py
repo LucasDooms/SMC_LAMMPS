@@ -13,6 +13,7 @@ import numpy as np
 from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.generate.generator import (
     BAI,
+    COORD_TYPE,
     AtomGroup,
     AtomIdentifier,
     AtomType,
@@ -238,7 +239,9 @@ class Tether:
         )
         polymer = Polymer(tether_group)
 
-        return Tether(polymer=polymer, dna_tether_id=dna_tether_id, obstacle=obstacle, bonds=[], angles=[])
+        return Tether(
+            polymer=polymer, dna_tether_id=dna_tether_id, obstacle=obstacle, bonds=[], angles=[]
+        )
 
     def move(self, vector) -> None:
         for group in self.polymer.atom_groups:
@@ -693,13 +696,22 @@ class DnaConfiguration:
 
             # move to correct distances
             bead.positions[0, 0] += bead_size
-            first_group.positions[:, 0] += 2 * bead_size - self.dna_parameters.DNA_bond_length
+            # first_group.positions[:, 0] += 2 * bead_size - self.dna_parameters.DNA_bond_length
+            self.dna_strands[strand_index].move(
+                np.array(
+                    [2 * bead_size - self.dna_parameters.DNA_bond_length, 0, 0], dtype=COORD_TYPE
+                ),
+                (0, self.dna_strands[strand_index].get_absolute_index((first_group, -1))),
+            )
 
             self.update_tether_bond(dna_atom, (bead, 0))
 
         self.beads.append(bead)
         self.bead_sizes.append(bead_size)
         self.bead_bonds += bais
+
+        # ensure the bead position updates with the polymer
+        self.dna_strands[strand_index].add_tagged_atoms(dna_atom, (bead, 0))
 
         return (bead, 0)
 
@@ -1020,7 +1032,9 @@ class Obstacle(DnaConfiguration):
         obstacle = Tether.get_obstacle(True, cls.inter_par, tether.polymer.atom_groups[0])
         tether.obstacle = obstacle
         # place the tether next to the DNA bead
-        tether.move(r_DNA[dna_bead_to_tether_id] - pos_from_id(tether.polymer.get_id_from_list_index(-1)))
+        tether.move(
+            r_DNA[dna_bead_to_tether_id] - pos_from_id(tether.polymer.get_id_from_list_index(-1))
+        )
         # move down a little
         tether.move(np.array([0, -dna_parameters.DNA_bond_length, 0], dtype=float))
 
@@ -1143,7 +1157,9 @@ class ObstacleSafety(DnaConfiguration):
         obstacle = Tether.get_obstacle(True, cls.inter_par, tether.polymer.atom_groups[0])
         tether.obstacle = obstacle
 
-        tether.move(r_DNA[dna_bead_to_tether_id] - pos_from_id(tether.polymer.get_id_from_list_index(-1)))
+        tether.move(
+            r_DNA[dna_bead_to_tether_id] - pos_from_id(tether.polymer.get_id_from_list_index(-1))
+        )
         # move down a little
         tether.move(np.array([0, -dna_parameters.DNA_bond_length, 0], dtype=float))
 
@@ -1221,7 +1237,9 @@ class AdvancedObstacleSafety(DnaConfiguration):
         tether.obstacle = obstacle
 
         # place the tether next to the DNA bead
-        tether.move(r_DNA[dna_bead_to_tether_id] - pos_from_id(tether.polymer.get_id_from_list_index(-1)))
+        tether.move(
+            r_DNA[dna_bead_to_tether_id] - pos_from_id(tether.polymer.get_id_from_list_index(-1))
+        )
         # move down a little
         tether.move(np.array([0, -dna_parameters.DNA_bond_length, 0], dtype=float))
 

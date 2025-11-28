@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 from smc_lammps.generate.generator import AtomGroup, AtomIdentifier, Nx3Array
@@ -8,10 +10,20 @@ class Polymer:
 
     def __init__(self, *atom_groups: AtomGroup) -> None:
         self.atom_groups: list[AtomGroup] = []
+        # atoms that should move whenever the polymer is moved
+        self.tagged_atoms: dict[
+            int, list[AtomIdentifier]
+        ] = {}  # maps an absolute index in the polymer to a list of tagged atoms
         self.add(*atom_groups)
 
     def add(self, *atom_groups: AtomGroup) -> None:
         self.atom_groups += atom_groups
+
+    def add_tagged_atoms(self, polymer_atom: AtomIdentifier, *atom_ids: AtomIdentifier) -> None:
+        id = self.get_absolute_index(polymer_atom)
+        if id not in self.tagged_atoms:
+            self.tagged_atoms[id] = []
+        self.tagged_atoms[id] += list(atom_ids)
 
     def split(self, split: AtomIdentifier) -> tuple[AtomGroup, AtomGroup]:
         """split the polymer in two pieces, with the split atom id part of the second group.
@@ -45,6 +57,48 @@ class Polymer:
     def full_list_length(self) -> int:
         return len(self.full_list())
 
+    def move(self, shift: Nx3Array, rng: tuple[int, int]) -> Polymer:
+        index = self.handle_negative_index(rng[0])
+        last_index = self.handle_negative_index(rng[1]) - index
+
+        if last_index < 0:
+            raise ValueError(f"Invalid range {rng}.")
+
+        absolute_shift = 0
+
+        remaining = [*self.atom_groups]
+        while index >= 0:
+            grp = remaining.pop(0)
+            if index < grp.n:
+                remaining.insert(0, grp)
+                start_offset = index
+                break
+            index -= grp.n
+            absolute_shift += grp.n
+        else:
+            raise IndexError(f"Start of range {rng} is out of bounds.")
+
+        def update_tagged(rng: slice, start_id: int) -> None:
+            for id in self.tagged_atoms:
+                if rng.start <= id - start_id < rng.stop:
+                    for atom_id in self.tagged_atoms[id]:
+                        atom_id[0].positions[atom_id[1]] += shift
+
+        for grp in remaining:
+            if last_index < len(grp.positions):
+                update_range = slice(start_offset, last_index + 1)
+                update_tagged(update_range, absolute_shift)
+                grp.positions[update_range] += shift
+                break
+            update_range = slice(start_offset, grp.n)
+            update_tagged(update_range, absolute_shift)
+            grp.positions[update_range] += shift
+            start_offset = 0
+            last_index -= grp.n
+            absolute_shift += grp.n
+
+        return self
+
     def handle_negative_index(self, index: int) -> int:
         if index >= 0:
             return index
@@ -61,14 +115,33 @@ class Polymer:
                 return (grp, index)
             index -= len(grp.positions)
 
-        raise IndexError(f"index {index} out of bounds for atom groups.")
+        raise IndexError(f"Index {index} out of bounds for atom groups.")
+
+    def get_absolute_index(self, atom_id: AtomIdentifier) -> int:
+        group = atom_id[0]
+        rel_index = atom_id[1]
+        index = 0
+        for grp in self.atom_groups:
+            if grp == group:
+                if rel_index < 0:
+                    rel_index += group.n
+                assert rel_index >= 0
+                index += rel_index
+                break
+            index += grp.n
+        else:
+            raise IndexError(f"Atom index of {atom_id} out of bounds.")
+
+        return index
 
     def all_indices_list(
         self,
     ) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         return [((dna_grp, 0), (dna_grp, -1)) for dna_grp in self.atom_groups]
 
-    def indices_list_from_to(self, from_index: int, to_index: int) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
+    def indices_list_from_to(
+        self, from_index: int, to_index: int
+    ) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         from_index = self.handle_negative_index(from_index)
         to_index = self.handle_negative_index(to_index)
 
@@ -125,7 +198,9 @@ class Polymer:
 
         return index
 
-    def indices_list_from_to_percent(self, from_ratio: float, to_ratio: float) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
+    def indices_list_from_to_percent(
+        self, from_ratio: float, to_ratio: float
+    ) -> list[tuple[AtomIdentifier, AtomIdentifier]]:
         from_index = self.convert_ratio(from_ratio)
         to_index = self.convert_ratio(to_ratio)
 
