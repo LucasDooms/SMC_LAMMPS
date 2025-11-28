@@ -601,7 +601,8 @@ class DnaConfiguration:
         return []
 
     def update_tether_bond(self, old_id: AtomIdentifier, bead: None | AtomIdentifier) -> None:
-        assert isinstance(self.tether, Tether)
+        if self.tether is None:
+            return
 
         if self.tether.dna_tether_id[0] is old_id[0]:
             if self.tether.dna_tether_id[1] == old_id[1] and bead is not None:
