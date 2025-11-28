@@ -275,6 +275,12 @@ class Generator:
 
             self._atom_groups.append(grp)
 
+    def move_all_atoms(self, shift: Nx3Array) -> None:
+        """Move all atoms in a certain direction.
+        Useful to place the system at the center of the simulation box."""
+        for grp in self._atom_groups:
+            grp.positions += shift
+
     def set_system_size(self, box_width: float) -> None:
         """Set the box size of the simulation."""
         self.box_width = box_width

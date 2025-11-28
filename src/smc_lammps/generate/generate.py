@@ -600,6 +600,13 @@ if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.S
     #     smc_1.mol_lower_site
     # )
 
+# get center of dna
+all_dna_atoms = []
+for strand in dna_config.dna_strands:
+    all_dna_atoms += [grp.positions for grp in strand.atom_groups]
+center = np.average(np.concat(all_dna_atoms, axis=0), axis=0)
+gen.move_all_atoms(-center)
+
 lammps_path = path / "lammps"
 lammps_path.mkdir(exist_ok=True)
 
