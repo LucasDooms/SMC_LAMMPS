@@ -682,7 +682,7 @@ class Generator:
             """Write a LAMMPS command for a pair / BAI interaction to a file."""
             if isinstance(self.args, BAI_Type):
                 cmd_name = self.get_script_bai_command_name(self.args.kind)
-                format_args = str(self.args.index)
+                format_args = [str(self.args.index)]
             else:  # pair interaction
                 cmd_name = self.get_script_bai_command_name(None)
                 format_args = [str(arg.index) for arg in self.args]
