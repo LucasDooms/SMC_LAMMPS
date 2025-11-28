@@ -676,6 +676,8 @@ class DnaConfiguration:
             self.molecule_overrides.append((strand_index, dna_id, mol_index))
         else:
             first_group, second_group = self.dna_strands[strand_index].split(dna_atom)
+            # dna_atom is now invalid, change it to new value
+            dna_atom = (second_group, 0)
 
             # add interactions/exceptions
             bais += [
