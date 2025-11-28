@@ -243,24 +243,33 @@ class Tether:
 
         polymer = Polymer(tether_group)
 
-        # split into left (ds) and right (ss) DNA
-        left, right = polymer.split(polymer.get_percent_id(0.5))
+        # split into left (ds), middle (ss), and right (ds) DNA
+        list_index = polymer.full_list_length() - 2
+        left, _ = polymer.split(polymer.get_id_from_list_index(list_index - 10))
+        middle, right = polymer.split(polymer.get_id_from_list_index(list_index))
         left.polymer_angle_type = dsangle_type
         left.type = dstype
-        right.polymer_angle_type = ssangle_type
-        right.type = sstype
+        middle.polymer_angle_type = ssangle_type
+        middle.type = sstype
+        right.polymer_angle_type = dsangle_type
+        right.type = dstype
 
-        # create a bond between the two strands
-        tether_bond = BAI(bond_type, (left, -1), (right, 0))
+        # create a bond between the left (ds) and middle (ss) strands
+        tether_bond_lm = BAI(bond_type, (left, -1), (middle, 0))
         # create angle, based on dsdna
-        tether_angle = BAI(dsangle_type, (left, -2), (left, -1), (right, 0))
+        tether_angle_lm = BAI(dsangle_type, (left, -2), (left, -1), (middle, 0))
+
+        # create a bond between the middle (ss) and right (ds) strands
+        tether_bond_mr = BAI(bond_type, (middle, -1), (right, 0))
+        # create angle, based on dsdna
+        tether_angle_mr = BAI(dsangle_type, (middle, -2), (middle, -1), (right, 0))
 
         return Tether(
             polymer=polymer,
             dna_tether_id=dna_tether_id,
             obstacle=obstacle,
-            bonds=[tether_bond],
-            angles=[tether_angle],
+            bonds=[tether_bond_lm, tether_bond_mr],
+            angles=[tether_angle_lm, tether_angle_mr],
         )
 
     def move(self, vector) -> None:
