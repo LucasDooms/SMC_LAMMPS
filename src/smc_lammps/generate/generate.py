@@ -156,7 +156,7 @@ SMC_spacing = par.sigma_SMC_DNA / 2
 
 
 # Width of cubic simulation box (nm)
-box_width = 2 * DNA_total_length
+box_width = 4 * DNA_total_length
 
 
 ################################## Interactions #################################
