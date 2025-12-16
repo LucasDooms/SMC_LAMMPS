@@ -421,6 +421,7 @@ if par.spaced_beads_interval is not None:
     for st_dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
         if par.spaced_beads_type == 0:
+            extra_mols_dna.append(mol_spaced_bead)
             bead_dna_bond = BAI_Type(
                 BAI_Kind.BOND,
                 "fene/expand",
