@@ -2,13 +2,17 @@
 ################################## SMC with DNA (Worm Like Chain) ##################################
 ####################################################################################################
 
+# units:
+#  nanoseconds, nanometers, attograms, Kelvin, ...
 units nano
 
+# fixed boundaries in all dimensions
+boundary f f f
 
 #--------------------------------------Initial Parameters------------------------------------------#
 
 
-include parameterfile
+include lammps/parameterfile
 
 # if not provided, assume this is not a restart run
 if $(!is_defined(variable,is_restart)) then &
@@ -21,14 +25,18 @@ if $(!is_defined(variable,lammps_root_dir)) then &
     """print "variable 'lammps_root_dir' is not defined, exiting!" screen yes""" &
     "quit 1"
 
-# Fixed boundaries in all dimensions
-boundary f f f
+if $(!is_defined(variable,output_path)) then &
+    "variable output_path string output"
+
+# make sure the necessary directories exist
+# WARNING: output_path must not contain spaces (surrounding with quotes breaks LAMMPS variable substitution)
+shell mkdir ${output_path}/snapshots
 
 
 #-----------------------------------------Define Styles--------------------------------------------#
 
 
-include styles
+include lammps/styles
 
 # Give weighting coef to LJ potentials (0 = turn off) between atoms that are bonded, seperated by 2 and 3 bonds
 special_bonds lj/coul 0. 0. 0.
@@ -42,18 +50,17 @@ neighbor $(4*3.5) bin
 
 #-------------------------------------------Read Data----------------------------------------------#
 
-# read_data datafile_coeffs extra/bond/per/atom 2 extra/angle/per/atom 2 extra/improper/per/atom 3
 if $(!v_is_restart) then &
-    "read_data datafile_positions" &
+    "read_data lammps/datafile_positions" &
 else &
-    "read_restart restartfile"
+    "read_restart lammps/restartfile"
 
-read_data datafile_coeffs add merge
+read_data lammps/datafile_coeffs add merge
 
 #---------------------------------------------Fixes------------------------------------------------#
 
 
-# Group all type 1 molecules as 'DNA' and all other types as 'SMC'
+# Set groups for DNA and SMC based on molecule ids
 group DNA molecule ${DNA_mols}
 group SMC molecule ${SMC_mols}
 
@@ -114,7 +121,7 @@ if $(!is_defined(variable,output_file_name)) then &
     "variable output_file_name string output.lammpstrj"
 
 # For VMD visualisation
-dump movie all custom ${output_steps} ${output_file_name} id type x y z
+dump movie all custom ${output_steps} ${output_path}/${output_file_name} id type x y z
 dump_modify movie sort id pbc yes
 
 # Computes SMC potential energy due to angles and impropers
@@ -146,67 +153,61 @@ if $(v_current_step >= v_runtimes) then &
 # collect msd for obstacle
 if $(is_defined(variable,obstacle_id)) then &
 	"group obst_group id ${obstacle_id}" &
-	"dump obst_dump obst_group custom ${output_steps} obstacle.lammpstrj id type x y z" &
+	"dump obst_dump obst_group custom ${output_steps} ${output_path}/obstacle.lammpstrj id type x y z" &
 	"dump_modify obst_dump pbc yes append yes"
 
 # apply force to smc
 if $(is_defined(variable,smc_force)) then &
 	"fix smc_force SMC addforce $(-v_smc_force) $(v_smc_force) 0"
 
-variable lower_site_cycle equal ${lower_site_cycle_period} # 0 means disabled
-variable lower_site_on_delay equal -1 # -1 means disabled
+variable site_cycle equal ${site_cycle_period} # 0 means disabled
+variable site_on_delay equal -1 # -1 means disabled
 
 # --- start of SMC cycle loop --- #
 label main_loop
 
 # APO state
 print "----------- STARTING APO STATE -----------" screen yes
-include states/apo
-run ${runtimes}
+include lammps/states/apo
+
+if "${site_cycle_when} == apo" then &
+    "include ${lammps_root_dir}/cycle_apo.lmp" &
+else &
+    "run ${runtimes}"
+
 next runtimes
 
 # take snapshot
-write_dump all custom 'snapshots/apo.end.lammpstrj' id type x y z modify append yes sort id pbc yes
+write_dump all custom ${output_path}/snapshots/apo.end.lammpstrj id type x y z modify append yes sort id pbc yes
 
 # ATP-bound state
 print "----------- STARTING ATP STATE -----------" screen yes
-include states/atp_bound_1
+include lammps/states/atp_bound_1
 run ${runtimes}
 next runtimes
 
-include states/atp_bound_2
+include lammps/states/atp_bound_2
 run ${runtimes}
 next runtimes
 
 # take snapshot
-write_dump all custom 'snapshots/atp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
+write_dump all custom ${output_path}/snapshots/atp.end.lammpstrj id type x y z modify append yes sort id pbc yes
 
-# check if lower site should be disabled
-variable lower_site_cycle equal $(v_lower_site_cycle - 1)
-# Note: if lower_site_cycle started at zero, this check
-# will never pass, which effectively disables the lower site toggling
-if $(v_lower_site_cycle == 0) then &
-    "variable lower_site_cycle equal ${lower_site_cycle_period}" &
-    "include states/lower_site_off" &
-    "variable lower_site_on_delay equal ${lower_site_toggle_delay}" &
+include ${lammps_root_dir}/cycle_disable.lmp
 
 # ADP-bound state
 print "----------- STARTING ADP STATE -----------" screen yes
-include states/adp_bound
+include lammps/states/adp_bound
 run ${runtimes}
 next runtimes
 
 # take snapshot
-write_dump all custom 'snapshots/adp.end.lammpstrj' id type x y z modify append yes sort id pbc yes
+write_dump all custom ${output_path}/snapshots/adp.end.lammpstrj id type x y z modify append yes sort id pbc yes
 
-# check if lower site should be enabled
-if $(v_lower_site_on_delay > 0) then &
-    "variable lower_site_on_delay equal $(v_lower_site_on_delay - 1)" &
-elif $(v_lower_site_on_delay == 0) &
-    "variable lower_site_on_delay equal -1" &
-    "include states/lower_site_on"
+if "${site_cycle_when} == adp" then &
+    "include ${lammps_root_dir}/cycle_apo.lmp"
 
-write_restart restartfile
+write_restart lammps/restartfile
 
 # Re-enter loop
 # LAMMPS will auto skip this when the runtimes variable is exhausted

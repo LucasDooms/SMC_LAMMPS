@@ -1,4 +1,14 @@
-from typing import Sequence, Any
+from typing import Any, Sequence
+
+
+def get_def_dynamically(name: str, value: Any) -> str:
+    """generate a LAMMPS variable definition based on the value type"""
+    if isinstance(value, (int, float)):
+        return get_equal_def(name, value)
+    elif isinstance(value, str):
+        return get_string_def(name, value)
+    else:
+        raise TypeError(f"Values of type '{type(value)}' are not supported.")
 
 
 def list_to_space_str(lst: Sequence[Any], surround="") -> str:
@@ -13,6 +23,11 @@ def prepend_or_empty(string: str, prepend: str) -> str:
     if string:
         return prepend + string
     return "empty"
+
+
+def get_equal_def(name: str, value: int | float) -> str:
+    """define a LAMMPS equal style variable"""
+    return f"variable {name} equal {value}\n"
 
 
 def get_string_def(name: str, value: str) -> str:

@@ -16,9 +16,8 @@ How to use:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import Enum
-from typing import Any, TypeAlias
+from typing import Any, TextIO, TypeAlias
 
 import numpy as np
 import numpy.typing as npt
@@ -28,6 +27,9 @@ from smc_lammps.console import warn
 
 class AtomType:
     __index = 0
+
+    class UnusedIndex(AttributeError):
+        pass
 
     def __init__(self, mass: float = 1.0, unused: bool = False) -> None:
         self._index = None
@@ -42,7 +44,9 @@ class AtomType:
     @property
     def index(self) -> int:
         if self.unused:
-            raise ValueError("This AtomType is marked as unused, cannot obtain a LAMMPS index!")
+            raise self.UnusedIndex(
+                "This AtomType is marked as unused, cannot obtain a LAMMPS index!"
+            )
         if self._index is None:
             self._index = self._get_next()
         return self._index
@@ -163,14 +167,23 @@ class PairWise:
         self.default = default
         self.pairs: list[tuple[AtomType, AtomType, list[Any]]] = []
 
-    def add_interaction(self, atom_type1: AtomType, atom_type2: AtomType, *args: Any) -> PairWise:
+    def add_interaction(
+        self, atom_type1: AtomType, atom_type2: AtomType, *args: Any, **kwargs: bool
+    ) -> PairWise:
         """Add an iteraction. Will sort the indices automatically."""
-        ordered = sorted([atom_type1, atom_type2], key=lambda at: at.index)
+        try:
+            ordered = sorted([atom_type1, atom_type2], key=lambda at: at.index)
+        except AtomType.UnusedIndex as e:
+            if kwargs.get("allow_unused", False):
+                # simply return without changing the self.pairs list
+                return self
+            raise e
+
         self.pairs.append((ordered[0], ordered[1], list(args)))
 
         return self
 
-    def write(self, file, atom_types: list[AtomType]) -> None:
+    def write(self, file: TextIO, atom_types: list[AtomType]) -> None:
         """Write the Pair Coeffs header and all pair interactions to a file.
         e.g.
         PairIJ Coeffs
@@ -198,6 +211,18 @@ class PairWise:
 
         return all_inters
 
+    def pair_in_inter(
+        self,
+        interaction: tuple[AtomType, AtomType],
+    ) -> tuple[AtomType, AtomType, list[Any]] | None:
+        for pair in self.pairs:
+            if interaction[0] == pair[0] and interaction[1] == pair[1]:
+                return pair
+            if interaction[1] == pair[0] and interaction[0] == pair[1]:
+                return pair
+
+        return None
+
     def get_all_interactions(
         self, all_atom_types: list[AtomType]
     ) -> list[tuple[AtomType, AtomType, str]]:
@@ -205,21 +230,10 @@ class PairWise:
         applying the default where no interaction was specified by the user."""
         all_inters = self.get_all_interaction_pairs(all_atom_types)
 
-        def pair_in_inter(
-            interaction: tuple[AtomType, AtomType],
-        ) -> tuple[AtomType, AtomType, list[Any]] | None:
-            for pair in self.pairs:
-                if interaction[0] == pair[0] and interaction[1] == pair[1]:
-                    return pair
-                if interaction[1] == pair[0] and interaction[0] == pair[1]:
-                    return pair
-
-            return None
-
         final_pairs: list[tuple[AtomType, AtomType, str]] = []
 
         for inter in all_inters:
-            pair = pair_in_inter(inter)
+            pair = self.pair_in_inter(inter)
             if pair is None:
                 if self.default is not None:
                     final_pairs.append((inter[0], inter[1], self.template.format(*self.default)))
@@ -229,7 +243,7 @@ class PairWise:
         return final_pairs
 
 
-def write_if_non_zero(file, fmt_string: str, amount: int):
+def write_if_non_zero(file: TextIO, fmt_string: str, amount: int):
     if amount != 0:
         file.write(fmt_string.format(amount))
 
@@ -261,6 +275,12 @@ class Generator:
 
             self._atom_groups.append(grp)
 
+    def move_all_atoms(self, shift: Nx3Array) -> None:
+        """Move all atoms in a certain direction.
+        Useful to place the system at the center of the simulation box."""
+        for grp in self._atom_groups:
+            grp.positions += shift
+
     def set_system_size(self, box_width: float) -> None:
         """Set the box size of the simulation."""
         self.box_width = box_width
@@ -269,7 +289,7 @@ class Generator:
         """Get the total number of atoms across all groups."""
         return sum(map(lambda atom_group: atom_group.n, self._atom_groups))
 
-    def write_header(self, file) -> None:
+    def write_header(self, file: TextIO) -> None:
         """Write the top header to a file.
         Note: LAMMPS always ignores the first line of a data file,
         which should be this header."""
@@ -320,7 +340,7 @@ class Generator:
 
         return total_bonds, total_angles, total_impropers
 
-    def write_amounts(self, file) -> None:
+    def write_amounts(self, file: TextIO) -> None:
         """Write the amount of atoms, bonds, angles, and impropers to a file."""
         file.write(f"{self.get_total_atoms()} atoms\n")
 
@@ -332,7 +352,7 @@ class Generator:
 
         file.write("\n")
 
-    def write_types(self, file) -> None:
+    def write_types(self, file: TextIO) -> None:
         """Write the amount of atom types, bond types, angle types, and improper types to a file."""
 
         write_if_non_zero(file, "{} atom types\n", len(self.get_all_atom_types()))
@@ -342,7 +362,7 @@ class Generator:
 
         file.write("\n")
 
-    def write_system_size(self, file) -> None:
+    def write_system_size(self, file: TextIO) -> None:
         """Write the system size to a file."""
         file.write("# System size\n")
 
@@ -356,7 +376,7 @@ class Generator:
 
         file.write("\n")
 
-    def write_masses(self, file) -> None:
+    def write_masses(self, file: TextIO) -> None:
         """Write the masses of all atom types to a file."""
         file.write("Masses\n\n")
         for atom_type in self.get_all_atom_types():
@@ -417,7 +437,7 @@ class Generator:
         lookup = {k: v.format(style_strings[k]) for k, v in lookup.items()}
         return lookup[kind]
 
-    def write_BAI_coeffs(self, file) -> None:
+    def write_BAI_coeffs(self, file: TextIO) -> None:
         """Write the Bond/Angle/Improper coefficients for each BAI kind to a file."""
         total_bonds, total_angles, total_impropers = self.get_amounts()
         lookup = {
@@ -439,7 +459,7 @@ class Generator:
                 file.write(bai_type.get_string(omit_style))
             file.write("\n")
 
-    def write_pair_interactions(self, file) -> None:
+    def write_pair_interactions(self, file: TextIO) -> None:
         """Write the Pair Coeffs header(s) and corresponding pair interactions to a file."""
         all_atom_types = self.get_all_atom_types()
         for pair in self.pair_interactions:
@@ -493,7 +513,7 @@ class Generator:
                     "Set use_charges=True to enable charges."
                 )
 
-    def write_atoms(self, file) -> None:
+    def write_atoms(self, file: TextIO) -> None:
         """Write the Atoms header and all atom positions to a file."""
         self.check_charges()
         file.write(self.get_atoms_header())
@@ -538,7 +558,7 @@ class Generator:
         }
         return lookup[kind]
 
-    def write_bai(self, file) -> None:
+    def write_bai(self, file: TextIO) -> None:
         """Write the Bond/Angle/Improper headers and all corresponding BAI interactions to a file."""
         total_bonds, total_angles, total_impropers = self.get_amounts()
         lookup = {
@@ -589,7 +609,7 @@ class Generator:
 
             file.write("\n")
 
-    def write_coeffs(self, file) -> None:
+    def write_coeffs(self, file: TextIO) -> None:
         """Write the coefficient information to a file.
         Useful when restarting a simulation."""
         self.write_header(file)
@@ -599,7 +619,7 @@ class Generator:
         self.write_BAI_coeffs(file)
         self.write_pair_interactions(file)
 
-    def write_positions_and_bonds(self, file) -> None:
+    def write_positions_and_bonds(self, file: TextIO) -> None:
         """Write the positions and bonds to a file."""
         self.write_header(file)
         self.write_amounts(file)
@@ -609,7 +629,7 @@ class Generator:
         self.write_atoms(file)
         self.write_bai(file)
 
-    def write_full(self, file) -> None:
+    def write_full(self, file: TextIO) -> None:
         """Write a full LAMMPS data file."""
         self.write_header(file)
         self.write_amounts(file)
@@ -622,34 +642,59 @@ class Generator:
         self.write_atoms(file)
         self.write_bai(file)
 
-    @staticmethod
-    def get_script_bai_command_name(pair_or_BAI: BAI_Kind | None) -> str:
-        """Get the command name for a pair / BAI interaction.
-        Used to redefine coefficients within a LAMMPS script."""
-        name_dict = {
-            None: "pair_coeff",
-            BAI_Kind.BOND: "bond_coeff",
-            BAI_Kind.ANGLE: "angle_coeff",
-            BAI_Kind.IMPROPER: "improper_coeff",
-        }
-        return name_dict[pair_or_BAI]
-
-    @dataclass
     class DynamicCoeffs:
-        pair_or_BAI: None | BAI_Kind
-        coeff_string: str
-        args: list[Any]
+        """Handles coefficients dynamically set within a LAMMPS script
+        using pair_coeff, bond_coeff, angle_coeff, and improper_coeff commands."""
 
-    def write_script_bai_coeffs(self, file, coeffs: DynamicCoeffs) -> None:
-        """Write a LAMMPS command for a pair / BAI interaction to a file."""
-        cmd_name = self.get_script_bai_command_name(coeffs.pair_or_BAI)
-        # parse args:
-        # if pair type -> get atom indices (two AtomType instances)
-        # else (bai) -> get BAI_Type index
-        # in both cases -> assume arguments have .index field
-        format_args = [str(arg.index) for arg in coeffs.args]
-        formatted_string = " ".join(format_args) + " " + coeffs.coeff_string
-        file.write(cmd_name + " " + formatted_string)
+        def __init__(self, coeff_string: str, args: BAI_Type | list[AtomType]) -> None:
+            self.coeff_string = coeff_string
+            self.args = args
+
+        @staticmethod
+        def get_script_bai_command_name(pair_or_BAI: BAI_Kind | None) -> str:
+            """Get the command name for a pair / BAI interaction.
+            Used to redefine coefficients within a LAMMPS script."""
+            name_dict = {
+                None: "pair_coeff",
+                BAI_Kind.BOND: "bond_coeff",
+                BAI_Kind.ANGLE: "angle_coeff",
+                BAI_Kind.IMPROPER: "improper_coeff",
+            }
+            return name_dict[pair_or_BAI]
+
+        @classmethod
+        def create_from_pairwise(
+            cls, pairwise: PairWise, type1: AtomType, type2: AtomType, values: list[Any] | None
+        ) -> Generator.DynamicCoeffs:
+            if values is not None:
+                coeff_string = pairwise.template.format(*values)
+            else:
+                # search for values in PairWise
+                # NOTE: we are not using the inferred get_all_interactions values,
+                # only the explicitly user defined values!
+                pair = pairwise.pair_in_inter((type1, type2))
+                if pair is None:
+                    raise RuntimeError(
+                        "This pair interaction has no assigned values (yet).\n"
+                        "To resolve this, do one of the following\n"
+                        "\t- make sure the interaction has been added via PairWise.add_interaction\n"
+                        "\t- define the values explicitly in create_from_pairwise (don't pass None)\n"
+                    )
+                coeff_string = pairwise.template.format(*pair[2])
+
+            return cls(coeff_string, [type1, type2])
+
+        def write_script_bai_coeffs(self, file: TextIO) -> None:
+            """Write a LAMMPS command for a pair / BAI interaction to a file."""
+            if isinstance(self.args, BAI_Type):
+                cmd_name = self.get_script_bai_command_name(self.args.kind)
+                format_args = [str(self.args.index)]
+            else:  # pair interaction
+                cmd_name = self.get_script_bai_command_name(None)
+                format_args = [str(arg.index) for arg in self.args]
+
+            formatted_string = " ".join(format_args) + " " + self.coeff_string
+            file.write(cmd_name + " " + formatted_string)
 
 
 def test_simple_atoms():

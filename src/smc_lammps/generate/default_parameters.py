@@ -6,10 +6,9 @@ from typing import Any
 
 @dataclass
 class Parameters:
-    def __setattr__(self, name: str, value: Any, /) -> None:
-        if not hasattr(self, name):
-            raise AttributeError("You cannot define new parameters.")
-        super().__setattr__(name, value)
+    """
+    Class that stores all simulation parameters defined by the user.
+    """
 
     ################ General parameters ################
 
@@ -50,6 +49,8 @@ class Parameters:
     runs = 10
     "Number of independent runs"
 
+    ##################### SMC cycle #######################
+
     cycles: int | None = 2
     """Number of SMC cycles (if set to None, will find approximate value using max_steps)
     Note: cycles are stochastic, so time per cycle is variable"""
@@ -66,6 +67,9 @@ class Parameters:
 
     steps_ADP = 2000000
     "Average number of steps spent in ADP state (waiting for return to APO)"
+
+    non_random_steps = False
+    "Disables the exponential sampling for APO,ATP,ADP steps"
 
     ##################### DNA #######################
 
@@ -97,6 +101,9 @@ class Parameters:
 
     spaced_beads_custom_stiffness: float = 1.0
     "multiple of the default DNA stiffness"
+
+    spaced_beads_type = 1
+    "0: fene/expand bonds, 1: rigid molecules"
 
     ##################### Geometry #####################
 
@@ -134,13 +141,20 @@ class Parameters:
 
     #################### Binding sites ###################
 
-    lower_site_cycle_period: int = 0
-    """The number of SMC cycles between events where the lower site is disabled.
-    A value of zero disables this and uses the default lower site dynamics."""
+    add_side_site: bool = False
+    """Add a binding site on the lower SMC arm to act as the cycling site.
+    If enabled, the lower site operates normally."""
 
-    lower_site_toggle_delay: int = 0
-    """The number of SMC cycles between the lower site being turned off and then on again.
+    site_cycle_period: int = 0
+    """The number of SMC cycles between events where the cycling site is disabled.
+    A value of zero disables this and uses the default site dynamics."""
+
+    site_toggle_delay: int = 0
+    """The number of SMC cycles between the cycling site being turned off and then on again.
     A value of zero means that the site will be enabled in the same cycle."""
+
+    site_cycle_when: str = "apo"
+    """When to re-enable the cycling site. Allowed values: "apo", "adp"."""
 
     #################### LJ energies ###################
 
@@ -180,6 +194,14 @@ class Parameters:
     asymmetry_stiffness = 100.0
     "Folding asymmetry stiffness of lower compartment (kT units)"
 
+    ################# Bonds #################
+
+    elbow_attraction = 30.0
+    "Attractive energy between elbows in the APO state (kT units)"
+
+    elbow_spacing = 2.5
+    "Rest length between elbows in the APO state (nm)"
+
     ################# Other #################
 
     smc_force = 0.0
@@ -187,3 +209,13 @@ class Parameters:
 
     use_charges = False
     "Enable Coulomb interactions in LAMMPS"
+
+    ################# Methods #################
+
+    def average_steps_per_cycle(self) -> int:
+        return self.steps_APO + self.steps_ATP + self.steps_ADP
+
+    def __setattr__(self, name: str, value: Any, /) -> None:
+        if not hasattr(self, name):
+            raise AttributeError("You cannot define new parameters.")
+        super().__setattr__(name, value)

@@ -21,6 +21,7 @@ from smc_lammps.generate.generator import (
     PairWise,
 )
 from smc_lammps.generate.lammps.parameterfile import (
+    get_def_dynamically,
     get_index_def,
     get_string_def,
     get_universe_def,
@@ -32,7 +33,7 @@ from smc_lammps.generate.lammps.util import atomIds_to_LAMMPS_ids
 from smc_lammps.generate.structures.dna import dna
 from smc_lammps.generate.structures.smc.smc import SMC
 from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator
-from smc_lammps.generate.util import create_phase, get_closest, get_parameters
+from smc_lammps.generate.util import create_phase_wrapper, get_closest, get_parameters
 
 
 def parse_inputs(argv: list[str]) -> tuple[Path, Parameters]:
@@ -118,7 +119,7 @@ SMC_total_mass = 0.25
 ################
 
 # DNA-DNA repulsion radius (nm)
-radius_DNA_DNA = 3.5
+radius_DNA_DNA = 2.0
 
 
 #######
@@ -155,7 +156,7 @@ SMC_spacing = par.sigma_SMC_DNA / 2
 
 
 # Width of cubic simulation box (nm)
-box_width = 2 * DNA_total_length
+box_width = 4 * DNA_total_length
 
 
 ################################## Interactions #################################
@@ -192,18 +193,6 @@ rcut_upper_site_DNA = par.cutoff6
 # Epsilon parameter of LJ attraction
 epsilon_upper_site_DNA = par.epsilon6
 
-interaction_parameters = dna.InteractionParameters(
-    sigma_DNA_DNA=sigma_DNA_DNA,
-    epsilon_DNA_DNA=epsilon_DNA_DNA,
-    rcut_DNA_DNA=rcut_DNA_DNA,
-    sigma_SMC_DNA=sigma_SMC_DNA,
-    epsilon_SMC_DNA=epsilon_SMC_DNA,
-    rcut_SMC_DNA=rcut_SMC_DNA,
-    sigma_upper_site_DNA=sigma_upper_site_DNA,
-    rcut_lower_site_DNA=rcut_upper_site_DNA,
-    epsilon_upper_site_DNA=epsilon_upper_site_DNA,
-)
-
 # Even More Parameters
 
 
@@ -233,6 +222,19 @@ max_bond_length_SMC = SMC_spacing * bond_max_extension
 k_angle_DNA = DNA_persistence_length * kBT / DNA_bond_length
 k_angle_ssDNA = ssDNA_persistence_length * kBT / DNA_bond_length
 
+
+interaction_parameters = dna.InteractionParameters(
+    sigma_DNA_DNA=sigma_DNA_DNA,
+    epsilon_DNA_DNA=epsilon_DNA_DNA,
+    rcut_DNA_DNA=rcut_DNA_DNA,
+    k_bond_DNA_DNA=k_bond_DNA,
+    sigma_SMC_DNA=sigma_SMC_DNA,
+    epsilon_SMC_DNA=epsilon_SMC_DNA,
+    rcut_SMC_DNA=rcut_SMC_DNA,
+    sigma_upper_site_DNA=sigma_upper_site_DNA,
+    rcut_lower_site_DNA=rcut_upper_site_DNA,
+    epsilon_upper_site_DNA=epsilon_upper_site_DNA,
+)
 
 #################################################################################
 #                                 Start Setup                                   #
@@ -266,6 +268,8 @@ smc_creator = SMC_Creator(
     # so between 2*SMCspacing and 4*SMCspacing should
     # allow ssDNA passage but not dsDNA
     hinge_opening=2.2 * SMC_spacing,
+    #
+    add_side_site=par.add_side_site,
     #
     kleisin_radius=par.kleisin_radius,
     folding_angle_APO=par.folding_angle_APO,
@@ -334,13 +338,16 @@ smc_1 = SMC(
     use_rigid_hinge=par.rigid_hinge,
     pos=smc_positions,
     #
-    t_arms_heads_kleisin=AtomType(mSMC),
+    t_arms_heads=AtomType(mSMC),
+    t_kleisin=AtomType(mSMC),
+    t_shield=AtomType(mSMC, unused=not par.add_side_site),  # currently only used for side site
     t_hinge=AtomType(mSMC, unused=not par.use_toroidal_hinge),
     t_atp=AtomType(mSMC),
     t_upper_site=AtomType(mSMC),
     t_middle_site=AtomType(mSMC),
     t_lower_site=AtomType(mSMC),
     t_ref_site=AtomType(mSMC),
+    t_side_site=AtomType(mSMC, unused=not par.add_side_site),
     #
     k_bond=k_bond_SMC,
     k_hinge=k_bond_hinge,
@@ -359,6 +366,8 @@ smc_1 = SMC(
     arms_angle_ATP=par.arms_angle_ATP,
     folding_angle_ATP=par.folding_angle_ATP,
     folding_angle_APO=par.folding_angle_APO,
+    elbow_attraction=par.elbow_attraction,
+    elbow_spacing=par.elbow_spacing,
 )
 
 dna_config.set_smc(smc_1)
@@ -411,18 +420,39 @@ if par.spaced_beads_interval is not None:
 
     for st_dna_id in spaced_bead_ids:
         mol_spaced_bead = MoleculeId.get_next()
-        extra_mols_smc.append(mol_spaced_bead)
-        spaced_beads.append(
-            dna_config.add_bead_to_dna(
-                spaced_bead_type,
-                mol_spaced_bead,
-                0,
-                st_dna_id,
-                None,
-                None,
-                par.spaced_beads_size,
+        if par.spaced_beads_type == 0:
+            extra_mols_dna.append(mol_spaced_bead)
+            bead_dna_bond = BAI_Type(
+                BAI_Kind.BOND,
+                "fene/expand",
+                f"{k_bond_DNA} {par.spaced_beads_size} {0.0} {0.0} {par.spaced_beads_size}\n",
             )
-        )
+            spaced_beads.append(
+                dna_config.add_bead_to_dna(
+                    spaced_bead_type,
+                    mol_spaced_bead,
+                    0,
+                    st_dna_id,
+                    bead_dna_bond,
+                    dna_angle,
+                    par.spaced_beads_size,
+                )
+            )
+        elif par.spaced_beads_type == 1:
+            extra_mols_smc.append(mol_spaced_bead)
+            spaced_beads.append(
+                dna_config.add_bead_to_dna(
+                    spaced_bead_type,
+                    mol_spaced_bead,
+                    0,
+                    st_dna_id,
+                    None,
+                    None,
+                    par.spaced_beads_size,
+                )
+            )
+        else:
+            raise ValueError(f"unknown spaced_beads_type, {par.spaced_beads_type}")
 
         if par.spaced_beads_custom_stiffness != 1.0:
             offset = int(par.spaced_beads_size / DNA_bond_length)
@@ -468,61 +498,77 @@ if gen.use_charges:
     gen.pair_interactions.append(PairWise("PairIJ Coeffs # hybrid\n\n", "coul/debye {}\n", [""]))
 
 # Interactions that change for different phases of SMC
-bridge_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_atp])
-bridge_on = Generator.DynamicCoeffs(
-    None,
-    f"lj/cut {epsilon_SMC_DNA * kBT} {par.sigma} {par.sigma * 2 ** (1 / 6)}\n",
-    [dna_type, smc_1.t_atp],
+bridge_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_atp, [0, 0, 0]
+)
+bridge_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter,
+    dna_type,
+    smc_1.t_atp,
+    [epsilon_SMC_DNA * kBT, par.sigma, par.sigma * 2 ** (1 / 6)],
 )
 
-bridge_soft_off = Generator.DynamicCoeffs(None, "soft 0 0\n", [dna_type, smc_1.t_atp])
-bridge_soft_on = Generator.DynamicCoeffs(
-    None,
-    f"soft {epsilon_SMC_DNA * kBT} {par.sigma * 2 ** (1 / 6)}\n",
-    [dna_type, smc_1.t_atp],
+bridge_soft_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_soft_inter, dna_type, smc_1.t_atp, [0, 0]
+)
+bridge_soft_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_soft_inter, dna_type, smc_1.t_atp, [epsilon_SMC_DNA * kBT, par.sigma * 2 ** (1 / 6)]
 )
 
-hinge_attraction_off = Generator.DynamicCoeffs(
-    None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_upper_site]
-)
-hinge_attraction_on = Generator.DynamicCoeffs(
-    None,
-    f"lj/cut {par.epsilon4 * kBT} {par.sigma} {par.cutoff4}\n",
-    [dna_type, smc_1.t_upper_site],
+
+hinge_attraction_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_upper_site, [0, 0, 0]
 )
 
-if False:  # isinstance(dnaConfig, (dna.ObstacleSafety, dna.AdvancedObstacleSafety))
-    # always keep site on
-    lower_site_off = Generator.DynamicCoeffs(
-        None,
-        f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n",
-        [dna_type, smc_1.t_lower_site],
+hinge_attraction_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_upper_site, [par.epsilon4 * kBT, par.sigma, par.cutoff4]
+)
+
+lower_site_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_lower_site, [0, 0, 0]
+)
+lower_site_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter,
+    dna_type,
+    smc_1.t_lower_site,
+    None,
+)
+
+middle_site_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter, dna_type, smc_1.t_middle_site, [0, 0, 0]
+)
+middle_site_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_inter,
+    dna_type,
+    smc_1.t_middle_site,
+    [par.epsilon5 * kBT, par.sigma, par.cutoff5],
+)
+
+middle_site_soft_off = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_soft_inter, dna_type, smc_1.t_middle_site, [0, 0]
+)
+middle_site_soft_on = Generator.DynamicCoeffs.create_from_pairwise(
+    pair_soft_inter,
+    dna_type,
+    smc_1.t_middle_site,
+    [par.epsilon5 * kBT, par.sigma * 2 ** (1 / 6)],
+)
+
+side_site_off = None
+side_site_on = None
+if par.add_side_site:
+    side_site_off = Generator.DynamicCoeffs.create_from_pairwise(
+        pair_inter, dna_type, smc_1.t_side_site, [0, 0, 0]
     )
-else:
-    lower_site_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_lower_site])
-lower_site_on = Generator.DynamicCoeffs(
-    None,
-    f"lj/cut {par.epsilon6 * kBT} {par.sigma} {par.cutoff6}\n",
-    [dna_type, smc_1.t_lower_site],
-)
 
-middle_site_off = Generator.DynamicCoeffs(None, "lj/cut 0 0 0\n", [dna_type, smc_1.t_middle_site])
-middle_site_on = Generator.DynamicCoeffs(
-    None,
-    f"lj/cut {par.epsilon5 * kBT} {par.sigma} {par.cutoff5}\n",
-    [dna_type, smc_1.t_middle_site],
-)
+    side_site_on = Generator.DynamicCoeffs.create_from_pairwise(
+        pair_inter, dna_type, smc_1.t_side_site, None
+    )
 
-middle_site_soft_off = Generator.DynamicCoeffs(None, "soft 0 0\n", [dna_type, smc_1.t_middle_site])
-middle_site_soft_on = Generator.DynamicCoeffs(
-    None,
-    "soft " + f"{par.epsilon5 * kBT} {par.sigma * 2 ** (1 / 6)}\n",
-    [dna_type, smc_1.t_middle_site],
-)
 
 gen.bais += [*smc_1.get_bonds(smc_creator.hinge_opening), *dna_config.get_bonds()]
 
-gen.bais += smc_1.get_angles()
+gen.bais += [*smc_1.get_angles(), *dna_config.get_angles()]
 
 gen.bais += smc_1.get_impropers()
 
@@ -555,13 +601,23 @@ if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.S
     #     smc_1.mol_lower_site
     # )
 
-with open(path / "datafile_coeffs", "w", encoding="utf-8") as datafile:
+# get center of dna
+all_dna_atoms = []
+for strand in dna_config.dna_strands:
+    all_dna_atoms += [grp.positions for grp in strand.atom_groups]
+center = np.average(np.concat(all_dna_atoms, axis=0), axis=0)
+gen.move_all_atoms(-center)
+
+lammps_path = path / "lammps"
+lammps_path.mkdir(exist_ok=True)
+
+with open(lammps_path / "datafile_coeffs", "w", encoding="utf-8") as datafile:
     gen.write_coeffs(datafile)
 
-with open(path / "datafile_positions", "w", encoding="utf-8") as datafile:
+with open(lammps_path / "datafile_positions", "w", encoding="utf-8") as datafile:
     gen.write_positions_and_bonds(datafile)
 
-with open(path / "styles", "w", encoding="utf-8") as stylesfile:
+with open(lammps_path / "styles", "w", encoding="utf-8") as stylesfile:
     stylesfile.write(gen.get_atom_style_command())
     stylesfile.write(gen.get_BAI_styles_command())
     pair_style = "pair_style hybrid/overlay lj/cut $(3.5) soft $(3.5)"
@@ -569,72 +625,64 @@ with open(path / "styles", "w", encoding="utf-8") as stylesfile:
         pair_style += " coul/debye $(1.0/5.0) $(7.5)"
     stylesfile.write(pair_style)
 
-# VMD visualization of initial configuration
-with open(path / "vmd.tcl", "w", encoding="utf-8") as vmdfile:
-    vmdfile.write(f"topo readlammpsdata {path / 'datafile_positions'}")
-
-# snapshots of trajectory are taken after every SMC phase
-(path / "snapshots").mkdir(exist_ok=True)
-
 #################################################################################
 #                                Phases of SMC                                  #
 #################################################################################
 
 # make sure the directory exists
-states_path = path / "states"
+states_path = lammps_path / "states"
 states_path.mkdir(exist_ok=True)
 
-# if par.lower_site_cycle_period is not zero, the lower site is handled elsewhere
-use_lower_site_off = [lower_site_off] if par.lower_site_cycle_period == 0 else []
-use_lower_site_on = [lower_site_on] if par.lower_site_cycle_period == 0 else []
+# if par.site_cycle_period is not zero, the lower site is handled elsewhere
+site_cond = par.site_cycle_period == 0 or par.add_side_site
+use_lower_site_off = [lower_site_off] if site_cond else []
+use_lower_site_on = [lower_site_on] if site_cond else []
 
-if par.lower_site_cycle_period > 0:
-    create_phase(
-        gen,
-        states_path / "lower_site_on",
+if par.site_cycle_period > 0:
+    create_phase_wrapper(
+        states_path / "cycle_site_on",
         [
-            lower_site_on,
+            *([lower_site_on] if not site_cond else []),
+            side_site_on,
         ],
     )
-    create_phase(
-        gen,
-        states_path / "lower_site_off",
+    create_phase_wrapper(
+        states_path / "cycle_site_off",
         [
-            lower_site_off,
+            *([lower_site_off] if not site_cond else []),
+            side_site_off,
         ],
     )
 
-create_phase(
-    gen,
+create_phase_wrapper(
     states_path / "adp_bound",
     [
         bridge_off,
         hinge_attraction_on,
         middle_site_off,
         *use_lower_site_off,
+        smc_1.elbows_off,
         smc_1.arms_open,
         smc_1.kleisin_unfolds1,
         smc_1.kleisin_unfolds2,
     ],
 )
 
-create_phase(
-    gen,
+create_phase_wrapper(
     states_path / "apo",
     [
         bridge_off,
         hinge_attraction_off,
         middle_site_off,
         *use_lower_site_on,
+        smc_1.elbows_on,
         smc_1.arms_close,
         smc_1.kleisin_unfolds1,
         smc_1.kleisin_unfolds2,
     ],
 )
-# gen.write_script_bai_coeffs(adp_bound_file, BAI_Kind.ANGLE, "{} harmonic " + f"{angle3kappa} {angle3angleAPO2}\n", angle_t3)   # Arms close MORE
 
-create_phase(
-    gen,
+create_phase_wrapper(
     states_path / "atp_bound_1",
     [
         bridge_soft_on,
@@ -642,8 +690,7 @@ create_phase(
     ],
 )
 
-create_phase(
-    gen,
+create_phase_wrapper(
     states_path / "atp_bound_2",
     [
         bridge_soft_off,
@@ -652,6 +699,7 @@ create_phase(
         hinge_attraction_on,
         middle_site_on,
         *use_lower_site_on,
+        smc_1.elbows_off,
         smc_1.arms_open,
         smc_1.kleisin_folds1,
         smc_1.kleisin_folds2,
@@ -662,7 +710,11 @@ create_phase(
 # get run times for each SMC state
 # APO -> ATP1 -> ATP2 -> ADP -> ...
 rng = default_rng(par.seed)
-runtimes = get_times_with_max_steps(par, rng)
+if par.non_random_steps:
+    warn("Parameter `non_random_steps` is enabled, this should only be used for testing!")
+    runtimes = get_times_with_max_steps(par, None)
+else:
+    runtimes = get_times_with_max_steps(par, rng)
 
 #################################################################################
 #                           Print to post processing                            #
@@ -724,15 +776,18 @@ def get_variables_for_lammps() -> list[str]:
         "sigma",
         "timestep",
         "smc_force",
+        "site_cycle_period",
+        "site_toggle_delay",
+        "site_cycle_when",
     ]
 
 
-with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
+with open(lammps_path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 
     params = get_variables_for_lammps()
     for key in params:
-        parameterfile.write(f"variable {key} equal {getattr(par, key)}\n\n")
+        parameterfile.write(get_def_dynamically(key, getattr(par, key)))
 
     # write molecule ids
     # NOTE: indices are allowed to be the same, LAMMPS will ignore duplicates
@@ -779,12 +834,16 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
         and dna_config.tether is not None
         and isinstance(dna_config.tether.obstacle, dna.Tether.Wall)
     ):
-        parameterfile.write(f"variable wall_y equal {dna_config.tether.group.positions[0][1]}\n")
+        parameterfile.write(
+            f"variable wall_y equal {dna_config.tether.polymer.atom_groups[0].positions[0][1]}\n"
+        )
 
-        excluded = [
-            gen.get_atom_index((dna_config.tether.group, 0)),
-            gen.get_atom_index((dna_config.tether.group, 1)),
-        ]
+        excluded = []
+        for group in dna_config.tether.polymer.atom_groups:
+            excluded += [
+                gen.get_atom_index((group, 0)),
+                gen.get_atom_index((group, 1)),
+            ]
         parameterfile.write(
             get_string_def("excluded", prepend_or_empty(list_to_space_str(excluded), "id "))
         )
@@ -813,8 +872,3 @@ with open(path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     parameterfile.write("\n")
 
     parameterfile.write(get_index_def("runtimes", runtimes))
-
-    parameterfile.write("\n")
-
-    parameterfile.write(f"variable lower_site_toggle_delay equal {par.lower_site_toggle_delay}\n")
-    parameterfile.write(f"variable lower_site_cycle_period equal {par.lower_site_cycle_period}\n")

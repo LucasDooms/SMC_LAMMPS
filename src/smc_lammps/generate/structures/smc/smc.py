@@ -24,13 +24,16 @@ class SMC:
 
     pos: SMC_Pos
 
-    t_arms_heads_kleisin: AtomType
+    t_arms_heads: AtomType
+    t_kleisin: AtomType
+    t_shield: AtomType
     t_hinge: AtomType
     t_atp: AtomType
     t_upper_site: AtomType
     t_middle_site: AtomType
     t_lower_site: AtomType
     t_ref_site: AtomType
+    t_side_site: AtomType
 
     # bonds
     k_bond: float
@@ -58,6 +61,8 @@ class SMC:
     arms_angle_ATP: float
     folding_angle_ATP: float
     folding_angle_APO: float
+    elbow_attraction: float
+    elbow_spacing: float
 
     @property
     def hinge_radius(self) -> float:
@@ -97,6 +102,22 @@ class SMC:
             self.mol_lower_site,
         ]
 
+    def _set_bonds(self) -> None:
+        if self.elbow_attraction == 0:
+            self.elbows = None
+            self.elbows_on = None
+            self.elbows_off = None
+        else:
+            self.elbows = BAI_Type(BAI_Kind.BOND, "harmonic/shift/cut", "0 0 0.1\n")
+            self.elbows_on = Generator.DynamicCoeffs(
+                f"harmonic/shift/cut {self.elbow_attraction} {self.elbow_spacing} {2.5 * self.elbow_spacing}\n",
+                self.elbows,
+            )
+            self.elbows_off = Generator.DynamicCoeffs(
+                "harmonic/shift/cut 0 0 0.1\n",
+                self.elbows,
+            )
+
     def _set_angles(self) -> None:
         self.align_arms = BAI_Type(BAI_Kind.ANGLE, "harmonic", f"{self.k_elbow} {180.0}\n")
         arms_bridge_angle = np.rad2deg(np.arccos(self.bridge_width / self.arm_length / 4.0))
@@ -106,14 +127,12 @@ class SMC:
         self.hinge_arms = BAI_Type(BAI_Kind.ANGLE, "harmonic", f"{self.k_arm} {90.0}\n")
 
         self.arms_close = Generator.DynamicCoeffs(
-            BAI_Kind.ANGLE,
             f"harmonic {self.k_arm} {np.rad2deg(np.arccos((self.bridge_width / 2.0 - self.hinge_radius) / self.arm_length))}\n",
-            [self.arms_bridge],
+            self.arms_bridge,
         )
         self.arms_open = Generator.DynamicCoeffs(
-            BAI_Kind.ANGLE,
             f"harmonic {self.k_arm} {self.arms_angle_ATP}\n",
-            [self.arms_bridge],
+            self.arms_bridge,
         )
 
     def _set_impropers(self) -> None:
@@ -131,39 +150,57 @@ class SMC:
         self.imp_t4 = BAI_Type(BAI_Kind.IMPROPER, "harmonic", f"{self.k_align_site / 5.0} {90.0}\n")
 
         self.kleisin_folds1 = Generator.DynamicCoeffs(
-            BAI_Kind.IMPROPER,
             f"{self.k_fold} {180.0 - self.folding_angle_ATP}\n",
-            [self.imp_t2],
+            self.imp_t2,
         )
         self.kleisin_unfolds1 = Generator.DynamicCoeffs(
-            BAI_Kind.IMPROPER,
             f"{self.k_fold} {180.0 - self.folding_angle_APO}\n",
-            [self.imp_t2],
+            self.imp_t2,
         )
 
         self.kleisin_folds2 = Generator.DynamicCoeffs(
-            BAI_Kind.IMPROPER,
             f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_ATP)}\n",
-            [self.imp_t3],
+            self.imp_t3,
         )
         self.kleisin_unfolds2 = Generator.DynamicCoeffs(
-            BAI_Kind.IMPROPER,
             f"{self.k_asymmetry} {abs(90.0 - self.folding_angle_APO)}\n",
-            [self.imp_t3],
+            self.imp_t3,
         )
 
     def __post_init__(self) -> None:
         self._set_molecule_ids()
+        self._set_bonds()
         self._set_angles()
         self._set_impropers()
         # create groups
-        self.arm_dl_grp = AtomGroup(self.pos.r_arm_dl, self.t_arms_heads_kleisin, self.mol_arm_dl)
-        self.arm_ul_grp = AtomGroup(self.pos.r_arm_ul, self.t_arms_heads_kleisin, self.mol_arm_ul)
-        self.arm_ur_grp = AtomGroup(self.pos.r_arm_ur, self.t_arms_heads_kleisin, self.mol_arm_ur)
-        self.arm_dr_grp = AtomGroup(self.pos.r_arm_dr, self.t_arms_heads_kleisin, self.mol_arm_dr)
-        self.hk_grp = AtomGroup(
-            self.pos.r_kleisin, self.t_arms_heads_kleisin, self.mol_heads_kleisin
-        )
+        self.arm_dl_grp = AtomGroup(self.pos.r_arm_dl, self.t_arms_heads, self.mol_arm_dl)
+        self.arm_ul_grp = AtomGroup(self.pos.r_arm_ul, self.t_arms_heads, self.mol_arm_ul)
+        self.arm_ur_grp = AtomGroup(self.pos.r_arm_ur, self.t_arms_heads, self.mol_arm_ur)
+        self.arm_dr_grp = AtomGroup(self.pos.r_arm_dr, self.t_arms_heads, self.mol_arm_dr)
+
+        if self.has_side_site():
+            # split S in two parts
+
+            cut = 1
+            self.side_site_grp = AtomGroup(
+                self.pos.r_side_site[:cut], self.t_side_site, self.mol_arm_dr
+            )
+            self.side_site_arm_grp = AtomGroup(
+                self.pos.r_side_site[cut:], self.t_shield, self.mol_arm_dr
+            )
+        else:
+            self.side_site_grp = AtomGroup(
+                np.empty(shape=(0, 3), dtype=self.pos.r_arm_dr.dtype),
+                self.t_side_site,
+                self.mol_arm_dr,
+            )
+            self.side_site_arm_grp = AtomGroup(
+                np.empty(shape=(0, 3), dtype=self.pos.r_arm_dr.dtype),
+                self.t_kleisin,
+                self.mol_arm_dr,
+            )
+
+        self.hk_grp = AtomGroup(self.pos.r_kleisin, self.t_kleisin, self.mol_heads_kleisin)
 
         self.atp_grp = AtomGroup(self.pos.r_ATP, self.t_atp, self.mol_ATP)
 
@@ -186,7 +223,7 @@ class SMC:
             )
             self.upper_site_arm_grp = AtomGroup(
                 np.empty(shape=(0, 3), dtype=self.pos.r_upper_site.dtype),
-                self.t_arms_heads_kleisin,
+                self.t_arms_heads,
                 self.mol_hinge_l,
             )
         else:
@@ -195,7 +232,7 @@ class SMC:
                 self.pos.r_upper_site[:cut], self.t_upper_site, self.mol_hinge_l
             )
             self.upper_site_arm_grp = AtomGroup(
-                self.pos.r_upper_site[cut:], self.t_arms_heads_kleisin, self.mol_hinge_l
+                self.pos.r_upper_site[cut:], self.t_arms_heads, self.mol_hinge_l
             )
 
         # split M in three parts
@@ -219,7 +256,7 @@ class SMC:
             self.pos.r_lower_site[:cut], self.t_lower_site, self.mol_lower_site
         )
         self.lower_site_arm_grp = AtomGroup(
-            self.pos.r_lower_site[cut:], self.t_arms_heads_kleisin, self.mol_lower_site
+            self.pos.r_lower_site[cut:], self.t_arms_heads, self.mol_lower_site
         )
 
         if self.has_toroidal_hinge():
@@ -231,6 +268,9 @@ class SMC:
 
     def has_toroidal_hinge(self) -> bool:
         return self.pos.r_hinge.size != 0
+
+    def has_side_site(self) -> bool:
+        return self.pos.r_side_site.size != 0
 
     def get_groups(self) -> list[AtomGroup]:
         grps = [
@@ -249,6 +289,8 @@ class SMC:
             self.lower_site_arm_grp,
             self.hinge_l_grp,
             self.hinge_r_grp,
+            self.side_site_grp,
+            self.side_site_arm_grp,
         ]
         return [grp for grp in grps if grp.positions.size != 0]
 
@@ -286,6 +328,12 @@ class SMC:
             BAI(attach, (self.atp_grp, -1), (self.hk_grp, 0)),
             BAI(attach, (self.hk_grp, -1), (self.atp_grp, 0)),
         ]
+
+        if self.elbows is not None:
+            bonds += [
+                # elbows come together (for stronger arm closing effect)
+                BAI(self.elbows, (self.arm_dl_grp, -1), (self.arm_dr_grp, 0)),
+            ]
 
         if self.has_toroidal_hinge():
             bonds += [
@@ -487,6 +535,17 @@ class SMC:
                     (self.atp_grp, -1),
                 ),
             ]
+        if self.has_side_site():
+            impropers += [
+                # align back of side site shield with ATP bridge
+                BAI(
+                    self.imp_t1,
+                    (self.side_site_arm_grp, 1),
+                    (self.side_site_arm_grp, 2),
+                    (self.atp_grp, -1),
+                    (self.atp_grp, 0),
+                ),
+            ]
 
         return impropers
 
@@ -508,7 +567,7 @@ class SMC:
             )
             # prevent upper site from overlapping with arms
             pair_inter.add_interaction(
-                self.t_arms_heads_kleisin,
+                self.t_arms_heads,
                 self.t_upper_site,
                 eps,
                 sigma_short,
