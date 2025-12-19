@@ -1,6 +1,6 @@
 [project]
 name = "smc-lammps"
-version = "0.1.2"
+version = "0.2.0"
 description = "Simulate DNA loop extrusion by SMCs using LAMMPS"
 readme = "README.md"
 license = "MIT"
@@ -38,3 +38,14 @@ smc-lammps = "smc_lammps:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+  {include-group = "lint"},
+]
+lint = [
+    "ruff>=0.13.1",
+]
+analysis = [
+    "notebook>=7.4.5",
+]

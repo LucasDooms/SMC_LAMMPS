@@ -2,7 +2,7 @@
 
 import math
 from dataclasses import dataclass, fields
-from typing import Any, List, Tuple
+from typing import Any
 
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -27,8 +27,9 @@ class SMC_Pos:
     r_middle_site: Nx3Array
     r_lower_site: Nx3Array
     r_hinge: Nx3Array
+    r_side_site: Nx3Array
 
-    def iter(self) -> List[Any]:
+    def iter(self) -> list[Any]:
         """Returns a list of all fields"""
         return [getattr(self, field.name) for field in fields(SMC_Pos)]
 
@@ -37,7 +38,7 @@ class SMC_Pos:
         for field in fields(self.__class__):
             setattr(self, field.name, func(getattr(self, field.name)))
 
-    def map(self, func) -> List[Any]:
+    def map(self, func) -> list[Any]:
         """Apply a function to every field and return the resulting list"""
         return [func(x) for x in self.iter()]
 
@@ -68,6 +69,8 @@ class SMC_Creator:
     hinge_radius: float
     hinge_opening: float
 
+    add_side_site: bool
+
     kleisin_radius: float
 
     folding_angle_APO: float
@@ -75,7 +78,7 @@ class SMC_Creator:
     seed: int = 5894302289572
     small_noise: float = 1e-5
 
-    def get_arms(self) -> Tuple[Nx3Array, Nx3Array, Nx3Array, Nx3Array]:
+    def get_arms(self) -> tuple[Nx3Array, Nx3Array, Nx3Array, Nx3Array]:
         # Number of beads forming each arm segment (err on the high side)
         n_arm_segments = math.ceil(self.arm_length / (2 * self.SMC_spacing))
 
@@ -207,12 +210,12 @@ class SMC_Creator:
         return np.concatenate([inner_beads, *shells, end_first, end_last])
 
     @staticmethod
-    def transpose_rotate_transpose(rotation, *arrays: Nx3Array) -> Tuple[Nx3Array]:
+    def transpose_rotate_transpose(rotation, *arrays: Nx3Array) -> tuple[Nx3Array, ...]:
         return tuple(rotation.dot(arr.transpose()).transpose() for arr in arrays)
 
     def get_interaction_sites(
         self, lower_site_points_down: bool
-    ) -> Tuple[Nx3Array, Nx3Array, Nx3Array]:
+    ) -> tuple[Nx3Array, Nx3Array, Nx3Array]:
         # U = upper  interaction site
         # M = middle interaction site
         # D = lower  interaction site
@@ -334,6 +337,28 @@ class SMC_Creator:
         r_middle_site += r_ATP[len(r_ATP) // 2]
         r_lower_site += r_kleisin[len(r_kleisin) // 2]
 
+        if self.add_side_site:
+            r_side_site = (
+                self.shielded_site_template(1, 4, self.middle_site_h / 2.0, 1) * self.SMC_spacing
+            )
+
+            rotate_around_x_axis = Rotation.from_rotvec(
+                math.pi / 2.0 * np.array([1.0, 0.0, 0.0])
+            ).as_matrix()
+            (r_side_site,) = self.transpose_rotate_transpose(rotate_around_x_axis, r_side_site)
+
+            site_index = -4
+            r_side_site += r_arm_dr[site_index]
+            surround = 1
+            r_arm_dr = np.concatenate(
+                (
+                    r_arm_dr[: site_index - surround],
+                    r_arm_dr[site_index + 1 + surround :],
+                )
+            )
+        else:
+            r_side_site: Nx3Array = np.empty(shape=(0, 3), dtype=r_arm_dr.dtype)
+
         ############################# Fold upper compartment ############################
 
         # Rotation matrix (clockwise about z axis)
@@ -342,7 +367,8 @@ class SMC_Creator:
         ).as_matrix()
 
         # Rotate upper segments only
-        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_upper_site, r_middle_site, r_hinge = (
+        # fmt: off
+        r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr, r_upper_site, r_middle_site, r_hinge, r_side_site = (
             self.transpose_rotate_transpose(
                 rotation,
                 r_arm_dl,
@@ -352,8 +378,10 @@ class SMC_Creator:
                 r_upper_site,
                 r_middle_site,
                 r_hinge,
+                r_side_site,
             )
         )
+        # fmt: on
 
         self.generated_positions = SMC_Pos(
             r_arm_dl=r_arm_dl,
@@ -366,6 +394,7 @@ class SMC_Creator:
             r_middle_site=r_middle_site,
             r_lower_site=r_lower_site,
             r_hinge=r_hinge,
+            r_side_site=r_side_site,
         )
 
         # apply extra rotation to entire SMC
