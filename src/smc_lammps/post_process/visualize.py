@@ -116,16 +116,25 @@ class Molecules:
     def set_animate_start(self) -> None:
         self.file.write("animate goto start\n")
 
-    def create_new(self, file: Path, other_args: str) -> None:
+    def create_new(self, file: Path, **other_args: str) -> None:
+        # waitfor all by default, greatly reduces load time for large files
+        other_args.setdefault("waitfor", "all")
+        # assume lammpstrj,
+        # useful for restart output files named 'output.lammpstrj.*'
+        # which vmd does not automatically recognize
+        other_args.setdefault("type", "lammpstrj")
+
+        space_separated_args = " ".join([f'{key} "{value}"' for key, value in other_args.items()])
+
         self.index += 1
         self.file.write(f"\n# >>> mol {self.index}\n")
         self.file.write(
-            f'mol new "{file.relative_to(self.path.parent, walk_up=True)}" {other_args}\n'
+            f'mol new "{file.relative_to(self.path.parent, walk_up=True)}" {space_separated_args}\n'
         )
         self.file.write(f"# ----- rep {self.rep_index} -----\n")
 
     def create_new_marked(self, file: Path) -> None:
-        self.create_new(file, "waitfor all")
+        self.create_new(file)
         self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw\n")
 
     def load_trajectory(
@@ -133,7 +142,7 @@ class Molecules:
         file: Path,
         remove_ranges: Sequence[tuple[int, int]],
     ) -> None:
-        self.create_new(file, "waitfor all")
+        self.create_new(file)
         # show everything, slightly smaller
         self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 0.4\n")
 
