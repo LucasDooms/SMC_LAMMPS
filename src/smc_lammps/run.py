@@ -315,7 +315,9 @@ def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
     # check for spaces in output_path (for LAMMPS compatibility)
     assert isinstance(output_path, str)
     if " " in output_path:
-        raise ValueError(f"Found spaces in path '{output_path}', this not supported by the LAMMPS script.")
+        raise ValueError(
+            f"Found spaces in path '{output_path}', this not supported by the LAMMPS script."
+        )
 
     output_path = path / Path(output_path)
     output_path.mkdir(exist_ok=True)
@@ -386,6 +388,7 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
         args,
         path,
         is_restart="1",
+        output_path=new_output_file.parent.relative_to(path).as_posix(),
         output_file_name=new_output_file.name,
     )
 
@@ -418,7 +421,12 @@ def run(args: Namespace, path: Path) -> TaskDone:
         quiet_print(args.quiet, "moving on...")
         return TaskDone()
 
-    perform_run(args, path)
+    perform_run(
+        args,
+        path,
+        output_path=output_path.relative_to(path).as_posix(),
+        output_file_name=output_file.name,
+    )
 
     return TaskDone()
 
