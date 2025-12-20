@@ -515,6 +515,14 @@ if par.add_stopper_bead:
             DNA_bond_length,
         )
 
+# place ssDNA
+start: int = 100
+length: int = 20 # amount of beads
+
+dna_config.change_dna_stiffness(
+    0, start, start + length, dna_bond, ssdna_angle
+)
+
 
 gen.add_atom_groups(
     *dna_config.get_all_groups(),
