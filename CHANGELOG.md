@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Restart runs now use the correct output directory.
 - Output files without the `lammpstrj` extension (e.g. `output.lammpstrj.1`) can now be opened with the `-v` flag.
+- Prevent creation of nested simulation directories via cli.
 
 ## [0.2.0] - 2025-12-19
 

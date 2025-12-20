@@ -128,7 +128,7 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
     def get_file_names(dir: Path) -> Iterator[str]:
         try:
             lst = (p.name for p in dir.iterdir())
-        except NotADirectoryError:
+        except (NotADirectoryError, FileNotFoundError):
             lst = iter(())
         return lst
 
