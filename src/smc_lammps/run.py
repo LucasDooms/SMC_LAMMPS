@@ -17,6 +17,7 @@ from click import confirm
 
 from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
+from smc_lammps.post_process.util import merge_lammpstrj
 
 PYRUN = ["python", "-m"]
 
@@ -73,6 +74,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     post_processing = parser.add_argument_group(title='post-processing')
     post_processing.add_argument('-p', '--post-process', action='store_true', help='run the post-processing scripts after running LAMMPS')
+    post_processing.add_argument('--merge', action='store_true', help='merge all created lammpstrj files into one file')
     pp_vis = post_processing.add_mutually_exclusive_group()
     pp_vis.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
     pp_vis.add_argument('-vd', '--visualize-datafile', action='store_true', help='shows the initial structure in VMD')
@@ -431,6 +433,35 @@ def run(args: Namespace, path: Path) -> TaskDone:
     return TaskDone()
 
 
+def merge(args: Namespace, path: Path) -> TaskDone:
+    """Merges lammpstrj files together, useful after a restart run."""
+    if not args.merge:
+        return TaskDone(skipped=True)
+
+    merge_path = path / "output"
+    base_file_name = "output.lammpstrj"
+
+    files = filter(lambda p: not p.is_dir(), merge_path.glob(f"{base_file_name}*"))
+    files = sorted(files)
+
+    if len(files) <= 1:
+        quiet_print(
+            args.quiet, f"need at least two files in order to merge, found {len(files)} file(s)"
+        )
+        return TaskDone(skipped=True)
+
+    base_file, files = files[0], files[1:]
+
+    for other_file in files:
+        quiet_print(
+            args.quiet,
+            f"merging '{base_file.relative_to(path)}' and '{other_file.relative_to(path)}'",
+        )
+        merge_lammpstrj(base_file, other_file, delete_after=True)
+
+    return TaskDone()
+
+
 def post_process(args: Namespace, path: Path) -> TaskDone:
     if not args.post_process:
         return TaskDone(skipped=True)
@@ -591,6 +622,7 @@ def main():
         clean(args, path),
         generate(args, path),
         run(args, path),
+        merge(args, path),
         post_process(args, path),
         visualize(args, path, subdir),
     ]

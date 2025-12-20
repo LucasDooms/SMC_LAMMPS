@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- New `--merge` flag merges multiple `output.lammpstrj*` files into one.
+
 ### Fixed
 
 - Restart runs now use the correct output directory.

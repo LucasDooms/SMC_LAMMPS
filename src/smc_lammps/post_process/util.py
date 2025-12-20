@@ -1,6 +1,7 @@
 # Copyright (c) 2025 Lucas Dooms
 
 import csv
+import shutil
 from pathlib import Path
 from runpy import run_path
 from typing import Any, Iterator, Sequence, TypeVar
@@ -10,6 +11,7 @@ import numpy as np
 from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.reader.lammps_data import ID_TYPE
+from smc_lammps.reader.parser import Parser
 
 
 def get_scaling(
@@ -144,3 +146,42 @@ def get_site_cycle_segments(path: Path) -> list[tuple[int, int]]:
         on_states.append((current, -1))
 
     return on_states
+
+
+def merge_lammpstrj(base_file: Path, second_file: Path, delete_after: bool = True) -> None:
+    """Merges two lammpstrj files together by removing any overlapping
+    timesteps from the base file, and concatenatin the two files."""
+
+    par = Parser(second_file)
+    try:
+        merge_step, _ = par.next_step()
+    except Parser.EndOfLammpsFile:
+        raise ValueError(f"Lammpstrj file '{second_file}' does not contain any data, cannot merge!")
+
+    # use 'r+' to allow file.truncate() call
+    par = Parser(base_file, mode="r+")
+    last_step = 0
+    while True:
+        try:
+            current_pos = par.file.tell()
+            last_step, _ = par.next_step()
+            if last_step >= merge_step:
+                break
+        except Parser.EndOfLammpsFile:
+            raise ValueError(
+                f"Lammpstrj file '{base_file}' does not contain enough data to perform a merge!\n"
+                f"Found step {last_step} which is smaller than the required time step {merge_step}."
+            )
+
+    par.file.seek(current_pos)
+    par.file.truncate()
+
+    # close file
+    del par
+
+    with open(base_file, "ab") as first:
+        with open(second_file, "rb") as second:
+            shutil.copyfileobj(second, first)
+
+    if delete_after:
+        second_file.unlink()
