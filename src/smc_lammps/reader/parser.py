@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import typing
 from io import StringIO
 from itertools import islice
 from pathlib import Path
+
+if typing.TYPE_CHECKING:
+    from _typeshed import OpenTextMode
 
 import numpy as np
 
@@ -17,8 +21,8 @@ class Parser:
     class EndOfLammpsFile(Exception):
         pass
 
-    def __init__(self, file: Path, time_it: bool = False) -> None:
-        self.file = open(file, "r", encoding="utf-8")
+    def __init__(self, file: Path, time_it: bool = False, mode: OpenTextMode = "r") -> None:
+        self.file = open(file, mode, encoding="utf-8")
 
         self.timings = None
         if time_it:
