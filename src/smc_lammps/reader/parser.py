@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import typing
 from io import StringIO
-from itertools import islice
 from pathlib import Path
 
 if typing.TYPE_CHECKING:
@@ -35,7 +34,9 @@ class Parser:
         current_line = None
         empty = True
 
-        for line in self.file:
+        # NOTE: use readline instead of a for loop,
+        # since the latter breaks file.seek() calls
+        while line := self.file.readline():
             empty = False
 
             if line.startswith("ITEM: ATOMS"):
@@ -80,9 +81,14 @@ class Parser:
         timestep = int(saved["ITEM: TIMESTEP"][0])
         number_of_atoms = int(saved["ITEM: NUMBER OF ATOMS"][0])
 
-        lines = list(islice(self.file, number_of_atoms))
-        if len(lines) != number_of_atoms:
-            raise ValueError("reached end of file unexpectedly")
+        lines: list[str] = []
+        for _ in range(number_of_atoms):
+            try:
+                next = self.file.readline()
+            except Exception as e:
+                raise ValueError("reached end of file unexpectedly") from e
+            else:
+                lines.append(next)
 
         data = self.split_data(self.get_array(lines))
 
