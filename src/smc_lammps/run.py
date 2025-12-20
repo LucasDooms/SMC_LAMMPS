@@ -386,7 +386,7 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
         args,
         path,
         is_restart="1",
-        output_file_name=str(new_output_file.relative_to(path)),
+        output_file_name=new_output_file.name,
     )
 
     return TaskDone()
