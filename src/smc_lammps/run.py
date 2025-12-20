@@ -264,7 +264,7 @@ def clean(args: Namespace, path: Path) -> TaskDone:
                 quiet_print(args.quiet, f"unrecognized file or folder '{child}', skipping...")
                 return
             child.unlink()
-            quiet_print(args.quiet, f"deleted '{child}' succesfully")
+            quiet_print(args.quiet, f"deleted '{child}' successfully")
 
     remove_recursively(path, path)
 
@@ -302,7 +302,9 @@ def get_lammps_args_list(lammps_vars: Sequence[list[str]]) -> list[str]:
     return out
 
 
-def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
+def perform_run(
+    args: Namespace, path: Path, log_file_name: str = "log.lammps", **kwargs: str | list[str]
+):
     if args.input is None:
         project_root = get_project_root()
         args.input = project_root / "lammps" / "input.lmp"
@@ -334,7 +336,7 @@ def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
         "-in",
         f"{lammps_script.absolute()}",
         "-log",
-        f"{output_path / 'log.lammps'}",
+        f"{output_path / log_file_name}",
     ]
     if args.suffix == "kk":
         command += ["-kokkos", "on"]
@@ -371,11 +373,15 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
             f"Make sure the following file exists to restart a simulation: {output_file}"
         )
 
-    # find a file name that is not taken yet
+    # find an output file name that is not taken yet
     for suffix in range(1, MaxIterationExceeded.MAX_ITER):
-        new_output_file = Path(f"{output_file}.{suffix}")
+        new_output_file = output_file.with_name(f"{output_file.name}.{suffix}")
         if not new_output_file.exists():
-            # use this one
+            # use same suffix for log.lammps
+            new_log_file_name = f"log.lammps.{suffix}"
+            new_log_file = output_file.parent / new_log_file_name
+            if new_log_file.exists():
+                warn(f"log file '{new_log_file}' already exists and will get overwritten")
             break
     else:
         raise FileExistsError(
@@ -389,6 +395,7 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
     perform_run(
         args,
         path,
+        log_file_name=new_log_file_name,
         is_restart="1",
         output_path=new_output_file.parent.relative_to(path).as_posix(),
         output_file_name=new_output_file.name,
@@ -475,7 +482,7 @@ def post_process(args: Namespace, path: Path) -> TaskDone:
         args.ignore_errors,
         args.quiet,
     )
-    quiet_print(args.quiet, "succesfully ran post processing")
+    quiet_print(args.quiet, "successfully ran post processing")
 
     return TaskDone()
 
