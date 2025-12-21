@@ -366,13 +366,18 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
         return TaskDone(skipped=True)
 
     # TODO: check that all necessary files have been generated?
-    file_exists = output_file.exists()
-    if not file_exists:
-        if args.force:
-            return TaskDone(skipped=True)
-        raise FileNotFoundError(
-            f"Make sure the following file exists to restart a simulation: {output_file}"
-        )
+    checks: list[tuple[Path, bool]] = [
+        (output_file, True),
+        (path / "lammps" / "restartfile", False),
+    ]
+
+    for file, allow_reroute in checks:
+        if not file.exists():
+            if allow_reroute and args.force:
+                return TaskDone(skipped=True)
+            raise FileNotFoundError(
+                f"Make sure the following file exists to restart a simulation: {output_file}"
+            )
 
     # find an output file name that is not taken yet
     for suffix in range(1, MaxIterationExceeded.MAX_ITER):
