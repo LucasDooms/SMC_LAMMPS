@@ -9,7 +9,7 @@ from argparse import Namespace
 from functools import partial
 from pathlib import Path
 from re import compile as compile_regex
-from sys import argv
+from sys import argv, exit
 from typing import Callable, Iterator, Sequence
 
 import argcomplete
