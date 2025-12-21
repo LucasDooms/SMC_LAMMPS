@@ -230,9 +230,10 @@ def clean(args: Namespace, path: Path) -> TaskDone:
     # list of regexes for files to delete
     # (assume posix style path)
     safe_to_delete = [
-        r".*\.lammpstrj",
-        r".*\.lammpstrj\.\d+",
+        r".*\.lammpstrj$",
+        r".*\.lammpstrj\.\d+$",
         r".*/log\.lammps$",
+        r".*/log\.lammps\.\d+$",
         r"^lammps/.*",
         r"^post_processing_parameters\.py$",
         r"^tmp\.lammps\.variable$",
