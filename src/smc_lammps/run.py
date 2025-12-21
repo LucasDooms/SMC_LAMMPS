@@ -418,7 +418,7 @@ def run(args: Namespace, path: Path) -> TaskDone:
 
     if args.force:
         output_file.unlink(missing_ok=True)
-        (output_path / "restartfile").unlink(missing_ok=True)
+        (path / "lammps" / "restartfile").unlink(missing_ok=True)
         for perspective_file in output_path.glob("perspective.*.lammpstrj"):
             perspective_file.unlink()
         for snapshot_file in (output_path / "snapshots").glob("*.lammpstrj"):
