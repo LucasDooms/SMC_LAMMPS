@@ -232,44 +232,80 @@ class Tether:
         )
         sstype = AtomType(mass / 2.0)
         dstype = AtomType(mass)
+
+        # defines how the tether should be split into types
+        # contains (length, type, angle_type) values
+        splitting: list[tuple[int, AtomType, BAI_Type]] = [
+            (tether_length - 4, dstype, dsangle_type),
+            (1, sstype, ssangle_type),
+            (-1, dstype, dsangle_type),
+        ]
+
         tether_group = AtomGroup(
             positions=tether_positions,
-            atom_type=sstype,
+            atom_type=splitting[0][1],
             molecule_index=MoleculeId.get_next(),
             polymer_bond_type=bond_type,
-            polymer_angle_type=dsangle_type,
+            polymer_angle_type=splitting[0][2],
             charge=0.2,
         )
 
         polymer = Polymer(tether_group)
+        bonds: list[BAI] = []
+        angles: list[BAI] = []
 
-        # split into left (ds), middle (ss), and right (ds) DNA
-        list_index = polymer.full_list_length() - 2
-        left, _ = polymer.split(polymer.get_id_from_list_index(list_index - 10))
-        middle, right = polymer.split(polymer.get_id_from_list_index(list_index))
-        left.polymer_angle_type = dsangle_type
-        left.type = dstype
-        middle.polymer_angle_type = ssangle_type
-        middle.type = sstype
-        right.polymer_angle_type = dsangle_type
-        right.type = dstype
+        total_index = 0
+        for l_piece, r_piece in zip(splitting, splitting[1:]):
+            length = l_piece[0]
+            assert length > 0
+            total_index += length
+            left, right = polymer.split(polymer.get_id_from_list_index(total_index))
+            left.type = l_piece[1]
+            left.polymer_angle_type = l_piece[2]
+            # these will be called again in the next iteration, but whatever
+            right.type = r_piece[1]
+            right.polymer_angle_type = r_piece[2]
 
-        # create a bond between the left (ds) and middle (ss) strands
-        tether_bond_lm = BAI(bond_type, (left, -1), (middle, 0))
-        # create angle, based on dsdna
-        tether_angle_lm = BAI(dsangle_type, (left, -2), (left, -1), (middle, 0))
+        # WARNING: To create bonds and angles, we iterate again
+        # after all the splits have been performed.
+        # This is because BAIs require stable AtomGroup definitions,
+        # which would be broken by splits.
+        total_index = 0
+        for l_piece, r_piece in zip(splitting, splitting[1:]):
+            length = l_piece[0]
+            assert length > 0
+            total_index += length
 
-        # create a bond between the middle (ss) and right (ds) strands
-        tether_bond_mr = BAI(bond_type, (middle, -1), (right, 0))
-        # create angle, based on dsdna
-        tether_angle_mr = BAI(dsangle_type, (middle, -2), (middle, -1), (right, 0))
+            # NOTE: below, we use polymer.get_id_from_list_index to access
+            # the atom groups, this avoids issues when indexing into
+            # atom groups of length 1 with index = -2 resulting in an out of bounds error.
+            # Using the polymer method instead will automatically select the next
+            # group over, which is the desired behavior.
+
+            # create a bond between the strands
+            bonds.append(
+                BAI(
+                    bond_type,
+                    polymer.get_id_from_list_index(total_index - 1),
+                    polymer.get_id_from_list_index(total_index - 0),
+                )
+            )
+            # create angle based on left type
+            angles.append(
+                BAI(
+                    l_piece[2],
+                    polymer.get_id_from_list_index(total_index - 2),
+                    polymer.get_id_from_list_index(total_index - 1),
+                    polymer.get_id_from_list_index(total_index - 0),
+                )
+            )
 
         return Tether(
             polymer=polymer,
             dna_tether_id=dna_tether_id,
             obstacle=obstacle,
-            bonds=[tether_bond_lm, tether_bond_mr],
-            angles=[tether_angle_lm, tether_angle_mr],
+            bonds=bonds,
+            angles=angles,
         )
 
     def move(self, vector) -> None:
