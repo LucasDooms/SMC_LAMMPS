@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- (WIP) Obstacle tethers can now be split into multiple types of DNA (dsDNA, ssDNA).
+
 ## [0.2.1] - 2026-01-15
 
 ### Added
