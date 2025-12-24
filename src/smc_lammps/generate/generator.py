@@ -334,9 +334,9 @@ class Generator:
 
         for atom_group in self._atom_groups:
             if atom_group.polymer_bond_type is not None:
-                total_bonds += len(atom_group.positions) - 1
+                total_bonds += max(0, len(atom_group.positions) - 1)
             if atom_group.polymer_angle_type is not None:
-                total_angles += len(atom_group.positions) - 2
+                total_angles += max(0, len(atom_group.positions) - 2)
 
         return total_bonds, total_angles, total_impropers
 
