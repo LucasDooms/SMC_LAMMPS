@@ -391,7 +391,11 @@ if par.add_RNA_polymerase:
 
 spaced_beads: list[AtomIdentifier] = []
 if par.spaced_beads_interval is not None:
-    spaced_bead_type = AtomType(DNA_bead_mass)
+    # get mass based on size
+    # (0.22 = arbitrary factor chosen to approximate nucleosome mass at 5.5 nm radius)
+    spaced_bead_type = AtomType(
+        0.22 * DNA_bead_mass * (2.0 * par.spaced_beads_size / DNA_bond_length) ** 3
+    )
 
     # get spacing
     start_id = par.spaced_beads_interval
