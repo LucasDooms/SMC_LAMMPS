@@ -150,15 +150,6 @@ DNA_total_length = DNA_bond_length * nDNA
 SMC_spacing = par.sigma_SMC_DNA / 2
 
 
-##################
-# Simulation box #
-##################
-
-
-# Width of cubic simulation box (nm)
-box_width = 4 * DNA_total_length
-
-
 ################################## Interactions #################################
 
 
@@ -327,7 +318,6 @@ mSMC = smc_creator.get_mass_per_atom(SMC_total_mass)
 
 # SET UP DATAFILE GENERATOR
 gen = Generator()
-gen.set_system_size(box_width)
 gen.use_charges = par.use_charges
 if gen.use_charges:
     # prevents inf/nan in coul calculations
@@ -605,8 +595,15 @@ if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.S
 all_dna_atoms = []
 for strand in dna_config.dna_strands:
     all_dna_atoms += [grp.positions for grp in strand.atom_groups]
-center = np.average(np.concat(all_dna_atoms, axis=0), axis=0)
+
+positions = np.concatenate(all_dna_atoms, axis=0)
+center = np.average(positions, axis=0)
+
 gen.move_all_atoms(-center)
+
+# compare to origin (which is now the center) to find furthest distance
+max_distance = np.max(np.abs(positions))
+gen.set_system_size(2 * max_distance)
 
 lammps_path = path / "lammps"
 lammps_path.mkdir(exist_ok=True)
