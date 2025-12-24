@@ -9,7 +9,7 @@ from argparse import Namespace
 from functools import partial
 from pathlib import Path
 from re import compile as compile_regex
-from sys import argv
+from sys import argv, exit
 from typing import Callable, Iterator, Sequence
 
 import argcomplete
@@ -17,6 +17,7 @@ from click import confirm
 
 from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
+from smc_lammps.post_process.util import merge_lammpstrj
 
 PYRUN = ["python", "-m"]
 
@@ -73,6 +74,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     post_processing = parser.add_argument_group(title='post-processing')
     post_processing.add_argument('-p', '--post-process', action='store_true', help='run the post-processing scripts after running LAMMPS')
+    post_processing.add_argument('--merge', action='store_true', help='merge all created lammpstrj files into one file')
     pp_vis = post_processing.add_mutually_exclusive_group()
     pp_vis.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
     pp_vis.add_argument('-vd', '--visualize-datafile', action='store_true', help='shows the initial structure in VMD')
@@ -128,7 +130,7 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
     def get_file_names(dir: Path) -> Iterator[str]:
         try:
             lst = (p.name for p in dir.iterdir())
-        except NotADirectoryError:
+        except (NotADirectoryError, FileNotFoundError):
             lst = iter(())
         return lst
 
@@ -228,9 +230,10 @@ def clean(args: Namespace, path: Path) -> TaskDone:
     # list of regexes for files to delete
     # (assume posix style path)
     safe_to_delete = [
-        r".*\.lammpstrj",
-        r".*\.lammpstrj\.\d+",
+        r".*\.lammpstrj$",
+        r".*\.lammpstrj\.\d+$",
         r".*/log\.lammps$",
+        r".*/log\.lammps\.\d+$",
         r"^lammps/.*",
         r"^post_processing_parameters\.py$",
         r"^tmp\.lammps\.variable$",
@@ -262,7 +265,7 @@ def clean(args: Namespace, path: Path) -> TaskDone:
                 quiet_print(args.quiet, f"unrecognized file or folder '{child}', skipping...")
                 return
             child.unlink()
-            quiet_print(args.quiet, f"deleted '{child}' succesfully")
+            quiet_print(args.quiet, f"deleted '{child}' successfully")
 
     remove_recursively(path, path)
 
@@ -300,7 +303,9 @@ def get_lammps_args_list(lammps_vars: Sequence[list[str]]) -> list[str]:
     return out
 
 
-def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
+def perform_run(
+    args: Namespace, path: Path, log_file_name: str = "log.lammps", **kwargs: str | list[str]
+):
     if args.input is None:
         project_root = get_project_root()
         args.input = project_root / "lammps" / "input.lmp"
@@ -315,7 +320,9 @@ def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
     # check for spaces in output_path (for LAMMPS compatibility)
     assert isinstance(output_path, str)
     if " " in output_path:
-        raise ValueError(f"Found spaces in path '{output_path}', this not supported by the LAMMPS script.")
+        raise ValueError(
+            f"Found spaces in path '{output_path}', this not supported by the LAMMPS script."
+        )
 
     output_path = path / Path(output_path)
     output_path.mkdir(exist_ok=True)
@@ -330,7 +337,7 @@ def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
         "-in",
         f"{lammps_script.absolute()}",
         "-log",
-        f"{output_path / 'log.lammps'}",
+        f"{output_path / log_file_name}",
     ]
     if args.suffix == "kk":
         command += ["-kokkos", "on"]
@@ -359,19 +366,28 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
         return TaskDone(skipped=True)
 
     # TODO: check that all necessary files have been generated?
-    file_exists = output_file.exists()
-    if not file_exists:
-        if args.force:
-            return TaskDone(skipped=True)
-        raise FileNotFoundError(
-            f"Make sure the following file exists to restart a simulation: {output_file}"
-        )
+    checks: list[tuple[Path, bool]] = [
+        (output_file, True),
+        (path / "lammps" / "restartfile", False),
+    ]
 
-    # find a file name that is not taken yet
+    for file, allow_reroute in checks:
+        if not file.exists():
+            if allow_reroute and args.force:
+                return TaskDone(skipped=True)
+            raise FileNotFoundError(
+                f"Make sure the following file exists to restart a simulation: {output_file}"
+            )
+
+    # find an output file name that is not taken yet
     for suffix in range(1, MaxIterationExceeded.MAX_ITER):
-        new_output_file = Path(f"{output_file}.{suffix}")
+        new_output_file = output_file.with_name(f"{output_file.name}.{suffix}")
         if not new_output_file.exists():
-            # use this one
+            # use same suffix for log.lammps
+            new_log_file_name = f"log.lammps.{suffix}"
+            new_log_file = output_file.parent / new_log_file_name
+            if new_log_file.exists():
+                warn(f"log file '{new_log_file}' already exists and will get overwritten")
             break
     else:
         raise FileExistsError(
@@ -385,8 +401,10 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
     perform_run(
         args,
         path,
+        log_file_name=new_log_file_name,
         is_restart="1",
-        output_file_name=str(new_output_file.relative_to(path)),
+        output_path=new_output_file.parent.relative_to(path).as_posix(),
+        output_file_name=new_output_file.name,
     )
 
     return TaskDone()
@@ -405,7 +423,7 @@ def run(args: Namespace, path: Path) -> TaskDone:
 
     if args.force:
         output_file.unlink(missing_ok=True)
-        (output_path / "restartfile").unlink(missing_ok=True)
+        (path / "lammps" / "restartfile").unlink(missing_ok=True)
         for perspective_file in output_path.glob("perspective.*.lammpstrj"):
             perspective_file.unlink()
         for snapshot_file in (output_path / "snapshots").glob("*.lammpstrj"):
@@ -418,7 +436,41 @@ def run(args: Namespace, path: Path) -> TaskDone:
         quiet_print(args.quiet, "moving on...")
         return TaskDone()
 
-    perform_run(args, path)
+    perform_run(
+        args,
+        path,
+        output_path=output_path.relative_to(path).as_posix(),
+        output_file_name=output_file.name,
+    )
+
+    return TaskDone()
+
+
+def merge(args: Namespace, path: Path) -> TaskDone:
+    """Merges lammpstrj files together, useful after a restart run."""
+    if not args.merge:
+        return TaskDone(skipped=True)
+
+    merge_path = path / "output"
+    base_file_name = "output.lammpstrj"
+
+    files = filter(lambda p: not p.is_dir(), merge_path.glob(f"{base_file_name}*"))
+    files = sorted(files)
+
+    if len(files) <= 1:
+        quiet_print(
+            args.quiet, f"need at least two files in order to merge, found {len(files)} file(s)"
+        )
+        return TaskDone(skipped=True)
+
+    base_file, files = files[0], files[1:]
+
+    for other_file in files:
+        quiet_print(
+            args.quiet,
+            f"merging '{base_file.relative_to(path)}' and '{other_file.relative_to(path)}'",
+        )
+        merge_lammpstrj(base_file, other_file, delete_after=True)
 
     return TaskDone()
 
@@ -436,7 +488,7 @@ def post_process(args: Namespace, path: Path) -> TaskDone:
         args.ignore_errors,
         args.quiet,
     )
-    quiet_print(args.quiet, "succesfully ran post processing")
+    quiet_print(args.quiet, "successfully ran post processing")
 
     return TaskDone()
 
@@ -583,6 +635,7 @@ def main():
         clean(args, path),
         generate(args, path),
         run(args, path),
+        merge(args, path),
         post_process(args, path),
         visualize(args, path, subdir),
     ]
