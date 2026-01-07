@@ -47,5 +47,6 @@ lint = [
     "ruff>=0.13.1",
 ]
 analysis = [
+    "ipympl>=0.9.8",
     "notebook>=7.4.5",
 ]
