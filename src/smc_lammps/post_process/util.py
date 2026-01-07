@@ -1,7 +1,8 @@
-# Copyright (c) 2025 Lucas Dooms
+# Copyright (c) 2025-2026 Lucas Dooms
 
 import csv
 import shutil
+from itertools import product
 from pathlib import Path
 from runpy import run_path
 from typing import Any, Iterator, Sequence, TypeVar
@@ -10,7 +11,8 @@ import numpy as np
 
 from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
-from smc_lammps.reader.lammps_data import ID_TYPE
+from smc_lammps.post_process.types import ID_TAG_PAIR
+from smc_lammps.reader.lammps_data import ID_TYPE, IdArray
 from smc_lammps.reader.parser import Parser
 
 
@@ -66,6 +68,27 @@ def get_cum_runtimes(runtimes: list[int]) -> dict[str, list[int]]:
         append(map, "APO", cum_runtimes[index + 3])
 
     return map
+
+
+def get_indices_array(
+    id_tag_pairs_array: list[list[list[ID_TAG_PAIR]]],
+    order: Sequence[str] = ["pos_lower", "pos_middle", "pos_top", "pos_center_arms"],
+) -> list[IdArray]:
+    """Returns arrays of indices based on an order of reference points."""
+    new: list[IdArray] = []
+    for i in range(len(id_tag_pairs_array)):
+        new.append(np.zeros(len(id_tag_pairs_array[i]), dtype=ID_TYPE))
+        for t in range(len(id_tag_pairs_array[i])):
+            for reference, pair in product(order, id_tag_pairs_array[i][t]):
+                if pair[1] == reference:
+                    new[i][t] = pair[0]
+                    break
+            else:
+                if id_tag_pairs_array[i][t]:
+                    new[i][t] = id_tag_pairs_array[i][t][0][0]
+                else:
+                    new[i][t] = -1
+    return new
 
 
 def scale_times(times: list[int], tscale: float) -> list[float]:

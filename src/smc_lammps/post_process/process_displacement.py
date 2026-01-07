@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 # post-processing to find the movement of the SMC relative to the DNA
 
@@ -7,13 +7,14 @@ from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
 from sys import argv
-from typing import Any, Sequence, TypeAlias
+from typing import Any, Sequence
 
 import numpy as np
 
 from smc_lammps.console import warn
 from smc_lammps.generate.generator import COORD_TYPE, Nx3Array
 from smc_lammps.generate.util import get_parameters
+from smc_lammps.post_process.types import ID_TAG_PAIR
 from smc_lammps.post_process.util import (
     get_moving_average,
     get_post_processing_parameters,
@@ -110,9 +111,6 @@ def remove_outside_planar_n_gon(
         side_plane = Plane(point1 - delta_extended_plane * normal_to_side, normal_to_side)
         # INSIDE of plane points out of the shape
         data.delete_side_of_plane(side_plane, Plane.Side.INSIDE)
-
-
-ID_TAG_PAIR: TypeAlias = tuple[int, str]
 
 
 def handle_dna_bead(
