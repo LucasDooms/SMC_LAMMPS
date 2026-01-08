@@ -42,9 +42,13 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
   {include-group = "lint"},
+  {include-group = "test"},
 ]
 lint = [
     "ruff>=0.13.1",
+]
+test = [
+    "pytest>=9.0.2",
 ]
 analysis = [
     "ipympl>=0.9.8",
