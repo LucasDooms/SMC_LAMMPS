@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 import argparse
 import subprocess
@@ -601,7 +601,7 @@ def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
     return TaskDone()
 
 
-def main():
+def execute(argv: list[str]):
     parser = get_parser()
     # remove first argument from argv (name of exe)
     args, extra_args = parse_with_double_dash(parser, argv[1:])
@@ -644,6 +644,10 @@ def main():
         quiet_print(args.quiet, "nothing to do, use -gr to generate and run")
 
     quiet_print(args.quiet, "end of smc-lammps (run.py)")
+
+
+def main():
+    execute(argv)
 
 
 if __name__ == "__main__":

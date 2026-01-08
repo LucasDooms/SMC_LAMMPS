@@ -39,6 +39,15 @@ smc-lammps = "smc_lammps:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.pytest]
+minversion = "9.0"
+addopts = ["-ra", "-q", "--import-mode=importlib"]
+testpaths = [
+    "tests",
+]
+strict = "true"
+tmp_path_retention_count = "0"
+
 [dependency-groups]
 dev = [
   {include-group = "lint"},
