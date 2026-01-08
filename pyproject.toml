@@ -39,12 +39,35 @@ smc-lammps = "smc_lammps:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.tox]
+requires = ["tox>=4.33"]
+env_list = ["3.14t", "3.14", "3.13"]
+
+[tool.tox.env_run_base]
+description = "Run test under {base_python}"
+commands = [["pytest"]]
+allowlist_externals = ["pytest"]
+
+[tool.pytest]
+minversion = "9.0"
+addopts = ["-ra", "-q", "--import-mode=importlib"]
+testpaths = [
+    "tests",
+]
+strict = "true"
+tmp_path_retention_count = "0"
+
 [dependency-groups]
 dev = [
   {include-group = "lint"},
+  {include-group = "test"},
+  "tox-uv>=1.29.0",
 ]
 lint = [
     "ruff>=0.13.1",
+]
+test = [
+    "pytest>=9.0.2",
 ]
 analysis = [
     "ipympl>=0.9.8",

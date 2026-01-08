@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - New `--merge` flag merges multiple `output.lammpstrj*` files into one.
+- New `tests` directory for testing with pytest and tox.
 
 ### Fixed
 
