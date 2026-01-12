@@ -99,6 +99,34 @@ To get shell completion when using `smc-lammps` on the command-line run the foll
  - For bash or zsh, use `eval "$(register-python-argcomplete smc-lammps)"`
  - For fish, use `register-python-argcomplete --shell fish smc-lammps | source`
 
+## Development
+
+Enable dev dependencies
+```bash
+uv sync --dev
+```
+
+### Tests
+
+Run all tests using
+```bash
+pytest
+```
+
+### Documentation
+
+Build the documentation using
+```bash
+make -C docs html
+```
+then open `docs/build/html/index.html` in a browser.
+
+#### Doctests
+
+Run the doctests using
+```bash
+make -C docs doctest
+```
 
 ## Authors
 
