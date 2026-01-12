@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 """
 generator.py
@@ -156,8 +156,8 @@ class PairWise:
 
     header: string defining the interaction style, e.g. "PairIJ Coeffs # hybrid"
     template: a string with empty formatters `{}` for the interaction parameters, e.g. "lj/cut {} {} {}"
-    default: a list of default parameters (used to fill out all interactions, since LAMMPS requires them
-                                           to all be explicitly defined)
+    default: a list of default parameters
+    (used to fill out all interactions, since LAMMPS requires them to all be explicitly defined)
     """
 
     def __init__(self, header: str, template: str, default: list[Any] | None) -> None:

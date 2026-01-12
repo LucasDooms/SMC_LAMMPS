@@ -9,7 +9,7 @@ from argparse import Namespace
 from functools import partial
 from pathlib import Path
 from re import compile as compile_regex
-from sys import argv, exit
+from sys import exit
 from typing import Callable, Iterator, Sequence
 
 import argcomplete
@@ -23,8 +23,12 @@ PYRUN = ["python", "-m"]
 
 
 class MaxIterationExceeded(RuntimeError):
-    # arbitrary limit to prevent infinite loops
-    MAX_ITER = 10000
+    """
+    Raised when a loop exceeds a large number of iterations.
+    """
+
+    MAX_ITER: int = 10000  # arbitrary limit to prevent infinite loops
+    "Number of iterations after which a `MaxIterationExceeded` should be raised."
 
     def __str__(self):
         return (
@@ -36,9 +40,19 @@ class MaxIterationExceeded(RuntimeError):
 def parse_with_double_dash(
     parser: argparse.ArgumentParser, args: list[str]
 ) -> tuple[Namespace, list[str]]:
-    """Parse arguments by splitting before and after '--'.
+    """Parse arguments with '--' splitting.
+
+    Parses arguments by splitting before and after '--'.
     Arguments before '--' are parsed by the provided parser,
-    everything after is collected into a separate, non-parsed list"""
+    everything after is collected into a separate, non-parsed list
+
+    Args:
+        parser: Parser for arguments before '--'.
+        args: Argument list.
+
+    Returns:
+        Tuple of (parsed arguments before '--', unparsed arguments after '--').
+    """
     try:
         separator_index = args.index("--")
     except ValueError:
@@ -52,6 +66,11 @@ def parse_with_double_dash(
 
 
 def get_parser() -> argparse.ArgumentParser:
+    """Returns the parser for the smc-lammps cli.
+
+    Returns:
+        parser
+    """
     # fmt: off
     parser = argparse.ArgumentParser(
         description='runs setup scripts, LAMMPS script, post-processing, and visualization',
@@ -94,6 +113,11 @@ def get_parser() -> argparse.ArgumentParser:
 
 
 def quiet_print(quiet: bool, *args, **kwargs):
+    """Calls print if `quiet` is `False`.
+
+    Args:
+        quiet: if `True`, do not print.
+    """
     if not quiet:
         print(*args, **kwargs)
 
@@ -101,6 +125,16 @@ def quiet_print(quiet: bool, *args, **kwargs):
 def run_and_handle_error(
     process: Callable[[], subprocess.CompletedProcess], ignore_errors: bool, quiet: bool
 ):
+    """Runs a process and checks the exit code.
+
+    Runs a process and handles any non-zero exit code.
+    If the exit code is non-zero and `ignore_errors` is false, the script exits.
+
+    Args:
+        process: A function that runs a process when called.
+        ignore_errors: If `True`, do not exit when the process exit code is non-zero.
+        quiet: Passed to `quiet_print`.
+    """
     completion = process()
     if completion.returncode != 0:
         quiet_print(
@@ -121,8 +155,24 @@ def run_and_handle_error(
 
 
 def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
-    """Finds the base of a simulation directory,
-    this is the directory containing the `parameters.py` file."""
+    """Finds the base of a simulation directory.
+
+    Finds the base of a simulation directory by traversing up the file tree.
+    The base directory is the (first) directory containing a valid `parameters.py` file.
+
+    .. attention::
+        The validity of the `parameters.py` file is not checked by this function!
+
+    Args:
+        path: Path to start from, may be a file.
+
+    Returns:
+        Tuple of (base simulation directory, subdirectory to `path` relative to the base directory if any).
+
+    Raises:
+        FileNotFoundError: Root directory was reached without any `parameters.py` files along the way.
+        MaxIterationExceeded: Exceeded maximum amount of file tree traversal.
+    """
     subdir = None
     # use absolute path to allow finding parents
     try_path = path.absolute()
@@ -164,11 +214,32 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
 
 
 class TaskDone:
+    """
+    A task.
+
+    Tasks may be skipped, e.g. if the corresponding flag is not set.
+    """
+
     def __init__(self, skipped: bool = False) -> None:
         self.skipped = skipped
 
 
 def initialize(args: Namespace, path: Path) -> TaskDone:
+    """Initializes a simulation directory.
+
+    Creates the directory if it does not exist yet,
+    and places a template `parameters.py` file inside.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+
+    Raises:
+        FileExistsError: The `path` is non-empty and the `--force` flag is not set.
+    """
     # skip initialization for files
     if path.is_file():
         return TaskDone(skipped=True)
@@ -220,6 +291,17 @@ def initialize(args: Namespace, path: Path) -> TaskDone:
 
 
 def clean(args: Namespace, path: Path) -> TaskDone:
+    """Cleans a simulation directory.
+
+    Removes all files in a simulation directory, keeping only `paremeters.py`.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
     if not args.clean:
         return TaskDone(skipped=True)
 
@@ -273,11 +355,28 @@ def clean(args: Namespace, path: Path) -> TaskDone:
 
 
 def generate(args: Namespace, path: Path) -> TaskDone:
-    # TODO: produce a warning when using this with --continue flag?
+    """Runs the generation script.
+
+    Runs the :py:func:`smc_lammps.generate.generate` script,
+    passing the `args.seed` as an argument if set.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
+
     if not args.generate:
         if args.seed is not None:
             warn("seed argument is ignored when -g flag is not used!")
         return TaskDone(skipped=True)
+
+    if args.continue_flag and not args.force:
+        warn(
+            "running generation script (--generate) before a restart run (--continue), this is not recommended!"
+        )
 
     extra_args = []
     if args.seed:
@@ -297,6 +396,19 @@ def generate(args: Namespace, path: Path) -> TaskDone:
 
 
 def get_lammps_args_list(lammps_vars: Sequence[list[str]]) -> list[str]:
+    """Converts argument list of variables to the LAMMPS format.
+
+    :Example:
+        >>> from smc_lammps.run import get_lammps_args_list
+        >>> get_lammps_args_list([['is_restart', '1'], ['seed', '1234']])
+        ['-var', 'is_restart', '1', '-var', 'seed', '1234']
+
+    Args:
+        lammps_vars: Variable names and values.
+
+    Returns:
+        LAMMPS variable definitions which can be passed via the cli.
+    """
     out: list[str] = []
     for var in lammps_vars:
         out += ["-var"] + var
@@ -447,7 +559,20 @@ def run(args: Namespace, path: Path) -> TaskDone:
 
 
 def merge(args: Namespace, path: Path) -> TaskDone:
-    """Merges lammpstrj files together, useful after a restart run."""
+    """Merges lammpstrj files together.
+
+    Merges lammpstrj files together by calling :py:func:`merge_lammpstrj`
+    on any files that match the `output.lammpstrj*` glob pattern.
+
+    This can be useful after a restart run.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
     if not args.merge:
         return TaskDone(skipped=True)
 
@@ -601,11 +726,21 @@ def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
     return TaskDone()
 
 
-def execute(argv: list[str]):
-    parser = get_parser()
-    # remove first argument from argv (name of exe)
-    args, extra_args = parse_with_double_dash(parser, argv[1:])
-    args.sub_args = extra_args
+def execute(args: Namespace):
+    """Executes a sequence of tasks depending on the provided arguments.
+
+    The following tasks are executed (if enabled) in order:
+        - :py:func:`initialize`
+        - :py:func:`clean`
+        - :py:func:`generate`
+        - :py:func:`run`
+        - :py:func:`merge`
+        - :py:func:`post_process`
+        - :py:func:`visualize`
+
+    Args:
+        args: Parsed arguments.
+    """
     path = Path(args.directory)
 
     # --continue flag implies the --run flag
@@ -646,8 +781,34 @@ def execute(argv: list[str]):
     quiet_print(args.quiet, "end of smc-lammps (run.py)")
 
 
+def parse(argv: list[str]) -> Namespace:
+    """
+    Parses the argument list and returns argparse `Namespace`.
+
+    :param argv: argument list (`from sys import argv`)
+    :return: object holding command line options
+    """
+
+    parser = get_parser()
+    # remove first argument from argv (name of exe)
+    args, extra_args = parse_with_double_dash(parser, argv[1:])
+    args.sub_args = extra_args
+
+    return args
+
+
 def main():
-    execute(argv)
+    """
+    This is the entry point for the smc-lammps cli.
+
+    Use `smc-lammps -h` for help.
+
+    See :py:func:`smc_lammps.run.get_parser` for the parser definition.
+    """
+    from sys import argv
+
+    args = parse(argv)
+    execute(args)
 
 
 if __name__ == "__main__":

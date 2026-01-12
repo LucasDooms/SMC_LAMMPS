@@ -41,12 +41,22 @@ build-backend = "hatchling.build"
 
 [tool.tox]
 requires = ["tox>=4.33"]
-env_list = ["3.14t", "3.14", "3.13"]
+env_list = ["3.14t", "3.14", "3.13", "docs"]
 
 [tool.tox.env_run_base]
 description = "Run test under {base_python}"
 commands = [["pytest"]]
 allowlist_externals = ["pytest"]
+
+[tool.tox.env.docs]
+description = "Build sphinx html documentation"
+dependency_groups = [
+    "docs"
+]
+commands = [
+    ["sphinx-build", "-W", "-b", "html", "-d", "{envtmpdir}/doctree", "docs/source", "{envtmpdir}/build/html"]
+]
+allowlist_externals = ["sphinx-build"]
 
 [tool.pytest]
 minversion = "9.0"
@@ -61,6 +71,7 @@ tmp_path_retention_count = "0"
 dev = [
   {include-group = "lint"},
   {include-group = "test"},
+  {include-group = "docs"},
   "tox-uv>=1.29.0",
 ]
 lint = [
@@ -68,6 +79,10 @@ lint = [
 ]
 test = [
     "pytest>=9.0.2",
+]
+docs = [
+    "furo>=2025.12.19",
+    "sphinx>=9.1.0",
 ]
 analysis = [
     "ipympl>=0.9.8",
