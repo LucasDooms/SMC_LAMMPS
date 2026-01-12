@@ -373,6 +373,11 @@ def generate(args: Namespace, path: Path) -> TaskDone:
             warn("seed argument is ignored when -g flag is not used!")
         return TaskDone(skipped=True)
 
+    if args.continue_flag and not args.force:
+        warn(
+            "running generation script (--generate) before a restart run (--continue), this is not recommended!"
+        )
+
     extra_args = []
     if args.seed:
         extra_args.append(args.seed)
