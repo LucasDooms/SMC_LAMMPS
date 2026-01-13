@@ -20,7 +20,7 @@ from smc_lammps.reader.lammps_data import ID_TYPE
 def get_runtime_lines(
     ax: Axes,
     path: Path,
-    indices_array: list[list[ID_TYPE]],
+    indices_array: Sequence[list[ID_TYPE]],
     tscale: float = 1.0,
     iscale: float = 1.0,
     cut_at_axes: bool = True,
