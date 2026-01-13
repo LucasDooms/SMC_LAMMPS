@@ -731,6 +731,11 @@ class Generator:
         return self.atom_group_map[index] + atom_id[1]
 
     def _set_up_atom_group_map(self) -> None:
+        """Sets the `atom_group_map` based on the current atom groups.
+
+        .. :Attention:
+            The atom groups must not change after calling this function.
+        """
         index_offset = 1
         for atom_group in self._atom_groups:
             self.atom_group_map.append(index_offset)

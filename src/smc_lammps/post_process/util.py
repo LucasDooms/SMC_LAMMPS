@@ -19,6 +19,20 @@ from smc_lammps.reader.parser import Parser
 def get_scaling(
     use_real_units: bool = True, parameters: Parameters | None = None
 ) -> tuple[float, float, str, str]:
+    """Returns the scaling factors to go from simulation units to real units.
+
+    Returns the index scale (DNA bead index -> nm), and the time scale (timestep -> s).
+
+    Args:
+        use_real_units: If False, no conversion is performed (scaling = 1.0).
+        parameters: Simulation parameters.
+
+    Returns:
+        Tuple of (time scale, index scale, time units, index units)
+
+    Raises:
+        TypeError: `use_real_units` is True, but `parameters` is set to None.
+    """
     if use_real_units:
         if parameters is None:
             raise TypeError("If use_real_units is True, parameters must be provided and not None.")
@@ -42,12 +56,27 @@ def get_scaling(
 
 
 def get_post_processing_parameters(path: Path) -> dict[str, Any]:
-    """Load the post processing parameters from the post_processing_parameters.py file."""
+    """Loads the post processing parameters from the post_processing_parameters.py file.
+
+    Args:
+        path: Simulation base path.
+
+    Returns:
+        The module globals dictionary (see :py:func:`run_path`).
+    """
     return run_path((path / "post_processing_parameters.py").as_posix())
 
 
 def get_cum_runtimes(runtimes: list[int]) -> dict[str, list[int]]:
-    """Return the number of time steps that have passed at the START of each SMC phase."""
+    """Returns the number of time steps that have passed at the START of each SMC phase.
+
+    Args:
+        runtimes: The list of runtimes (acquired from the post processing parameters).
+
+    Returns:
+        Dictionary with keys for each phase (APO, ATP, ADP),
+        as well as a key for all phases combined (all).
+    """
     cum_runtimes: list[int] = list(np.cumsum(runtimes, dtype=int))
 
     map = {
