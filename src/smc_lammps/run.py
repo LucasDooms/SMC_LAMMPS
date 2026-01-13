@@ -5,11 +5,12 @@
 
 import argparse
 import subprocess
-from argparse import Namespace
+from argparse import Namespace, RawDescriptionHelpFormatter
 from functools import partial
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from re import compile as compile_regex
-from sys import exit, executable
+from sys import executable, exit
 from typing import Callable, Iterator, Sequence
 
 import argcomplete
@@ -20,6 +21,18 @@ from smc_lammps.generate.util import get_project_root
 from smc_lammps.post_process.util import merge_lammpstrj
 
 PYRUN = [executable, "-m"]
+
+
+def get_version() -> str | None:
+    """Returns the version of the smc-lammps package.
+
+    Returns:
+        Version string in the "x.y.z" format, or None if the version could not be obtained.
+    """
+    try:
+        return version("smc-lammps")
+    except PackageNotFoundError:
+        return None
 
 
 class MaxIterationExceeded(RuntimeError):
@@ -71,10 +84,19 @@ def get_parser() -> argparse.ArgumentParser:
     Returns:
         parser
     """
+    version = get_version()
+    if version is None:
+        version_string = "unknown version"
+    else:
+        version_string = f"v{version}"
+    header = f"smc-lammps {version_string}"
+    underline = "-" * len(header)
+
     # fmt: off
     parser = argparse.ArgumentParser(
-        description='runs setup scripts, LAMMPS script, post-processing, and visualization',
-        epilog='visit https://github.com/LucasDooms/SMC_LAMMPS for more info'
+        description=f"""{header}\n{underline}\nRuns setup scripts, LAMMPS script, post-processing, and visualization.""",
+        epilog='visit https://github.com/LucasDooms/SMC_LAMMPS for more info',
+        formatter_class=RawDescriptionHelpFormatter,
     )
 
     parser.add_argument('directory', help='the directory containing parameters for LAMMPS')
