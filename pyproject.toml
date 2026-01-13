@@ -41,7 +41,7 @@ build-backend = "hatchling.build"
 
 [tool.tox]
 requires = ["tox>=4.33"]
-env_list = ["3.14t", "3.14", "3.13", "docs", "doctest"]
+env_list = ["3.14t", "3.14", "3.13", "docs", "doctest", "linkcheck"]
 
 [tool.tox.env_run_base]
 description = "Run test under {base_python}"
@@ -65,6 +65,16 @@ dependency_groups = [
 ]
 commands = [
     ["sphinx-build", "-W", "-b", "doctest", "-d", "{envtmpdir}/doctree", "docs/source", "{envtmpdir}/build/doctest"]
+]
+allowlist_externals = ["sphinx-build"]
+
+[tool.tox.env.linkcheck]
+description = "Run sphinx linkcheck"
+dependency_groups = [
+    "docs"
+]
+commands = [
+    ["sphinx-build", "-W", "-b", "linkcheck", "-d", "{envtmpdir}/doctree", "docs/source", "{envtmpdir}/build/linkcheck"]
 ]
 allowlist_externals = ["sphinx-build"]
 
