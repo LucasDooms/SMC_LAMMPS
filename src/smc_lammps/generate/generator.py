@@ -293,7 +293,33 @@ class Generator:
         """Write the top header to a file.
         Note: LAMMPS always ignores the first line of a data file,
         which should be this header."""
-        file.write("# LAMMPS data file\n")
+
+        string = "# LAMMPS data file"
+        extra_info = ""
+
+        try:
+            from datetime import datetime
+            date = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+        except Exception:
+            pass
+        else:
+            extra_info += f" - generated on {date}"
+
+        try:
+            from smc_lammps.run import get_version
+            version = get_version()
+            if version is None:
+                version_string = "unknown version"
+            else:
+                version_string = f"v{version}"
+        except Exception:
+            pass
+        else:
+            if not extra_info:
+                extra_info += " - generated"
+            extra_info += f" by smc-lammps ({version_string})"
+
+        file.write(string + extra_info + "\n")
 
     def get_all_atom_types(self) -> list[AtomType]:
         """Get a list of all atom types across all atom groups.
