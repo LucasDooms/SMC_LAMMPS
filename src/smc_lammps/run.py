@@ -352,6 +352,21 @@ def clean(args: Namespace, path: Path) -> TaskDone:
         return any(regex.match(path.as_posix()) for regex in safe_to_delete)
 
     def remove_recursively(child: Path, base: Path):
+        """Recurses into the child path and deletes if :py:func:`is_safe_to_delete`.
+
+        Recursively calls itself on the subdirectories of `child` (if it is a directory)
+        or unlinks `child` (if it is a file).
+
+        When a file is reached, calls :py:func:`is_safe_to_delete`
+        on the `child` path relative to the `base` path
+        to determine whether the file should be deleted or not.
+
+        Deletes any leftover empty directories (regardless of name).
+
+        Args:
+            child: File to delete or directory to delete recursively.
+            base: Directory to compare `child` to when evaluating regex.
+        """
         if child.relative_to(base) == Path("parameters.py"):
             return
 
@@ -440,6 +455,21 @@ def get_lammps_args_list(lammps_vars: Sequence[list[str]]) -> list[str]:
 def perform_run(
     args: Namespace, path: Path, log_file_name: str = "log.lammps", **kwargs: str | list[str]
 ):
+    """Performs a LAMMPS run.
+
+    Executes the LAMMPS cli in a new process.
+
+    Relevant arguments are passed to LAMMPS, such as `-sf` and `-log`.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        log_file_name: File name (relative to `output_path`) passed to the LAMMPS cli `-log` argument.
+        kwargs: These parameters are passed to the LAMMPS cli as variables. `lammps_root_dir`, `output_path`, `output_file_name`.
+
+    Raises:
+        ValueError: The `output_path` contains spaces which will (likely) break the LAMMPS script(s).
+    """
     if args.input is None:
         project_root = get_project_root()
         args.input = project_root / "lammps" / "input.lmp"
@@ -496,6 +526,22 @@ def perform_run(
 
 
 def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
+    """Performs a LAMMPS restart run.
+
+    Calls :py:func:`smc_lammps.run.perform_run` with the `is_restart` variable set to '1'.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        output_file: The output file (e.g. output.lammpstrj) of the run that will be restarted.
+
+    Returns:
+        Task completion information.
+
+    Raises:
+        FileNotFoundError: The `output_file` does not exist.
+        FileExistsError: Could not find any available file names for the new output.
+    """
     if not args.continue_flag:
         return TaskDone(skipped=True)
 
@@ -545,6 +591,21 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
 
 
 def run(args: Namespace, path: Path) -> TaskDone:
+    """Runs (or restarts) a simulation.
+
+    Dispatches to :py:func:`smc_lammps.run.restart_run` first.
+    If the restart run was skipped, starts a new run via :py:func:`smc_lammps.run.perform_run`.
+
+    Any existing `output_file` will only be overwritten if the `--force` flag is set,
+    otherwise the function will return early.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
     if not args.run:
         return TaskDone(skipped=True)
 
@@ -623,6 +684,17 @@ def merge(args: Namespace, path: Path) -> TaskDone:
 
 
 def post_process(args: Namespace, path: Path) -> TaskDone:
+    """Performs post-processing.
+
+    Runs the :py:func:`smc_lammps.post_process.process_displacement` script.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
     if not args.post_process:
         return TaskDone(skipped=True)
 
@@ -641,6 +713,19 @@ def post_process(args: Namespace, path: Path) -> TaskDone:
 
 
 def visualize_datafile(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
+    """Starts VMD with the initial datafile loaded.
+
+    Loads the `datafile_positions` (produced by the :py:func:`smc_lammps.run.generate` step)
+    into VMD.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: Directory or file passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+    """
     if not args.visualize_datafile:
         return TaskDone(skipped=True)
 
@@ -668,6 +753,20 @@ def visualize_datafile(args: Namespace, path: Path, subdir: Path | None) -> Task
 
 
 def create_perspective_file(args: Namespace, path: Path, subdir: Path | None) -> Path:
+    """Creates a new LAMMPS trajectory file, following a certain perspective.
+
+    Runs the :py:func:`smc_lammps.post_process.smc_perspective` script.
+
+    Currently supports `arms` and `kleisin` perspective following the SMC.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: Directory or file passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+    """
     if subdir is None:
         read_from_file = path / "output" / "output.lammpstrj"
     else:
@@ -702,6 +801,15 @@ def create_perspective_file(args: Namespace, path: Path, subdir: Path | None) ->
 
 
 def start_visualize_script(args: Namespace, path: Path, other_args: list[str]):
+    """Runs the :py:func:`smc_lammps.post_process.visualize` script.
+
+    Runs the :py:func:`smc_lammps.post_process.visualize` script in a new process.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        other_args: Arguments passed to the :py:func:`smc_lammps.post_process.visualize` script.
+    """
     quiet_print(args.quiet, "starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
@@ -715,6 +823,19 @@ def start_visualize_script(args: Namespace, path: Path, other_args: list[str]):
 
 
 def visualize_follow(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
+    """Creates a perspective file and opens it in VMD.
+
+    Runs :py:func:`smc_lammps.run.create_perspective_file` to generate
+    a new perspective file, followed by :py:func:`smc_lammps.run.start_visualize_script`.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: Directory or file passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+    """
     if args.visualize_follow is None:
         return TaskDone(skipped=True)
 
@@ -728,6 +849,24 @@ def visualize_follow(args: Namespace, path: Path, subdir: Path | None) -> TaskDo
 
 
 def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
+    """Starts VMD with a certain visualization.
+
+    Dispatches to the following tasks in order:
+        - :py:func:`smc_lammps.run.visualize_datafile`
+        - :py:func:`smc_lammps.run.visualize_follow`
+        - default :py:func:`smc_lammps.run.start_visualize_script` function
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: Directory or file passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+
+    Raises:
+        ValueError: The path given by path/subdir is not a file.
+    """
     if not visualize_datafile(args, path, subdir).skipped:
         return TaskDone()
 
@@ -804,11 +943,16 @@ def execute(args: Namespace):
 
 
 def parse(argv: list[str]) -> Namespace:
-    """
-    Parses the argument list and returns argparse `Namespace`.
+    """Parses the argument list and returns argparse `Namespace`.
 
-    :param argv: argument list (`from sys import argv`)
-    :return: object holding command line options
+    Parses the arguments before '--', and sets the `sub_args`
+    field of the returned object to the remaining arguments after '--'.
+
+    Args:
+        argv: Unprocessed argument list (`from sys import argv`).
+
+    Returns:
+        Object holding command line options.
     """
 
     parser = get_parser()
@@ -820,8 +964,7 @@ def parse(argv: list[str]) -> Namespace:
 
 
 def main():
-    """
-    This is the entry point for the smc-lammps cli.
+    """The entry point for the smc-lammps cli.
 
     Use `smc-lammps -h` for help.
 
