@@ -9,7 +9,7 @@ from argparse import Namespace
 from functools import partial
 from pathlib import Path
 from re import compile as compile_regex
-from sys import exit
+from sys import exit, executable
 from typing import Callable, Iterator, Sequence
 
 import argcomplete
@@ -19,7 +19,7 @@ from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
 from smc_lammps.post_process.util import merge_lammpstrj
 
-PYRUN = ["python", "-m"]
+PYRUN = [executable, "-m"]
 
 
 class MaxIterationExceeded(RuntimeError):
