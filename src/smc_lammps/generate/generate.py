@@ -1,6 +1,6 @@
 # Copyright (c) 2021 Stefanos Nomidis
 # Copyright (c) 2022 Arwin Goossens
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 import math
 from pathlib import Path
@@ -416,11 +416,16 @@ if par.spaced_beads_interval is not None:
         mol_spaced_bead = MoleculeId.get_next()
         if par.spaced_beads_type == 0:
             extra_mols_dna.append(mol_spaced_bead)
+            # use the same bond strength for now
+            k_bond_spaced_bead = k_bond_DNA
             bead_dna_bond = BAI_Type(
                 BAI_Kind.BOND,
                 "fene/expand",
-                f"{k_bond_DNA} {par.spaced_beads_size} {0.0} {0.0} {par.spaced_beads_size}\n",
+                f"{k_bond_spaced_bead} {par.spaced_beads_size} {0.0} {0.0} {par.spaced_beads_size}\n",
             )
+
+            k_angle_spaced_bead = DNA_persistence_length * kBT / par.spaced_beads_size
+            spaced_bead_angle = BAI_Type(BAI_Kind.ANGLE, "cosine", f"{k_angle_spaced_bead}\n")
             spaced_beads.append(
                 dna_config.add_bead_to_dna(
                     spaced_bead_type,
@@ -428,7 +433,7 @@ if par.spaced_beads_interval is not None:
                     0,
                     st_dna_id,
                     bead_dna_bond,
-                    dna_angle,
+                    spaced_bead_angle,
                     par.spaced_beads_size,
                 )
             )

@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - New `tests` directory for testing with pytest and tox.
 - New `docs` directory for sphinx documentation.
 
+### Changed
+- The `spaced_beads` angle interaction is now adjusted based on the `spaced_beads_size`.
+
 ### Fixed
 
 - Restart runs now use the correct output directory.
