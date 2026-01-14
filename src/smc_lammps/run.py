@@ -18,7 +18,7 @@ from click import confirm
 
 from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
-from smc_lammps.post_process.util import merge_lammpstrj
+from smc_lammps.post_process.util import keep_every_n, merge_lammpstrj
 
 PYRUN = [executable, "-m"]
 
@@ -116,6 +116,7 @@ def get_parser() -> argparse.ArgumentParser:
     post_processing = parser.add_argument_group(title='post-processing')
     post_processing.add_argument('-p', '--post-process', action='store_true', help='run the post-processing scripts after running LAMMPS')
     post_processing.add_argument('--merge', action='store_true', help='merge all created lammpstrj files into one file')
+    post_processing.add_argument('--keep-every-n', type=int, help='keep every nth timestep of a trajectory file (0 means disabled)', default=0)
     pp_vis = post_processing.add_mutually_exclusive_group()
     pp_vis.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
     pp_vis.add_argument('-vd', '--visualize-datafile', action='store_true', help='shows the initial structure in VMD')
@@ -683,6 +684,41 @@ def merge(args: Namespace, path: Path) -> TaskDone:
     return TaskDone()
 
 
+def keep_every(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
+    """Edits LAMMPS trajecory file in-place, keeping every nth timestep.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: File passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+    """
+    if args.keep_every_n == 0:
+        return TaskDone(skipped=True)
+
+    if subdir is None:
+        file_path = path / "output" / "output.lammpstrj"
+    else:
+        file_path = path / subdir
+
+    if not file_path.is_file():
+        raise FileNotFoundError(f"The path '{file_path}' does not exist or it is not a file.")
+
+    percent = 100.0 / args.keep_every_n
+    quiet_print(args.quiet, f"keeping every {args.keep_every_n}th timestep ({percent:.2f} %)")
+    if not args.force and not confirm(
+        f"This will edit '{path}' in-place, are you sure?",
+        default=False,
+    ):
+        return TaskDone()
+
+    keep_every_n(file_path, file_path, args.keep_every_n)
+
+    return TaskDone()
+
+
 def post_process(args: Namespace, path: Path) -> TaskDone:
     """Performs post-processing.
 
@@ -891,11 +927,12 @@ def execute(args: Namespace):
     """Executes a sequence of tasks depending on the provided arguments.
 
     The following tasks are executed (if enabled) in order:
-        - :py:func:`initialize`
+        - :py:func:`initialize` (only if not initialized yet)
         - :py:func:`clean`
         - :py:func:`generate`
         - :py:func:`run`
         - :py:func:`merge`
+        - :py:func:`keep_every`
         - :py:func:`post_process`
         - :py:func:`visualize`
 
@@ -932,6 +969,7 @@ def execute(args: Namespace):
         generate(args, path),
         run(args, path),
         merge(args, path),
+        keep_every(args, path, subdir),
         post_process(args, path),
         visualize(args, path, subdir),
     ]

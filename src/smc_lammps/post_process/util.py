@@ -1,7 +1,9 @@
 # Copyright (c) 2025-2026 Lucas Dooms
 
 import csv
+import os
 import shutil
+import tempfile
 from itertools import product
 from pathlib import Path
 from runpy import run_path
@@ -231,9 +233,56 @@ def merge_lammpstrj(base_file: Path, second_file: Path, delete_after: bool = Tru
     # close file
     del par
 
-    with open(base_file, "ab") as first:
-        with open(second_file, "rb") as second:
-            shutil.copyfileobj(second, first)
+    with open(base_file, "ab") as base, open(second_file, "rb") as other:
+        shutil.copyfileobj(fsrc=other, fdst=base)
 
     if delete_after:
         second_file.unlink()
+
+
+def keep_every_n(input_file: Path, output_file: Path, n: int) -> None:
+    """Keeps every nth timestep in a LAMMPS trajectory file.
+
+    - If n == 1, everything is kept.
+    - If n == 2, every other line is kept, (1st line kept, 2nd line discarded).
+    - And so on.
+
+    Args:
+        input_file: LAMMPS trajectory file to read from.
+        output_file: LAMMPS trajectory file to write to (may be the same file as :py:attr:`input_file`).
+        n: Number of lines to skip over + 1 (see explanation above).
+
+    Raises:
+        ValueError: When n is smaller than or equal to zero.
+    """
+
+    if n < 1:
+        raise ValueError("n must be at least 1.")
+
+    if n == 1:
+        os.replace(input_file, output_file)
+        return
+
+    with tempfile.NamedTemporaryFile("w") as tmp_file:
+        par = Parser(input_file)
+        # start at n - 1 so that the first timestep is kept
+        keep = n - 1
+        while True:
+            keep += 1
+            try:
+                data = par.next_step_raw()
+                if keep == n:
+                    # NOTE: we are relying on dictionary insertion order preserval (since python 3.7)
+                    for key, val in data.items():
+                        tmp_file.write(key + "\n")
+                        for line in val:
+                            tmp_file.write(line + "\n")
+
+                    keep = 0
+            except Parser.EndOfLammpsFile:
+                break
+
+        # close input file, since it could be the same as the output file!
+        del par
+
+        os.replace(tmp_file.name, output_file)

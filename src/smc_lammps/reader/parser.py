@@ -25,7 +25,7 @@ class Parser:
         mode: Custom file mode (e.g. "r+" if you want to edit the file after reaching a certain timestep).
     """
 
-    ATOM_FORMAT = "ITEM: ATOMS id type x y z\n"
+    ATOM_FORMAT = "ITEM: ATOMS id type x y z"
     """Format of header for atoms section of trajectory file."""
 
     class EndOfLammpsFile(Exception):
@@ -48,7 +48,7 @@ class Parser:
         """Iterate through the file
 
         Returns:
-            Dictionary which maps the header ('ITEM: .*') to a list of lines under the header.
+            Dictionary which maps the header (``'ITEM: .*'``) to a list of lines under the header.
 
         Raises:
             ValueError: Invalid format found, must match :py:attr:`Parser.ATOM_FORMAT`.
@@ -64,13 +64,6 @@ class Parser:
         while line := self.file.readline():
             empty = False
 
-            if line.startswith("ITEM: ATOMS"):
-                if line != self.ATOM_FORMAT:
-                    raise ValueError(
-                        f"Wrong format of atoms, found\n{line}\nshould be\n{self.ATOM_FORMAT}\n"
-                    )
-                return saved
-
             # remove newline
             line = line[:-1]
 
@@ -80,6 +73,13 @@ class Parser:
             else:
                 assert current_line is not None
                 saved[current_line].append(line)
+
+            if line.startswith("ITEM: ATOMS"):
+                if line != self.ATOM_FORMAT:
+                    raise ValueError(
+                        f"Wrong format of atoms, found\n{line}\nshould be\n{self.ATOM_FORMAT}\n"
+                    )
+                return saved
 
         if empty:
             raise self.EndOfLammpsFile()
@@ -93,7 +93,7 @@ class Parser:
         Args:
             lines: Lines in the atom section of the LAMMPS trajectory file.
         """
-        all_lines = "".join(lines)
+        all_lines = "\n".join(lines)
         with StringIO(all_lines) as file:
             array = np.loadtxt(file, ndmin=2)
         return array
@@ -112,29 +112,45 @@ class Parser:
         xyz = np.array(np.concatenate([x, y, z]).reshape(3, -1).transpose(), dtype=COORD_TYPE)
         return LammpsData(np.array(ids, dtype=ID_TYPE), np.array(types, dtype=TYPE_TYPE), xyz)
 
-    def next_step(self) -> tuple[int, LammpsData]:
-        """Iterates through the file and retrieves the next timestep.
+    def next_step_raw(self) -> dict[str, list[str]]:
+        """Iterates through the file and retrieves all data for the next timestep.
 
         Returns:
-            Tuple of (timestep, data).
+            Dictionary which maps the header (``'ITEM: .*'``) to a list of lines under the header.
 
         Raises:
             ValueError: Reached the end of the file while parsing.
         """
 
         saved = self.skip_to_atoms()
-        timestep = int(saved["ITEM: TIMESTEP"][0])
         number_of_atoms = int(saved["ITEM: NUMBER OF ATOMS"][0])
 
-        lines: list[str] = []
+        # NOTE: we are updating the `saved` dictionary through this list reference
+        lines: list[str] = saved[self.ATOM_FORMAT]
         for _ in range(number_of_atoms):
             try:
                 next = self.file.readline()
             except Exception as e:
                 raise ValueError("reached end of file unexpectedly") from e
             else:
+                # remove newline
+                next = next[:-1]
                 lines.append(next)
 
+        return saved
+
+    def next_step(self) -> tuple[int, LammpsData]:
+        """Iterates through the file and retrieves the next timestep.
+
+        Returns:
+            Tuple of (timestep, data).
+        """
+
+        saved = self.next_step_raw()
+
+        timestep = int(saved["ITEM: TIMESTEP"][0])
+
+        lines: list[str] = saved[self.ATOM_FORMAT]
         data = self.split_data(self.get_array(lines))
 
         return timestep, data
