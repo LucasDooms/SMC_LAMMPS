@@ -704,6 +704,9 @@ class DnaConfiguration:
                 if dna_id > 1:
                     bais.append(left_angle)
 
+                # NOTE: This requires dna_id > 0, which should be the case
+                # since the polymer.split() call above throws an error if dna_id == 0.
+                assert dna_id > 0
                 bais.append(middle_angle)
 
                 if dna_id < self.dna_strands[strand_index].full_list_length() - 1:
