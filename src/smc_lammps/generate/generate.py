@@ -362,6 +362,12 @@ smc_1 = SMC(
 
 dna_config.set_smc(smc_1)
 
+# lock the SMC position relative to the DNA polymer
+closest_id = get_closest(dna_config.dna_strands[0].full_list(), smc_positions.r_lower_site[1])
+dna_config.dna_strands[0].add_tagged_atom_groups(
+    dna_config.dna_strands[0].get_id_from_list_index(closest_id), *smc_1.get_groups()
+)
+
 extra_mols_smc: list[int] = []
 extra_mols_dna: list[int] = []
 
