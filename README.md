@@ -115,11 +115,15 @@ pytest
 
 ### Documentation
 
+#### Build
+
 Build the documentation using
 ```bash
 make -C docs html
 ```
-then open `docs/build/html/index.html` in a browser.
+(or `sphinx-build -b html docs/source docs/build/html`)
+
+Now open `docs/build/html/index.html` in a browser or use `python -m http.server -d docs/build/html` and browse to `http://localhost:8000`.
 
 #### Doctests
 
