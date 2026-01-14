@@ -133,10 +133,16 @@ class BAI_Kind(Enum):
 class BAI_Type:
     """
     A LAMMPS Bond/Angle/Improper type.
+
+    Attributes:
+        _index (int): LAMMPS type index.
+        kind (BAI_Kind): Whether this is a bond, angle, or improper.
+        style (str): The style definition used in the LAMMPS command.
+        coefficients (str): The arguments to the LAMMPS command in :py:attr:`style`.
     """
 
     indices = {kind: 1 for kind in BAI_Kind}
-    """Global LAMMPShttps://docs.lammps.org/bond_coeff.html indices for each BAI kind."""
+    """Global LAMMPS indices for each BAI kind."""
 
     def __init__(self, kind: BAI_Kind, style: str, coefficients: str = "") -> None:
         """coefficients will be printed after the index in a datafile
@@ -173,7 +179,7 @@ class BAI_Type:
             '1 harmonic 10.0 1.0'
 
         Args:
-            omit_style: If True, do not print the `style`.
+            omit_style: If True, do not print the :py:attr:`BAI_Type.style`.
 
         Returns:
             String in the '{index} {style} {coefficients}' format.
@@ -193,6 +199,16 @@ class AtomGroup:
     Stores a list of atoms with the same :py:class:`AtomType`.
 
     Also supports polymer bond and angle for convenience.
+     - If :py:attr:`polymer_bond_type` is None, no bonds are created.
+     - If :py:attr:`polymer_angle_type` is None, no angle interactions are created.
+
+    Attributes:
+        positions (Nx3Array): List of 3D atom positions (N, 3).
+        atom_type (AtomType): The atom type of all atoms in the group.
+        molecule_index (int): The molecule index of all atoms in the group (see also :py:func:`Generator.molecule_override`)
+        polymer_bond_type (BAI_Type | None): BAI.Kind == BAI.BOND, forms a polymer in the order of the :py:attr:`positions` list.
+        polymer_angle_type (BAI_Type | None): BAI.Kind == BAI.ANGLE, adds angle potentials along the polymer.
+        charge (float): The charge of all atoms in the group, used with atom style ``full``.
     """
 
     def __init__(
@@ -204,19 +220,6 @@ class AtomGroup:
         polymer_angle_type: BAI_Type | None = None,
         charge: float = 0.0,
     ) -> None:
-        """Creates a new atom group.
-
-        If `polymer_bond_type` is None, no bonds are created.
-        If `polymer_angle_type` is None, no angle interactions are created.
-
-        Args:
-            positions: List of 3D atom positions (N, 3).
-            atom_type: The atom type of all atoms in the group.
-            molecule_index: The molecule index of all atoms in the group (see also :py:func:`Generator.molecule_override`)
-            polymer_bond_type: BAI.Kind == BAI.BOND, forms a polymer in the order of the `positions` list.
-            polymer_angle_type: BAI.Kind == BAI.ANGLE, adds angle potentials along the polymer.
-            charge: The charge of all atoms in the group, used with atom style `full`.
-        """
         self.positions = positions
         self.type = atom_type
         self.molecule_index = molecule_index
@@ -230,6 +233,13 @@ class AtomGroup:
 
     @property
     def n(self) -> int:
+        """Number of atoms in the group.
+
+        Returns the length of the positions array.
+
+        Returns:
+            Number of atoms.
+        """
         return len(self.positions)
 
 
@@ -264,9 +274,9 @@ class PairWise:
     Represents pair interactions between all atoms of two atoms ids.
 
     Attributes:
-        header: Definition of the interaction style, e.g. 'PairIJ Coeffs # hybrid'.
-        template: Format string with empty formatters `{}` for the interaction parameters, e.g. 'lj/cut {} {} {}'.
-        default: List of default parameters. If None, do not insert missing interactions. This is used to fill out all interactions, since LAMMPS requires them to all be explicitly defined.
+        header (str): Definition of the interaction style, e.g. ``'PairIJ Coeffs # hybrid'``.
+        template (str): Format string with empty formatters ``{}`` for the interaction parameters, e.g. ``'lj/cut {} {} {}'``.
+        default (list[Any] | None): List of default parameters. If ``None``, do not insert missing interactions. This is used to fill out all interactions, since LAMMPS requires them to all be explicitly defined.
     """
 
     def __init__(self, header: str, template: str, default: list[Any] | None) -> None:
@@ -334,13 +344,13 @@ class PairWise:
         self,
         interaction: tuple[AtomType, AtomType],
     ) -> tuple[AtomType, AtomType, list[Any]] | None:
-        """Checks if an interaction is defined in `pairs`.
+        """Checks if an interaction is defined in :py:attr:`pairs`.
 
         Args:
             interaction: Interaction to look for.
 
         Returns:
-            The pair as it is defined in `pairs` (may have opposite order),
+            The pair as it is defined in :py:attr:`pairs` (may have opposite order),
             or None if no pair was found.
         """
         for pair in self.pairs:
@@ -384,7 +394,7 @@ def write_if_non_zero(file: TextIO, fmt_string: str, amount: int):
 
     Args:
         file: File to write to.
-        fmt_string: Format string with one empty formatter `{}` for the `amount`.
+        fmt_string: Format string with one empty formatter ``{}`` for the :py:attr:`amount`.
         amount: The amount to write if non-zero.
     """
     if amount != 0:
@@ -411,15 +421,15 @@ class Generator:
         self.molecule_override: dict[AtomIdentifier, int] = {}
         """Individual molecule id overrides for atoms. Takes precedence over the :py:class:`AtomGroup` molecule id."""
         self.charge_override: dict[AtomIdentifier, float] = {}
-        """Whether to enable charges (atom_style 'full') or not (atom_style 'molecule')."""
+        """Individual charge value overrides for atoms. Takes precedence over the :py:class:`AtomGroup` charge value."""
         self.use_charges = False
-        """Used when multiple styles are defined, default of 'hybrid' should work in most cases."""
+        """Whether to enable charges (atom_style 'full') or not (atom_style 'molecule')."""
         self.hybrid_styles = {
             BAI_Kind.BOND: "hybrid",
             BAI_Kind.ANGLE: "hybrid",
             BAI_Kind.IMPROPER: "hybrid",
         }
-        """TODO"""
+        """Used when multiple styles are defined, default of 'hybrid' should work in most cases."""
         self.random_shift = lambda: np.array([0.0, 0.0, 0.0])
         """Function that returns a random shift vector. This is useful to avoid exact overlap, which causes LAMMPS to crash during kspace calculations (e.g. with pair_style coul)."""
 
@@ -454,7 +464,7 @@ class Generator:
             box_width: Width of box.
 
         Raises:
-            ValueError: Received negative or zero `box_width`.
+            ValueError: Received negative or zero :py:attr:`box_width`.
         """
         if box_width <= 0.0:
             raise ValueError("box_width must be strictly positive.")
@@ -506,7 +516,7 @@ class Generator:
         """Returns a list of all atom types across all atom groups.
 
         Returns:
-            List of atom types, sorted by `index`.
+            List of atom types, sorted by :py:attr:`AtomType.index`.
         """
         atom_types: set[AtomType] = set()
         for atom_group in self._atom_groups:
@@ -520,7 +530,7 @@ class Generator:
             kind: BAI kind to filter by.
 
         Returns:
-            List of BAI types of the given `kind`, sorted by `index`.
+            List of BAI types of the given :py:attr:`kind`, sorted by :py:attr:`BAI_Type.index`.
         """
         bai_types: set[BAI_Type] = set()
         for bai in filter(lambda bai: bai.type.kind == kind, self.bais):
@@ -600,7 +610,7 @@ class Generator:
             file: File to write to.
 
         Raises:
-            TypeError: The `box_width` is None.
+            TypeError: The :py:attr:`box_width` is None.
         """
         file.write("# System size\n")
 
@@ -731,7 +741,7 @@ class Generator:
         return self.atom_group_map[index] + atom_id[1]
 
     def _set_up_atom_group_map(self) -> None:
-        """Sets the `atom_group_map` based on the current atom groups.
+        """Sets the :py:attr:`atom_group_map` based on the current atom groups.
 
         .. :Attention:
             The atom groups must not change after calling this function.
@@ -742,7 +752,7 @@ class Generator:
             index_offset += len(atom_group.positions)
 
     def get_atom_style(self) -> str:
-        """Returns the atom_style for LAMMPS (based on `use_charges`)."""
+        """Returns the atom_style for LAMMPS (based on :py:attr:`use_charges`)."""
         if self.use_charges:
             return "full"
         else:
