@@ -10,7 +10,7 @@ permissions:
   id-token: write
 
 env:
-  DOCS_DIR: docs
+  SOURCE_DIR: docs/source
   BUILD_DIR: docs/build
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
         run: uv sync --locked --dev
 
       - name: Build HTML docs
-        run: uv run sphinx-build -b html "$DOCS_DIR" "$BUILD_DIR/html"
+        run: uv run sphinx-build -b html "$SOURCE_DIR" "$BUILD_DIR/html"
 
       - name: Create documentation archive
         run: |
