@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 from dataclasses import dataclass
 
@@ -20,45 +20,70 @@ from smc_lammps.generate.util import get_closest
 
 @dataclass
 class SMC:
+    """
+    Stores an SMC with its bonds, pair interactions, etc.
+    """
+
     use_rigid_hinge: bool
+    """If True, the hinge is one rigid molecule.
+    Otherwise, the two parts of the hinge are connected by bonds."""
 
     pos: SMC_Pos
+    """The positions of the beads comprising the SMC."""
 
     t_arms_heads: AtomType
+    """Type of arms."""
     t_kleisin: AtomType
+    """Type of Kleisin."""
     t_shield: AtomType
+    """Type of repusilve shield atoms in interaction sites."""
     t_hinge: AtomType
+    """Type of hinge."""
     t_atp: AtomType
+    """Type of ATP bridge."""
     t_upper_site: AtomType
+    """Type of attractive atoms at upper (hinge) site."""
     t_middle_site: AtomType
+    """Type of attractive atoms at middle (bridge) site."""
     t_lower_site: AtomType
+    """Type of attractive atoms at lower (Kleisin) site."""
     t_ref_site: AtomType
+    """Type of extra reference bead near middle site (used for asymmetric folding)."""
     t_side_site: AtomType
+    """Type of attractive atoms at optional side site (when strand swapping is desired)."""
 
     # bonds
     k_bond: float
+    """Bond strength for general connections (e.g. arms connected at elbow) (pN/nm = mN/m)."""
     k_hinge: float
+    """Hinge bond strength (pN/nm = 1e-3 N/m)."""
     max_bond_length: float
+    """Max bond length for connected parts (nm)."""
 
     # angles
-    # Bending of elbows (kinkable arms, hence soft)
     k_elbow: float
-    # Arms opening angle wrt ATP bridge (should be stiff)
+    """Angular strength at elbows, typically soft to allow bending (pN * nm / rad^2)."""
     k_arm: float
+    """Angular strength of arms relative to bridge, typically stiff (pN * nm / rad^2)."""
 
     # impropers
-    # Fixes site orientation (prevents free rotation, should be stiff)
     k_align_site: float
-    # Folding stiffness of lower compartment (should be stiff)
+    """Improper strength used to maintain site orientation, should be stiff (pN * nm / rad^2)."""
     k_fold: float
-    # Makes folding asymmetric (should be stiff)
+    """Improper folding strength of Kleisin relative to arms, should be stiff (pN * nm / rad^2)."""
     k_asymmetry: float
+    """Improper strength used to induce asymmetric folding, should be stiff (pN * nm / rad^2)."""
 
     # other
     bridge_width: float
+    """ATP bridge width (nm)."""
     arm_length: float
+    """Length of one arm (nm)."""
     _hinge_radius: float
+    """Radius that the hinge has if it is toroidal (nm). Use :py:func:`hinge_radius` to access this."""
     arms_angle_ATP: float
+    """Angle between arms in the ATP state (degrees)."""
+
     folding_angle_ATP: float
     folding_angle_APO: float
     elbow_attraction: float

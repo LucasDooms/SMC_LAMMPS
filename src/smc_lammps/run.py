@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 import argparse
 import subprocess
-from argparse import Namespace
+from argparse import Namespace, RawDescriptionHelpFormatter
 from functools import partial
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from re import compile as compile_regex
-from sys import argv
+from sys import executable, exit
 from typing import Callable, Iterator, Sequence
 
 import argcomplete
@@ -17,13 +18,30 @@ from click import confirm
 
 from smc_lammps.console import warn
 from smc_lammps.generate.util import get_project_root
+from smc_lammps.post_process.util import keep_every_n, merge_lammpstrj
 
-PYRUN = ["python", "-m"]
+PYRUN = [executable, "-m"]
+
+
+def get_version() -> str | None:
+    """Returns the version of the smc-lammps package.
+
+    Returns:
+        Version string in the "x.y.z" format, or None if the version could not be obtained.
+    """
+    try:
+        return version("smc-lammps")
+    except PackageNotFoundError:
+        return None
 
 
 class MaxIterationExceeded(RuntimeError):
-    # arbitrary limit to prevent infinite loops
-    MAX_ITER = 10000
+    """
+    Raised when a loop exceeds a large number of iterations.
+    """
+
+    MAX_ITER: int = 10000  # arbitrary limit to prevent infinite loops
+    "Number of iterations after which a `MaxIterationExceeded` should be raised."
 
     def __str__(self):
         return (
@@ -35,9 +53,19 @@ class MaxIterationExceeded(RuntimeError):
 def parse_with_double_dash(
     parser: argparse.ArgumentParser, args: list[str]
 ) -> tuple[Namespace, list[str]]:
-    """Parse arguments by splitting before and after '--'.
+    """Parse arguments with '--' splitting.
+
+    Parses arguments by splitting before and after '--'.
     Arguments before '--' are parsed by the provided parser,
-    everything after is collected into a separate, non-parsed list"""
+    everything after is collected into a separate, non-parsed list
+
+    Args:
+        parser: Parser for arguments before '--'.
+        args: Argument list.
+
+    Returns:
+        Tuple of (parsed arguments before '--', unparsed arguments after '--').
+    """
     try:
         separator_index = args.index("--")
     except ValueError:
@@ -51,10 +79,24 @@ def parse_with_double_dash(
 
 
 def get_parser() -> argparse.ArgumentParser:
+    """Returns the parser for the smc-lammps cli.
+
+    Returns:
+        parser
+    """
+    version = get_version()
+    if version is None:
+        version_string = "unknown version"
+    else:
+        version_string = f"v{version}"
+    header = f"smc-lammps {version_string}"
+    underline = "-" * len(header)
+
     # fmt: off
     parser = argparse.ArgumentParser(
-        description='runs setup scripts, LAMMPS script, post-processing, and visualization',
-        epilog='visit https://github.com/LucasDooms/SMC_LAMMPS for more info'
+        description=f"""{header}\n{underline}\nRuns setup scripts, LAMMPS script, post-processing, and visualization.""",
+        epilog='visit https://github.com/LucasDooms/SMC_LAMMPS for more info',
+        formatter_class=RawDescriptionHelpFormatter,
     )
 
     parser.add_argument('directory', help='the directory containing parameters for LAMMPS')
@@ -73,6 +115,8 @@ def get_parser() -> argparse.ArgumentParser:
 
     post_processing = parser.add_argument_group(title='post-processing')
     post_processing.add_argument('-p', '--post-process', action='store_true', help='run the post-processing scripts after running LAMMPS')
+    post_processing.add_argument('--merge', action='store_true', help='merge all created lammpstrj files into one file')
+    post_processing.add_argument('--keep-every-n', type=int, help='keep every nth timestep of a trajectory file (0 means disabled)', default=0)
     pp_vis = post_processing.add_mutually_exclusive_group()
     pp_vis.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
     pp_vis.add_argument('-vd', '--visualize-datafile', action='store_true', help='shows the initial structure in VMD')
@@ -92,6 +136,11 @@ def get_parser() -> argparse.ArgumentParser:
 
 
 def quiet_print(quiet: bool, *args, **kwargs):
+    """Calls print if `quiet` is `False`.
+
+    Args:
+        quiet: if `True`, do not print.
+    """
     if not quiet:
         print(*args, **kwargs)
 
@@ -99,6 +148,16 @@ def quiet_print(quiet: bool, *args, **kwargs):
 def run_and_handle_error(
     process: Callable[[], subprocess.CompletedProcess], ignore_errors: bool, quiet: bool
 ):
+    """Runs a process and checks the exit code.
+
+    Runs a process and handles any non-zero exit code.
+    If the exit code is non-zero and `ignore_errors` is false, the script exits.
+
+    Args:
+        process: A function that runs a process when called.
+        ignore_errors: If `True`, do not exit when the process exit code is non-zero.
+        quiet: Passed to `quiet_print`.
+    """
     completion = process()
     if completion.returncode != 0:
         quiet_print(
@@ -119,8 +178,24 @@ def run_and_handle_error(
 
 
 def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
-    """Finds the base of a simulation directory,
-    this is the directory containing the `parameters.py` file."""
+    """Finds the base of a simulation directory.
+
+    Finds the base of a simulation directory by traversing up the file tree.
+    The base directory is the (first) directory containing a valid `parameters.py` file.
+
+    .. attention::
+        The validity of the `parameters.py` file is not checked by this function!
+
+    Args:
+        path: Path to start from, may be a file.
+
+    Returns:
+        Tuple of (base simulation directory, subdirectory to `path` relative to the base directory if any).
+
+    Raises:
+        FileNotFoundError: Root directory was reached without any `parameters.py` files along the way.
+        MaxIterationExceeded: Exceeded maximum amount of file tree traversal.
+    """
     subdir = None
     # use absolute path to allow finding parents
     try_path = path.absolute()
@@ -128,7 +203,7 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
     def get_file_names(dir: Path) -> Iterator[str]:
         try:
             lst = (p.name for p in dir.iterdir())
-        except NotADirectoryError:
+        except (NotADirectoryError, FileNotFoundError):
             lst = iter(())
         return lst
 
@@ -162,11 +237,32 @@ def find_simulation_base_directory(path: Path) -> tuple[Path, Path | None]:
 
 
 class TaskDone:
+    """
+    A task.
+
+    Tasks may be skipped, e.g. if the corresponding flag is not set.
+    """
+
     def __init__(self, skipped: bool = False) -> None:
         self.skipped = skipped
 
 
 def initialize(args: Namespace, path: Path) -> TaskDone:
+    """Initializes a simulation directory.
+
+    Creates the directory if it does not exist yet,
+    and places a template `parameters.py` file inside.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+
+    Raises:
+        FileExistsError: The `path` is non-empty and the `--force` flag is not set.
+    """
     # skip initialization for files
     if path.is_file():
         return TaskDone(skipped=True)
@@ -218,6 +314,17 @@ def initialize(args: Namespace, path: Path) -> TaskDone:
 
 
 def clean(args: Namespace, path: Path) -> TaskDone:
+    """Cleans a simulation directory.
+
+    Removes all files in a simulation directory, keeping only `paremeters.py`.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
     if not args.clean:
         return TaskDone(skipped=True)
 
@@ -228,9 +335,10 @@ def clean(args: Namespace, path: Path) -> TaskDone:
     # list of regexes for files to delete
     # (assume posix style path)
     safe_to_delete = [
-        r".*\.lammpstrj",
-        r".*\.lammpstrj\.\d+",
+        r".*\.lammpstrj$",
+        r".*\.lammpstrj\.\d+$",
         r".*/log\.lammps$",
+        r".*/log\.lammps\.\d+$",
         r"^lammps/.*",
         r"^post_processing_parameters\.py$",
         r"^tmp\.lammps\.variable$",
@@ -245,6 +353,21 @@ def clean(args: Namespace, path: Path) -> TaskDone:
         return any(regex.match(path.as_posix()) for regex in safe_to_delete)
 
     def remove_recursively(child: Path, base: Path):
+        """Recurses into the child path and deletes if :py:func:`is_safe_to_delete`.
+
+        Recursively calls itself on the subdirectories of `child` (if it is a directory)
+        or unlinks `child` (if it is a file).
+
+        When a file is reached, calls :py:func:`is_safe_to_delete`
+        on the `child` path relative to the `base` path
+        to determine whether the file should be deleted or not.
+
+        Deletes any leftover empty directories (regardless of name).
+
+        Args:
+            child: File to delete or directory to delete recursively.
+            base: Directory to compare `child` to when evaluating regex.
+        """
         if child.relative_to(base) == Path("parameters.py"):
             return
 
@@ -262,7 +385,7 @@ def clean(args: Namespace, path: Path) -> TaskDone:
                 quiet_print(args.quiet, f"unrecognized file or folder '{child}', skipping...")
                 return
             child.unlink()
-            quiet_print(args.quiet, f"deleted '{child}' succesfully")
+            quiet_print(args.quiet, f"deleted '{child}' successfully")
 
     remove_recursively(path, path)
 
@@ -270,11 +393,28 @@ def clean(args: Namespace, path: Path) -> TaskDone:
 
 
 def generate(args: Namespace, path: Path) -> TaskDone:
-    # TODO: produce a warning when using this with --continue flag?
+    """Runs the generation script.
+
+    Runs the :py:func:`smc_lammps.generate.generate` script,
+    passing the `args.seed` as an argument if set.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
+
     if not args.generate:
         if args.seed is not None:
             warn("seed argument is ignored when -g flag is not used!")
         return TaskDone(skipped=True)
+
+    if args.continue_flag and not args.force:
+        warn(
+            "running generation script (--generate) before a restart run (--continue), this is not recommended!"
+        )
 
     extra_args = []
     if args.seed:
@@ -294,13 +434,43 @@ def generate(args: Namespace, path: Path) -> TaskDone:
 
 
 def get_lammps_args_list(lammps_vars: Sequence[list[str]]) -> list[str]:
+    """Converts argument list of variables to the LAMMPS format.
+
+    :Example:
+        >>> from smc_lammps.run import get_lammps_args_list
+        >>> get_lammps_args_list([['is_restart', '1'], ['seed', '1234']])
+        ['-var', 'is_restart', '1', '-var', 'seed', '1234']
+
+    Args:
+        lammps_vars: Variable names and values.
+
+    Returns:
+        LAMMPS variable definitions which can be passed via the cli.
+    """
     out: list[str] = []
     for var in lammps_vars:
         out += ["-var"] + var
     return out
 
 
-def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
+def perform_run(
+    args: Namespace, path: Path, log_file_name: str = "log.lammps", **kwargs: str | list[str]
+):
+    """Performs a LAMMPS run.
+
+    Executes the LAMMPS cli in a new process.
+
+    Relevant arguments are passed to LAMMPS, such as `-sf` and `-log`.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        log_file_name: File name (relative to `output_path`) passed to the LAMMPS cli `-log` argument.
+        kwargs: These parameters are passed to the LAMMPS cli as variables. `lammps_root_dir`, `output_path`, `output_file_name`.
+
+    Raises:
+        ValueError: The `output_path` contains spaces which will (likely) break the LAMMPS script(s).
+    """
     if args.input is None:
         project_root = get_project_root()
         args.input = project_root / "lammps" / "input.lmp"
@@ -315,7 +485,9 @@ def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
     # check for spaces in output_path (for LAMMPS compatibility)
     assert isinstance(output_path, str)
     if " " in output_path:
-        raise ValueError(f"Found spaces in path '{output_path}', this not supported by the LAMMPS script.")
+        raise ValueError(
+            f"Found spaces in path '{output_path}', this not supported by the LAMMPS script."
+        )
 
     output_path = path / Path(output_path)
     output_path.mkdir(exist_ok=True)
@@ -330,7 +502,7 @@ def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
         "-in",
         f"{lammps_script.absolute()}",
         "-log",
-        f"{output_path / 'log.lammps'}",
+        f"{output_path / log_file_name}",
     ]
     if args.suffix == "kk":
         command += ["-kokkos", "on"]
@@ -355,23 +527,48 @@ def perform_run(args: Namespace, path: Path, **kwargs: str | list[str]):
 
 
 def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
+    """Performs a LAMMPS restart run.
+
+    Calls :py:func:`smc_lammps.run.perform_run` with the `is_restart` variable set to '1'.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        output_file: The output file (e.g. output.lammpstrj) of the run that will be restarted.
+
+    Returns:
+        Task completion information.
+
+    Raises:
+        FileNotFoundError: The `output_file` does not exist.
+        FileExistsError: Could not find any available file names for the new output.
+    """
     if not args.continue_flag:
         return TaskDone(skipped=True)
 
     # TODO: check that all necessary files have been generated?
-    file_exists = output_file.exists()
-    if not file_exists:
-        if args.force:
-            return TaskDone(skipped=True)
-        raise FileNotFoundError(
-            f"Make sure the following file exists to restart a simulation: {output_file}"
-        )
+    checks: list[tuple[Path, bool]] = [
+        (output_file, True),
+        (path / "lammps" / "restartfile", False),
+    ]
 
-    # find a file name that is not taken yet
+    for file, allow_reroute in checks:
+        if not file.exists():
+            if allow_reroute and args.force:
+                return TaskDone(skipped=True)
+            raise FileNotFoundError(
+                f"Make sure the following file exists to restart a simulation: {output_file}"
+            )
+
+    # find an output file name that is not taken yet
     for suffix in range(1, MaxIterationExceeded.MAX_ITER):
-        new_output_file = Path(f"{output_file}.{suffix}")
+        new_output_file = output_file.with_name(f"{output_file.name}.{suffix}")
         if not new_output_file.exists():
-            # use this one
+            # use same suffix for log.lammps
+            new_log_file_name = f"log.lammps.{suffix}"
+            new_log_file = output_file.parent / new_log_file_name
+            if new_log_file.exists():
+                warn(f"log file '{new_log_file}' already exists and will get overwritten")
             break
     else:
         raise FileExistsError(
@@ -385,14 +582,31 @@ def restart_run(args: Namespace, path: Path, output_file: Path) -> TaskDone:
     perform_run(
         args,
         path,
+        log_file_name=new_log_file_name,
         is_restart="1",
-        output_file_name=str(new_output_file.relative_to(path)),
+        output_path=new_output_file.parent.relative_to(path).as_posix(),
+        output_file_name=new_output_file.name,
     )
 
     return TaskDone()
 
 
 def run(args: Namespace, path: Path) -> TaskDone:
+    """Runs (or restarts) a simulation.
+
+    Dispatches to :py:func:`smc_lammps.run.restart_run` first.
+    If the restart run was skipped, starts a new run via :py:func:`smc_lammps.run.perform_run`.
+
+    Any existing `output_file` will only be overwritten if the `--force` flag is set,
+    otherwise the function will return early.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
     if not args.run:
         return TaskDone(skipped=True)
 
@@ -405,7 +619,7 @@ def run(args: Namespace, path: Path) -> TaskDone:
 
     if args.force:
         output_file.unlink(missing_ok=True)
-        (output_path / "restartfile").unlink(missing_ok=True)
+        (path / "lammps" / "restartfile").unlink(missing_ok=True)
         for perspective_file in output_path.glob("perspective.*.lammpstrj"):
             perspective_file.unlink()
         for snapshot_file in (output_path / "snapshots").glob("*.lammpstrj"):
@@ -418,12 +632,105 @@ def run(args: Namespace, path: Path) -> TaskDone:
         quiet_print(args.quiet, "moving on...")
         return TaskDone()
 
-    perform_run(args, path)
+    perform_run(
+        args,
+        path,
+        output_path=output_path.relative_to(path).as_posix(),
+        output_file_name=output_file.name,
+    )
+
+    return TaskDone()
+
+
+def merge(args: Namespace, path: Path) -> TaskDone:
+    """Merges lammpstrj files together.
+
+    Merges lammpstrj files together by calling :py:func:`merge_lammpstrj`
+    on any files that match the `output.lammpstrj*` glob pattern.
+
+    This can be useful after a restart run.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
+    if not args.merge:
+        return TaskDone(skipped=True)
+
+    merge_path = path / "output"
+    base_file_name = "output.lammpstrj"
+
+    files = filter(lambda p: not p.is_dir(), merge_path.glob(f"{base_file_name}*"))
+    files = sorted(files)
+
+    if len(files) <= 1:
+        quiet_print(
+            args.quiet, f"need at least two files in order to merge, found {len(files)} file(s)"
+        )
+        return TaskDone(skipped=True)
+
+    base_file, files = files[0], files[1:]
+
+    for other_file in files:
+        quiet_print(
+            args.quiet,
+            f"merging '{base_file.relative_to(path)}' and '{other_file.relative_to(path)}'",
+        )
+        merge_lammpstrj(base_file, other_file, delete_after=True)
+
+    return TaskDone()
+
+
+def keep_every(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
+    """Edits LAMMPS trajecory file in-place, keeping every nth timestep.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: File passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+    """
+    if args.keep_every_n == 0:
+        return TaskDone(skipped=True)
+
+    if subdir is None:
+        file_path = path / "output" / "output.lammpstrj"
+    else:
+        file_path = path / subdir
+
+    if not file_path.is_file():
+        raise FileNotFoundError(f"The path '{file_path}' does not exist or it is not a file.")
+
+    percent = 100.0 / args.keep_every_n
+    quiet_print(args.quiet, f"keeping every {args.keep_every_n}th timestep ({percent:.2f} %)")
+    if not args.force and not confirm(
+        f"This will edit '{path}' in-place, are you sure?",
+        default=False,
+    ):
+        return TaskDone()
+
+    keep_every_n(file_path, file_path, args.keep_every_n)
 
     return TaskDone()
 
 
 def post_process(args: Namespace, path: Path) -> TaskDone:
+    """Performs post-processing.
+
+    Runs the :py:func:`smc_lammps.post_process.process_displacement` script.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+
+    Returns:
+        Task completion information.
+    """
     if not args.post_process:
         return TaskDone(skipped=True)
 
@@ -436,12 +743,25 @@ def post_process(args: Namespace, path: Path) -> TaskDone:
         args.ignore_errors,
         args.quiet,
     )
-    quiet_print(args.quiet, "succesfully ran post processing")
+    quiet_print(args.quiet, "successfully ran post processing")
 
     return TaskDone()
 
 
 def visualize_datafile(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
+    """Starts VMD with the initial datafile loaded.
+
+    Loads the `datafile_positions` (produced by the :py:func:`smc_lammps.run.generate` step)
+    into VMD.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: Directory or file passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+    """
     if not args.visualize_datafile:
         return TaskDone(skipped=True)
 
@@ -469,6 +789,20 @@ def visualize_datafile(args: Namespace, path: Path, subdir: Path | None) -> Task
 
 
 def create_perspective_file(args: Namespace, path: Path, subdir: Path | None) -> Path:
+    """Creates a new LAMMPS trajectory file, following a certain perspective.
+
+    Runs the :py:func:`smc_lammps.post_process.smc_perspective` script.
+
+    Currently supports `arms` and `kleisin` perspective following the SMC.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: Directory or file passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+    """
     if subdir is None:
         read_from_file = path / "output" / "output.lammpstrj"
     else:
@@ -503,6 +837,15 @@ def create_perspective_file(args: Namespace, path: Path, subdir: Path | None) ->
 
 
 def start_visualize_script(args: Namespace, path: Path, other_args: list[str]):
+    """Runs the :py:func:`smc_lammps.post_process.visualize` script.
+
+    Runs the :py:func:`smc_lammps.post_process.visualize` script in a new process.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        other_args: Arguments passed to the :py:func:`smc_lammps.post_process.visualize` script.
+    """
     quiet_print(args.quiet, "starting VMD")
     run_and_handle_error(
         lambda: subprocess.run(
@@ -516,6 +859,19 @@ def start_visualize_script(args: Namespace, path: Path, other_args: list[str]):
 
 
 def visualize_follow(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
+    """Creates a perspective file and opens it in VMD.
+
+    Runs :py:func:`smc_lammps.run.create_perspective_file` to generate
+    a new perspective file, followed by :py:func:`smc_lammps.run.start_visualize_script`.
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: Directory or file passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+    """
     if args.visualize_follow is None:
         return TaskDone(skipped=True)
 
@@ -529,6 +885,24 @@ def visualize_follow(args: Namespace, path: Path, subdir: Path | None) -> TaskDo
 
 
 def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
+    """Starts VMD with a certain visualization.
+
+    Dispatches to the following tasks in order:
+        - :py:func:`smc_lammps.run.visualize_datafile`
+        - :py:func:`smc_lammps.run.visualize_follow`
+        - default :py:func:`smc_lammps.run.start_visualize_script` function
+
+    Args:
+        args: Parsed arguments.
+        path: Simulation base path.
+        subdir: Directory or file passed via the cli, relative to `path`.
+
+    Returns:
+        Task completion information.
+
+    Raises:
+        ValueError: The path given by path/subdir is not a file.
+    """
     if not visualize_datafile(args, path, subdir).skipped:
         return TaskDone()
 
@@ -549,11 +923,22 @@ def visualize(args: Namespace, path: Path, subdir: Path | None) -> TaskDone:
     return TaskDone()
 
 
-def main():
-    parser = get_parser()
-    # remove first argument from argv (name of exe)
-    args, extra_args = parse_with_double_dash(parser, argv[1:])
-    args.sub_args = extra_args
+def execute(args: Namespace):
+    """Executes a sequence of tasks depending on the provided arguments.
+
+    The following tasks are executed (if enabled) in order:
+        - :py:func:`initialize` (only if not initialized yet)
+        - :py:func:`clean`
+        - :py:func:`generate`
+        - :py:func:`run`
+        - :py:func:`merge`
+        - :py:func:`keep_every`
+        - :py:func:`post_process`
+        - :py:func:`visualize`
+
+    Args:
+        args: Parsed arguments.
+    """
     path = Path(args.directory)
 
     # --continue flag implies the --run flag
@@ -583,6 +968,8 @@ def main():
         clean(args, path),
         generate(args, path),
         run(args, path),
+        merge(args, path),
+        keep_every(args, path, subdir),
         post_process(args, path),
         visualize(args, path, subdir),
     ]
@@ -591,6 +978,40 @@ def main():
         quiet_print(args.quiet, "nothing to do, use -gr to generate and run")
 
     quiet_print(args.quiet, "end of smc-lammps (run.py)")
+
+
+def parse(argv: list[str]) -> Namespace:
+    """Parses the argument list and returns argparse `Namespace`.
+
+    Parses the arguments before '--', and sets the `sub_args`
+    field of the returned object to the remaining arguments after '--'.
+
+    Args:
+        argv: Unprocessed argument list (`from sys import argv`).
+
+    Returns:
+        Object holding command line options.
+    """
+
+    parser = get_parser()
+    # remove first argument from argv (name of exe)
+    args, extra_args = parse_with_double_dash(parser, argv[1:])
+    args.sub_args = extra_args
+
+    return args
+
+
+def main():
+    """The entry point for the smc-lammps cli.
+
+    Use ``smc-lammps -h`` for help.
+
+    See :py:func:`smc_lammps.run.get_parser` for the parser definition.
+    """
+    from sys import argv
+
+    args = parse(argv)
+    execute(args)
 
 
 if __name__ == "__main__":

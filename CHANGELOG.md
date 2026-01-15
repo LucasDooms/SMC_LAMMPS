@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.2.1] - 2026-01-15
+
+### Added
+
+- New `--merge` flag merges multiple `output.lammpstrj*` files into one.
+- New `tests` directory for testing with pytest and tox.
+- New `docs` directory for sphinx documentation.
+- New `--keep-every-n` flag to remove timesteps from trajectory files.
+
+### Changed
+- The `spaced_beads` angle interaction is now adjusted based on the `spaced_beads_size`.
+
+### Fixed
+
+- Restart runs now use the correct output directory.
+- Output files without the `lammpstrj` extension (e.g. `output.lammpstrj.1`) can now be opened with the `-v` flag.
+- Prevent creation of nested simulation directories via cli.
+
 ## [0.2.0] - 2025-12-19
 
 ### Added

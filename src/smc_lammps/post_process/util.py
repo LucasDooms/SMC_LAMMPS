@@ -1,6 +1,10 @@
-# Copyright (c) 2025 Lucas Dooms
+# Copyright (c) 2025-2026 Lucas Dooms
 
 import csv
+import os
+import shutil
+import tempfile
+from itertools import product
 from pathlib import Path
 from runpy import run_path
 from typing import Any, Iterator, Sequence, TypeVar
@@ -9,12 +13,28 @@ import numpy as np
 
 from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
-from smc_lammps.reader.lammps_data import ID_TYPE
+from smc_lammps.post_process.types import ID_TAG_PAIR
+from smc_lammps.reader.lammps_data import ID_TYPE, IdArray
+from smc_lammps.reader.parser import Parser
 
 
 def get_scaling(
     use_real_units: bool = True, parameters: Parameters | None = None
 ) -> tuple[float, float, str, str]:
+    """Returns the scaling factors to go from simulation units to real units.
+
+    Returns the index scale (DNA bead index -> nm), and the time scale (timestep -> s).
+
+    Args:
+        use_real_units: If False, no conversion is performed (scaling = 1.0).
+        parameters: Simulation parameters.
+
+    Returns:
+        Tuple of (time scale, index scale, time units, index units)
+
+    Raises:
+        TypeError: `use_real_units` is True, but `parameters` is set to None.
+    """
     if use_real_units:
         if parameters is None:
             raise TypeError("If use_real_units is True, parameters must be provided and not None.")
@@ -38,12 +58,27 @@ def get_scaling(
 
 
 def get_post_processing_parameters(path: Path) -> dict[str, Any]:
-    """Load the post processing parameters from the post_processing_parameters.py file."""
+    """Loads the post processing parameters from the post_processing_parameters.py file.
+
+    Args:
+        path: Simulation base path.
+
+    Returns:
+        The module globals dictionary (see :py:func:`run_path`).
+    """
     return run_path((path / "post_processing_parameters.py").as_posix())
 
 
 def get_cum_runtimes(runtimes: list[int]) -> dict[str, list[int]]:
-    """Return the number of time steps that have passed at the START of each SMC phase."""
+    """Returns the number of time steps that have passed at the START of each SMC phase.
+
+    Args:
+        runtimes: The list of runtimes (acquired from the post processing parameters).
+
+    Returns:
+        Dictionary with keys for each phase (APO, ATP, ADP),
+        as well as a key for all phases combined (all).
+    """
     cum_runtimes: list[int] = list(np.cumsum(runtimes, dtype=int))
 
     map = {
@@ -64,6 +99,27 @@ def get_cum_runtimes(runtimes: list[int]) -> dict[str, list[int]]:
         append(map, "APO", cum_runtimes[index + 3])
 
     return map
+
+
+def get_indices_array(
+    id_tag_pairs_array: list[list[list[ID_TAG_PAIR]]],
+    order: Sequence[str] = ["pos_lower", "pos_middle", "pos_top", "pos_center_arms"],
+) -> list[IdArray]:
+    """Returns arrays of indices based on an order of reference points."""
+    new: list[IdArray] = []
+    for i in range(len(id_tag_pairs_array)):
+        new.append(np.zeros(len(id_tag_pairs_array[i]), dtype=ID_TYPE))
+        for t in range(len(id_tag_pairs_array[i])):
+            for reference, pair in product(order, id_tag_pairs_array[i][t]):
+                if pair[1] == reference:
+                    new[i][t] = pair[0]
+                    break
+            else:
+                if id_tag_pairs_array[i][t]:
+                    new[i][t] = id_tag_pairs_array[i][t][0][0]
+                else:
+                    new[i][t] = -1
+    return new
 
 
 def scale_times(times: list[int], tscale: float) -> list[float]:
@@ -144,3 +200,89 @@ def get_site_cycle_segments(path: Path) -> list[tuple[int, int]]:
         on_states.append((current, -1))
 
     return on_states
+
+
+def merge_lammpstrj(base_file: Path, second_file: Path, delete_after: bool = True) -> None:
+    """Merges two lammpstrj files together by removing any overlapping
+    timesteps from the base file, and concatenatin the two files."""
+
+    par = Parser(second_file)
+    try:
+        merge_step, _ = par.next_step()
+    except Parser.EndOfLammpsFile:
+        raise ValueError(f"Lammpstrj file '{second_file}' does not contain any data, cannot merge!")
+
+    # use 'r+' to allow file.truncate() call
+    par = Parser(base_file, mode="r+")
+    last_step = 0
+    while True:
+        try:
+            current_pos = par.file.tell()
+            last_step, _ = par.next_step()
+            if last_step >= merge_step:
+                break
+        except Parser.EndOfLammpsFile:
+            raise ValueError(
+                f"Lammpstrj file '{base_file}' does not contain enough data to perform a merge!\n"
+                f"Found step {last_step} which is smaller than the required time step {merge_step}."
+            )
+
+    par.file.seek(current_pos)
+    par.file.truncate()
+
+    # close file
+    del par
+
+    with open(base_file, "ab") as base, open(second_file, "rb") as other:
+        shutil.copyfileobj(fsrc=other, fdst=base)
+
+    if delete_after:
+        second_file.unlink()
+
+
+def keep_every_n(input_file: Path, output_file: Path, n: int) -> None:
+    """Keeps every nth timestep in a LAMMPS trajectory file.
+
+    - If n == 1, everything is kept.
+    - If n == 2, every other line is kept, (1st line kept, 2nd line discarded).
+    - And so on.
+
+    Args:
+        input_file: LAMMPS trajectory file to read from.
+        output_file: LAMMPS trajectory file to write to (may be the same file as :py:attr:`input_file`).
+        n: Number of lines to skip over + 1 (see explanation above).
+
+    Raises:
+        ValueError: When n is smaller than or equal to zero.
+    """
+
+    if n < 1:
+        raise ValueError("n must be at least 1.")
+
+    if n == 1:
+        os.replace(input_file, output_file)
+        return
+
+    with tempfile.NamedTemporaryFile("w") as tmp_file:
+        par = Parser(input_file)
+        # start at n - 1 so that the first timestep is kept
+        keep = n - 1
+        while True:
+            keep += 1
+            try:
+                data = par.next_step_raw()
+                if keep == n:
+                    # NOTE: we are relying on dictionary insertion order preserval (since python 3.7)
+                    for key, val in data.items():
+                        tmp_file.write(key + "\n")
+                        for line in val:
+                            tmp_file.write(line + "\n")
+
+                    keep = 0
+            except Parser.EndOfLammpsFile:
+                break
+
+        # close input file, since it could be the same as the output file!
+        del par
+
+        os.replace(tmp_file.name, output_file)

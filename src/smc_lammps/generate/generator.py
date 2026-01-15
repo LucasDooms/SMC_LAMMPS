@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 """
 generator.py
@@ -26,9 +26,23 @@ from smc_lammps.console import warn
 
 
 class AtomType:
-    __index = 0
+    """
+    Represents a LAMMPS atom type.
+
+    See `LAMMPS read_data 'Atom Type Labels section'`_ and `LAMMPS type labels`_.
+
+    .. _LAMMPS read_data 'Atom Type Labels section': https://docs.lammps.org/read_data.html#format-of-the-body-of-a-data-file
+    .. _LAMMPS type labels: https://docs.lammps.org/Howto_type_labels.html
+    """
+
+    __index: int = 0
+    """Global atom type index used in LAMMPS data files."""
 
     class UnusedIndex(AttributeError):
+        """
+        LAMMPS does not allow gaps in atom types, therefore unused indices may cause issues.
+        """
+
         pass
 
     def __init__(self, mass: float = 1.0, unused: bool = False) -> None:
@@ -38,11 +52,26 @@ class AtomType:
 
     @classmethod
     def _get_next(cls) -> int:
+        """Increments the global index and returns it.
+
+        Returns:
+            Index.
+        """
         cls.__index += 1
         return cls.__index
 
     @property
     def index(self) -> int:
+        """The LAMMPS atom type index.
+
+        If this is called for the first time, the global index is incremented.
+
+        Returns:
+            Index.
+
+        Raises:
+            self.UnusedIndex: Marked as unused, should not call this method.
+        """
         if self.unused:
             raise self.UnusedIndex(
                 "This AtomType is marked as unused, cannot obtain a LAMMPS index!"
@@ -53,28 +82,67 @@ class AtomType:
 
 
 class MoleculeId:
-    __index = 0
+    """
+    Represents a LAMMPS molecule id.
+
+    See `LAMMPS molecule`_.
+
+    .. _LAMMPS molecule: https://docs.lammps.org/molecule.html
+    """
+
+    __index: int = 0
+    """Global LAMMPS molecule index."""
 
     @classmethod
     def get_next(cls) -> int:
+        """Increments the global index and returns it.
+
+        Returns:
+            Index.
+        """
         cls.__index += 1
         return cls.__index
 
 
 class BAI_Kind(Enum):
+    """
+    A LAMMPS Bond/Angle/Improper kind, see :py:class:`BAI_Type` for usage.
+    """
+
     BOND = 1
+    """`LAMMPS bond <https://docs.lammps.org/bond_coeff.html>`_"""
     ANGLE = 2
+    """`LAMMPS angle <https://docs.lammps.org/angle_coeff.html>`_"""
     IMPROPER = 3
+    """`LAMMPS improper (dihedral) <https://docs.lammps.org/improper_coeff.html>`_"""
 
     @classmethod
     def length_lookup(cls, kind: BAI_Kind) -> int:
-        """Returns the number of arguments (atom ids) needed to define a BAI interaction."""
+        """Returns the number of arguments (atom ids) needed to define a BAI interaction.
+
+        Args:
+            kind: BAI Kind.
+
+        Returns:
+            Number of required arguments for the \\*_coeff command.
+        """
         values = {BAI_Kind.BOND: 2, BAI_Kind.ANGLE: 3, BAI_Kind.IMPROPER: 4}
         return values[kind]
 
 
 class BAI_Type:
+    """
+    A LAMMPS Bond/Angle/Improper type.
+
+    Attributes:
+        _index (int): LAMMPS type index.
+        kind (BAI_Kind): Whether this is a bond, angle, or improper.
+        style (str): The style definition used in the LAMMPS command.
+        coefficients (str): The arguments to the LAMMPS command in :py:attr:`style`.
+    """
+
     indices = {kind: 1 for kind in BAI_Kind}
+    """Global LAMMPS indices for each BAI kind."""
 
     def __init__(self, kind: BAI_Kind, style: str, coefficients: str = "") -> None:
         """coefficients will be printed after the index in a datafile
@@ -87,27 +155,60 @@ class BAI_Type:
 
     @property
     def index(self) -> int:
+        """The LAMMPS Bond/Angle/Improper type index.
+
+        If this is called for the first time, the global index
+        corresponding to the given BAI kind is incremented.
+
+        Returns:
+            Index.
+        """
         if self._index is None:
             self._index = self.indices[self.kind]
             self.indices[self.kind] += 1
         return self._index
 
-    def get_string(self, omit_style=False) -> str:
+    def get_string(self, omit_style: bool = False) -> str:
+        """Returns the string used with the \\*_coeff command.
+
+        :Example:
+            >>> from smc_lammps.generate.generator import BAI_Type, BAI_Kind
+            >>> # create a harmonic bond with K=10.0 and a=1.0
+            >>> my_bond = BAI_Type(BAI_Kind.BOND, 'harmonic', '10.0 1.0')
+            >>> my_bond.get_string()
+            '1 harmonic 10.0 1.0'
+
+        Args:
+            omit_style: If True, do not print the :py:attr:`BAI_Type.style`.
+
+        Returns:
+            String in the '{index} {style} {coefficients}' format.
+        """
         style = f" {self.style}" if not omit_style else ""
         return f"{self.index}{style} {self.coefficients}"
 
 
 COORD_TYPE: TypeAlias = np.float32
+"""The type to store coordinate positions."""
 Nx3Array: TypeAlias = npt.NDArray[COORD_TYPE]
-"""An (N, 3) array of positions"""
+"""An (N, 3) array of positions."""
 
 
 class AtomGroup:
     """
-    positions: numpy array with shape (n, 3) of 3d positions of (n) atoms [[x, y, z], ...]
-    atom_type: type of the atoms
-    molecule_index (int): the molecule index which is needed for atom_style molecule
-    polymer_bond_type: if None -> no bonds, otherwise all atoms will form bonds as a polymer
+    Stores a list of atoms with the same :py:class:`AtomType`.
+
+    Also supports polymer bond and angle for convenience.
+     - If :py:attr:`polymer_bond_type` is None, no bonds are created.
+     - If :py:attr:`polymer_angle_type` is None, no angle interactions are created.
+
+    Attributes:
+        positions (Nx3Array): List of 3D atom positions (N, 3).
+        atom_type (AtomType): The atom type of all atoms in the group.
+        molecule_index (int): The molecule index of all atoms in the group (see also :py:func:`Generator.molecule_override`)
+        polymer_bond_type (BAI_Type | None): BAI.Kind == BAI.BOND, forms a polymer in the order of the :py:attr:`positions` list.
+        polymer_angle_type (BAI_Type | None): BAI.Kind == BAI.ANGLE, adds angle potentials along the polymer.
+        charge (float): The charge of all atoms in the group, used with atom style ``full``.
     """
 
     def __init__(
@@ -132,20 +233,38 @@ class AtomGroup:
 
     @property
     def n(self) -> int:
+        """Number of atoms in the group.
+
+        Returns the length of the positions array.
+
+        Returns:
+            Number of atoms.
+        """
         return len(self.positions)
 
 
 AtomIdentifier: TypeAlias = tuple[AtomGroup, int]
-"A unique identifier of an atom in a group"
+"A unique identifier of an atom in a group."
 
 
 class BAI:
     """
-    Represents a Bond/Angle/Improper interaction between a certain number of atoms
+    Represents a Bond/Angle/Improper interaction between a certain number of atoms.
+
+    See also :py:class:`PairWise` for interactions between types of atoms (e.g. Lennard-Jones).
     """
 
     def __init__(self, type_: BAI_Type, *atoms: AtomIdentifier) -> None:
-        """Length of atoms should be 2 for Bond, 3 for Angle, 4 for Improper"""
+        """Creates a Bond/Angle/Improper interaction between n atoms.
+
+        n depends on the BAI type:
+            - Bond: n = 2
+            - Angle: n = 3
+            - Imprper: n = 4
+
+        Args:
+            type_: The BAI type of the interaction.
+            atoms: List of n atoms."""
         self.type = type_
         self.atoms: list[AtomIdentifier] = list(atoms)
 
@@ -154,14 +273,13 @@ class PairWise:
     """
     Represents pair interactions between all atoms of two atoms ids.
 
-    header: string defining the interaction style, e.g. "PairIJ Coeffs # hybrid"
-    template: a string with empty formatters `{}` for the interaction parameters, e.g. "lj/cut {} {} {}"
-    default: a list of default parameters (used to fill out all interactions, since LAMMPS requires them
-                                           to all be explicitly defined)
+    Attributes:
+        header (str): Definition of the interaction style, e.g. ``'PairIJ Coeffs # hybrid'``.
+        template (str): Format string with empty formatters ``{}`` for the interaction parameters, e.g. ``'lj/cut {} {} {}'``.
+        default (list[Any] | None): List of default parameters. If ``None``, do not insert missing interactions. This is used to fill out all interactions, since LAMMPS requires them to all be explicitly defined.
     """
 
     def __init__(self, header: str, template: str, default: list[Any] | None) -> None:
-        """if default is None -> don't insert missing interactions"""
         self.header = header
         self.template = template
         self.default = default
@@ -170,7 +288,10 @@ class PairWise:
     def add_interaction(
         self, atom_type1: AtomType, atom_type2: AtomType, *args: Any, **kwargs: bool
     ) -> PairWise:
-        """Add an iteraction. Will sort the indices automatically."""
+        """Adds an iteraction.
+
+        Indices are sorted automatically, which is required by LAMMPS.
+        """
         try:
             ordered = sorted([atom_type1, atom_type2], key=lambda at: at.index)
         except AtomType.UnusedIndex as e:
@@ -184,10 +305,11 @@ class PairWise:
         return self
 
     def write(self, file: TextIO, atom_types: list[AtomType]) -> None:
-        """Write the Pair Coeffs header and all pair interactions to a file.
-        e.g.
-        PairIJ Coeffs
-        1 8 lj/cut 0.0 0.0 0.0
+        """Writes the Pair Coeffs header and all pair interactions to a file.
+
+        :Example:
+            PairIJ Coeffs
+            1 8 lj/cut 0.0 0.0 0.0
         """
         file.write(self.header)
         for atom_type1, atom_type2, text in self.get_all_interactions(atom_types):
@@ -197,7 +319,14 @@ class PairWise:
     def get_all_interaction_pairs(
         self, all_atom_types: list[AtomType]
     ) -> list[tuple[AtomType, AtomType]]:
-        """Returns all possible interactions, whether they are set by the user or not."""
+        """Returns all possible interactions, whether they are set by the user or not.
+
+        Args:
+            all_atom_types: List of all the atom types that exist in the simulation.
+
+        Returns:
+            List of interactions (t_1, t_2) with t_1 <= t_2.
+        """
         present_atom_types = set()
         for pair in self.pairs:
             present_atom_types.add(pair[0])
@@ -215,6 +344,15 @@ class PairWise:
         self,
         interaction: tuple[AtomType, AtomType],
     ) -> tuple[AtomType, AtomType, list[Any]] | None:
+        """Checks if an interaction is defined in :py:attr:`pairs`.
+
+        Args:
+            interaction: Interaction to look for.
+
+        Returns:
+            The pair as it is defined in :py:attr:`pairs` (may have opposite order),
+            or None if no pair was found.
+        """
         for pair in self.pairs:
             if interaction[0] == pair[0] and interaction[1] == pair[1]:
                 return pair
@@ -226,8 +364,16 @@ class PairWise:
     def get_all_interactions(
         self, all_atom_types: list[AtomType]
     ) -> list[tuple[AtomType, AtomType, str]]:
-        """Returns actual interactions to define,
-        applying the default where no interaction was specified by the user."""
+        """Returns actual interactions to define.
+
+        Applies the default where no interaction was specified by the user.
+
+        Args:
+            all_atom_types: List of all the atom types that exist in the simulation.
+
+        Returns:
+            List of (t_1, t_2, f) where t_1 <= t_2 and f is the formatted string.
+        """
         all_inters = self.get_all_interaction_pairs(all_atom_types)
 
         final_pairs: list[tuple[AtomType, AtomType, str]] = []
@@ -244,31 +390,54 @@ class PairWise:
 
 
 def write_if_non_zero(file: TextIO, fmt_string: str, amount: int):
+    """Writes an amount to a file only if it is not zero.
+
+    Args:
+        file: File to write to.
+        fmt_string: Format string with one empty formatter ``{}`` for the :py:attr:`amount`.
+        amount: The amount to write if non-zero.
+    """
     if amount != 0:
         file.write(fmt_string.format(amount))
 
 
 class Generator:
+    """
+    Generates the LAMMPS data files from the given simulation properties.
+    """
+
     def __init__(self) -> None:
         self._atom_groups: list[AtomGroup] = []
+        """List of atom groups in the simulation."""
         self.bais: list[BAI] = []
+        """List of Bond/Angle/Improper interactions in the simulation."""
         self.atom_group_map: list[int] = []
+        """Maps the index of an atom group to the global index offset for the LAMMPS atom indices.
+        Note! This is only defined **after** calling :py:func:`Generator.write_atoms`."""
         self.pair_interactions: list[PairWise] = []
+        """List of pair interactions in the simulation."""
         self.box_width = None
+        """Size of the simulation box (cube side length)."""
         self.molecule_override: dict[AtomIdentifier, int] = {}
+        """Individual molecule id overrides for atoms. Takes precedence over the :py:class:`AtomGroup` molecule id."""
         self.charge_override: dict[AtomIdentifier, float] = {}
+        """Individual charge value overrides for atoms. Takes precedence over the :py:class:`AtomGroup` charge value."""
         self.use_charges = False
+        """Whether to enable charges (atom_style 'full') or not (atom_style 'molecule')."""
         self.hybrid_styles = {
             BAI_Kind.BOND: "hybrid",
             BAI_Kind.ANGLE: "hybrid",
             BAI_Kind.IMPROPER: "hybrid",
         }
+        """Used when multiple styles are defined, default of 'hybrid' should work in most cases."""
         self.random_shift = lambda: np.array([0.0, 0.0, 0.0])
-        """Function that returns a random shift vector.
-        This is useful to avoid exact overlap, which causes LAMMPS to crash during kspace calculations (e.g. with pair_style coul)."""
+        """Function that returns a random shift vector. This is useful to avoid exact overlap, which causes LAMMPS to crash during kspace calculations (e.g. with pair_style coul)."""
 
     def add_atom_groups(self, *args: AtomGroup) -> None:
-        """Add new atom groups, atom groups with empty positions are ignored."""
+        """Adds new atom groups.
+
+        Atom groups with empty positions are ignored.
+        """
         for grp in args:
             if grp.positions.size == 0:
                 continue
@@ -276,36 +445,93 @@ class Generator:
             self._atom_groups.append(grp)
 
     def move_all_atoms(self, shift: Nx3Array) -> None:
-        """Move all atoms in a certain direction.
-        Useful to place the system at the center of the simulation box."""
+        """Moves all atoms in a certain direction.
+
+        Useful to place the system at the center of the simulation box.
+
+        Args:
+            shift: All atoms are shifted by this vector (1, 3).
+        """
         for grp in self._atom_groups:
             grp.positions += shift
 
     def set_system_size(self, box_width: float) -> None:
-        """Set the box size of the simulation."""
+        """Sets the box size of the simulation.
+
+        Note: box is cubic.
+
+        Args:
+            box_width: Width of box.
+
+        Raises:
+            ValueError: Received negative or zero :py:attr:`box_width`.
+        """
+        if box_width <= 0.0:
+            raise ValueError("box_width must be strictly positive.")
         self.box_width = box_width
 
     def get_total_atoms(self) -> int:
-        """Get the total number of atoms across all groups."""
+        """Returns the total number of atoms across all groups."""
         return sum(map(lambda atom_group: atom_group.n, self._atom_groups))
 
     def write_header(self, file: TextIO) -> None:
-        """Write the top header to a file.
+        """Writes the top header to a file.
+
         Note: LAMMPS always ignores the first line of a data file,
-        which should be this header."""
-        file.write("# LAMMPS data file\n")
+        which should be this header.
+
+        Args:
+            file: File to write to.
+        """
+        string = "# LAMMPS data file"
+        extra_info = ""
+
+        try:
+            from datetime import datetime
+
+            date = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            pass
+        else:
+            extra_info += f" - generated on {date}"
+
+        try:
+            from smc_lammps.run import get_version
+
+            version = get_version()
+            if version is None:
+                version_string = "unknown version"
+            else:
+                version_string = f"v{version}"
+        except Exception:
+            pass
+        else:
+            if not extra_info:
+                extra_info += " - generated"
+            extra_info += f" by smc-lammps ({version_string})"
+
+        file.write(string + extra_info + "\n")
 
     def get_all_atom_types(self) -> list[AtomType]:
-        """Get a list of all atom types across all atom groups.
-        The returned list is sorted based on the AtomType index."""
+        """Returns a list of all atom types across all atom groups.
+
+        Returns:
+            List of atom types, sorted by :py:attr:`AtomType.index`.
+        """
         atom_types: set[AtomType] = set()
         for atom_group in self._atom_groups:
             atom_types.add(atom_group.type)
         return sorted(atom_types, key=lambda atom_type: atom_type.index)
 
     def get_all_types(self, kind: BAI_Kind) -> list[BAI_Type]:
-        """Get a list of all Bond/Angle/Improper types across all atom groups.
-        The returned list is sorted based on the BAI_Type index."""
+        """Returns a list of all Bond/Angle/Improper types across all atom groups.
+
+        Args:
+            kind: BAI kind to filter by.
+
+        Returns:
+            List of BAI types of the given :py:attr:`kind`, sorted by :py:attr:`BAI_Type.index`.
+        """
         bai_types: set[BAI_Type] = set()
         for bai in filter(lambda bai: bai.type.kind == kind, self.bais):
             bai_types.add(bai.type)
@@ -317,15 +543,23 @@ class Generator:
         return sorted(bai_types, key=lambda bai_type: bai_type.index)
 
     def get_bai_dict_by_type(self) -> dict[BAI_Kind, list[BAI]]:
-        """Get a dictionary mapping the Bond/Angle/Improper kind
-        to a list of all BAIs which have that type."""
+        """Returns a dictionary mapping the Bond/Angle/Improper kind
+        to a list of all BAIs which have that type.
+
+        Returns:
+            Dictionary which maps kind to BAIs of that kind.
+        """
         bai_by_kind: dict[BAI_Kind, list[BAI]] = {kind: [] for kind in BAI_Kind}
         for bai in self.bais:
             bai_by_kind[bai.type.kind].append(bai)
         return bai_by_kind
 
     def get_amounts(self) -> tuple[int, int, int]:
-        """Return the total amount of bonds, angles, and impropers."""
+        """Returns the total amount of bonds, angles, and impropers.
+
+        Returns:
+            Tuple of (# bonds, # angles, # impropers)
+        """
         length_lookup = {key: len(value) for (key, value) in self.get_bai_dict_by_type().items()}
 
         total_bonds = length_lookup[BAI_Kind.BOND]
@@ -334,14 +568,18 @@ class Generator:
 
         for atom_group in self._atom_groups:
             if atom_group.polymer_bond_type is not None:
-                total_bonds += len(atom_group.positions) - 1
+                total_bonds += max(0, len(atom_group.positions) - 1)
             if atom_group.polymer_angle_type is not None:
-                total_angles += len(atom_group.positions) - 2
+                total_angles += max(0, len(atom_group.positions) - 2)
 
         return total_bonds, total_angles, total_impropers
 
     def write_amounts(self, file: TextIO) -> None:
-        """Write the amount of atoms, bonds, angles, and impropers to a file."""
+        """Writes the amount of atoms, bonds, angles, and impropers to a file.
+
+        Args:
+            file: File to write to.
+        """
         file.write(f"{self.get_total_atoms()} atoms\n")
 
         total_bonds, total_angles, total_impropers = self.get_amounts()
@@ -353,8 +591,11 @@ class Generator:
         file.write("\n")
 
     def write_types(self, file: TextIO) -> None:
-        """Write the amount of atom types, bond types, angle types, and improper types to a file."""
+        """Writes the amount of atom types, bond types, angle types, and improper types to a file.
 
+        Args:
+            file: File to write to.
+        """
         write_if_non_zero(file, "{} atom types\n", len(self.get_all_atom_types()))
         write_if_non_zero(file, "{} bond types\n", len(self.get_all_types(BAI_Kind.BOND)))
         write_if_non_zero(file, "{} angle types\n", len(self.get_all_types(BAI_Kind.ANGLE)))
@@ -363,7 +604,14 @@ class Generator:
         file.write("\n")
 
     def write_system_size(self, file: TextIO) -> None:
-        """Write the system size to a file."""
+        """Writes the system size to a file.
+
+        Args:
+            file: File to write to.
+
+        Raises:
+            TypeError: The :py:attr:`box_width` is None.
+        """
         file.write("# System size\n")
 
         if self.box_width is None:
@@ -377,7 +625,11 @@ class Generator:
         file.write("\n")
 
     def write_masses(self, file: TextIO) -> None:
-        """Write the masses of all atom types to a file."""
+        """Writes the masses of all atom types to a file.
+
+        Args:
+            file: File to write to.
+        """
         file.write("Masses\n\n")
         for atom_type in self.get_all_atom_types():
             file.write(f"{atom_type.index} {atom_type.mass}\n")
@@ -385,7 +637,11 @@ class Generator:
         file.write("\n")
 
     def get_all_BAI_styles(self) -> dict[BAI_Kind, list[str]]:
-        """Return a list of unique styles for each BAI kind."""
+        """Returns a list of unique styles for each BAI kind.
+
+        Returns:
+            Dictionary which maps each BAI kind to a list of unique styles.
+        """
 
         def get_unique_styles(bai_types: list[BAI_Type]) -> list[str]:
             return list(set(t.style for t in bai_types))
@@ -402,7 +658,11 @@ class Generator:
         return lookup[kind]
 
     def get_BAI_styles_command(self) -> str:
-        """Return the command to define the BAI styles in a LAMMPS script."""
+        """Returns the command to define the BAI styles in a LAMMPS script.
+
+        Returns:
+            LAMMPS command string.
+        """
         all_styles = self.get_all_BAI_styles()
 
         def extract_command(k: BAI_Kind) -> str:
@@ -416,7 +676,7 @@ class Generator:
         return "".join(strings)
 
     def get_hybrid_or_single_style(self) -> dict[BAI_Kind, str]:
-        """Return the style needed for the BAI Coeffs header."""
+        """Returns the style needed for the BAI Coeffs header."""
 
         def extract_style(k: BAI_Kind, styles: list[str]) -> str:
             if len(styles) == 1:
@@ -427,7 +687,7 @@ class Generator:
         return {k: extract_style(k, v) for k, v in all_styles.items()}
 
     def get_BAI_coeffs_header(self, kind: BAI_Kind) -> str:
-        """Get the header string corresponding to a Bond/Angle/Improper kind."""
+        """Returns the header string corresponding to a Bond/Angle/Improper kind."""
         lookup = {
             BAI_Kind.BOND: "Bond Coeffs # {}\n\n",
             BAI_Kind.ANGLE: "Angle Coeffs # {}\n\n",
@@ -438,7 +698,7 @@ class Generator:
         return lookup[kind]
 
     def write_BAI_coeffs(self, file: TextIO) -> None:
-        """Write the Bond/Angle/Improper coefficients for each BAI kind to a file."""
+        """Writes the Bond/Angle/Improper coefficients for each BAI kind to a file."""
         total_bonds, total_angles, total_impropers = self.get_amounts()
         lookup = {
             BAI_Kind.BOND: total_bonds,
@@ -460,14 +720,17 @@ class Generator:
             file.write("\n")
 
     def write_pair_interactions(self, file: TextIO) -> None:
-        """Write the Pair Coeffs header(s) and corresponding pair interactions to a file."""
+        """Writes the Pair Coeffs header(s) and corresponding pair interactions to a file."""
         all_atom_types = self.get_all_atom_types()
         for pair in self.pair_interactions:
             pair.write(file, all_atom_types)
 
     def get_atom_index(self, atom_id: AtomIdentifier) -> int:
-        """Get the absolute LAMMPS index for an atom.
-        You must call write_atoms before using this method."""
+        """Returns the absolute LAMMPS index for an atom.
+
+        .. Attention::
+            You must call :py:func:`write_atoms` before using this method.
+        """
         if not self.atom_group_map:
             raise AttributeError("write_atoms must be called first")
 
@@ -478,13 +741,18 @@ class Generator:
         return self.atom_group_map[index] + atom_id[1]
 
     def _set_up_atom_group_map(self) -> None:
+        """Sets the :py:attr:`atom_group_map` based on the current atom groups.
+
+        .. Attention::
+            The atom groups must not change after calling this function.
+        """
         index_offset = 1
         for atom_group in self._atom_groups:
             self.atom_group_map.append(index_offset)
             index_offset += len(atom_group.positions)
 
     def get_atom_style(self) -> str:
-        """Return the atom_style for LAMMPS (based on use_charges)."""
+        """Returns the atom_style for LAMMPS (based on :py:attr:`use_charges`)."""
         if self.use_charges:
             return "full"
         else:
@@ -514,7 +782,14 @@ class Generator:
                 )
 
     def write_atoms(self, file: TextIO) -> None:
-        """Write the Atoms header and all atom positions to a file."""
+        """Writes the Atoms header and all atom positions to a file.
+
+        .. Attention::
+            This calls :py:meth:`_set_up_atom_group_map`, read the note there.
+
+        Args:
+            file: File to write to.
+        """
         self.check_charges()
         file.write(self.get_atoms_header())
 
@@ -559,7 +834,7 @@ class Generator:
         return lookup[kind]
 
     def write_bai(self, file: TextIO) -> None:
-        """Write the Bond/Angle/Improper headers and all corresponding BAI interactions to a file."""
+        """Writes the Bond/Angle/Improper headers and all corresponding BAI interactions to a file."""
         total_bonds, total_angles, total_impropers = self.get_amounts()
         lookup = {
             BAI_Kind.BOND: total_bonds,
@@ -610,8 +885,10 @@ class Generator:
             file.write("\n")
 
     def write_coeffs(self, file: TextIO) -> None:
-        """Write the coefficient information to a file.
-        Useful when restarting a simulation."""
+        """Writes the coefficient information to a file.
+
+        Useful when restarting a simulation.
+        """
         self.write_header(file)
         self.write_types(file)
         file.write("\n")
@@ -620,7 +897,7 @@ class Generator:
         self.write_pair_interactions(file)
 
     def write_positions_and_bonds(self, file: TextIO) -> None:
-        """Write the positions and bonds to a file."""
+        """Writes the positions and bonds to a file."""
         self.write_header(file)
         self.write_amounts(file)
         self.write_types(file)
@@ -630,7 +907,7 @@ class Generator:
         self.write_bai(file)
 
     def write_full(self, file: TextIO) -> None:
-        """Write a full LAMMPS data file."""
+        """Writes a full LAMMPS data file."""
         self.write_header(file)
         self.write_amounts(file)
         self.write_types(file)
@@ -643,8 +920,10 @@ class Generator:
         self.write_bai(file)
 
     class DynamicCoeffs:
-        """Handles coefficients dynamically set within a LAMMPS script
-        using pair_coeff, bond_coeff, angle_coeff, and improper_coeff commands."""
+        """
+        Handles coefficients dynamically set within a LAMMPS script
+        using pair_coeff, bond_coeff, angle_coeff, and improper_coeff commands.
+        """
 
         def __init__(self, coeff_string: str, args: BAI_Type | list[AtomType]) -> None:
             self.coeff_string = coeff_string
@@ -652,7 +931,7 @@ class Generator:
 
         @staticmethod
         def get_script_bai_command_name(pair_or_BAI: BAI_Kind | None) -> str:
-            """Get the command name for a pair / BAI interaction.
+            """Returns the command name for a pair / BAI interaction.
             Used to redefine coefficients within a LAMMPS script."""
             name_dict = {
                 None: "pair_coeff",
@@ -685,7 +964,7 @@ class Generator:
             return cls(coeff_string, [type1, type2])
 
         def write_script_bai_coeffs(self, file: TextIO) -> None:
-            """Write a LAMMPS command for a pair / BAI interaction to a file."""
+            """Writes a LAMMPS command for a pair / BAI interaction to a file."""
             if isinstance(self.args, BAI_Type):
                 cmd_name = self.get_script_bai_command_name(self.args.kind)
                 format_args = [str(self.args.index)]

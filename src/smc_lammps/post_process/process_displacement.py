@@ -1,20 +1,23 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 # post-processing to find the movement of the SMC relative to the DNA
 
 from __future__ import annotations
 
+import pickle
 from copy import deepcopy
 from pathlib import Path
 from sys import argv
-from typing import Any, Sequence, TypeAlias
+from typing import Any, Sequence
 
 import numpy as np
 
 from smc_lammps.console import warn
 from smc_lammps.generate.generator import COORD_TYPE, Nx3Array
 from smc_lammps.generate.util import get_parameters
+from smc_lammps.post_process.types import ID_TAG_PAIR
 from smc_lammps.post_process.util import (
+    get_indices_array,
     get_moving_average,
     get_post_processing_parameters,
     get_scaling,
@@ -110,9 +113,6 @@ def remove_outside_planar_n_gon(
         side_plane = Plane(point1 - delta_extended_plane * normal_to_side, normal_to_side)
         # INSIDE of plane points out of the shape
         data.delete_side_of_plane(side_plane, Plane.Side.INSIDE)
-
-
-ID_TAG_PAIR: TypeAlias = tuple[int, str]
 
 
 def handle_dna_bead(
@@ -294,6 +294,7 @@ def create_files(
     steps: list[int],
     indices_array: list[list[ID_TYPE]],
     positions_array: list[list[Nx3Array]],
+    id_tag_pairs_array: list[list[list[ID_TAG_PAIR]]],
 ) -> None:
     # delete old files
     for p in path.glob("marked_bead*.lammpstrj"):
@@ -308,11 +309,15 @@ def create_files(
     for i, indices in enumerate(indices_array):
         np.savez(path / f"bead_indices{i}.npz", steps=steps, ids=indices)
 
+    for i, tags in enumerate(id_tag_pairs_array):
+        with open(path / f"idtags{i}.pickle", "wb") as handle:
+            pickle.dump(tags, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 def create_plot(
     path: Path,
     steps: list[int],
-    indices_array: list[list[ID_TYPE]],
+    indices_array: Sequence[list[ID_TYPE]],
     save_to: Path = Path("bead_id_in_time.svg"),
     use_real_units: bool = True,
     plot_cycle: bool = False,
@@ -427,9 +432,17 @@ def main(argv: list[str]):
     if len(argv) > 1:
         args.append(Path(argv[1]))
 
-    steps, indices_array, positions_array, _ = get_best_match_dna_bead_in_smc(path, *args)
-    create_files(path, steps, indices_array, positions_array)
-    create_plot(path, steps, indices_array, plot_cycle=True, moving_average=5)
+    steps, indices_array, positions_array, id_tag_pairs_array = get_best_match_dna_bead_in_smc(
+        path, *args
+    )
+    create_files(path, steps, indices_array, positions_array, id_tag_pairs_array)
+    create_plot(
+        path,
+        steps,
+        [list(x) for x in get_indices_array(id_tag_pairs_array)],
+        plot_cycle=True,
+        moving_average=5,
+    )
     get_msd_obstacle(path)
 
 

@@ -21,7 +21,7 @@ pip install smc-lammps
 ```sh
 git clone https://github.com/LucasDooms/SMC_LAMMPS.git
 cd SMC_LAMMPS
-uv sync
+uv sync --no-dev
 # alternatively, to include optional dependencies
 uv sync --all-groups
 source .venv/bin/activate
@@ -34,6 +34,9 @@ git clone https://github.com/LucasDooms/SMC_LAMMPS.git
 cd SMC_LAMMPS
 python3 -m venv .venv
 source .venv/bin/activate
+# get exact versions (recommended)
+pip install -r requirements.txt
+# or, install from pyproject.toml file
 pip install -e .
 ```
 
@@ -99,6 +102,45 @@ To get shell completion when using `smc-lammps` on the command-line run the foll
  - For bash or zsh, use `eval "$(register-python-argcomplete smc-lammps)"`
  - For fish, use `register-python-argcomplete --shell fish smc-lammps | source`
 
+## Development
+
+Enable dev dependencies
+```bash
+uv sync --dev
+```
+
+### Tests
+
+Run all tests using
+```bash
+pytest
+```
+
+### Documentation
+
+#### Build
+
+Build the documentation using
+```bash
+make -C docs html
+```
+(or `sphinx-build -b html docs/source docs/build/html`)
+
+Now open `docs/build/html/index.html` in a browser or use `python -m http.server -d docs/build/html` and browse to `http://localhost:8000`.
+
+#### Autobuild
+
+To view new changes made to the documentation automatically, you can use `sphinx-autobuild`
+```bash
+sphinx-autobuild -b html --watch src/smc_lammps docs/source docs/build/html
+```
+
+#### Doctests
+
+Run the doctests using
+```bash
+make -C docs doctest
+```
 
 ## Authors
 

@@ -15,25 +15,24 @@ def timer(func):
 
 def get_timer_accumulator(cache):
     """
-    Usage:
-        ```python
-            # create a global cache
-            cache = dict()
-            timer_accumulator = get_timer_accumulator(cache)
-
-            @timer_accumulator
-            def my_func()
-                ...
-            end
-
-            # call your function
-            for _ in range(1000):
-                my_func()
-            end
-
-            # show time spent per function
-            print(cache)
-        ```
+    :Usage:
+        >>> from smc_lammps.reader.util import get_timer_accumulator
+        >>> # create a global cache
+        >>> cache = {}
+        >>> timer_accumulator = get_timer_accumulator(cache)
+        >>>
+        >>> @timer_accumulator
+        ... def my_func():
+        ...     # do stuff here
+        ...     pass
+        ...
+        >>> # call your function
+        >>> for _ in range(1000):
+        ...    my_func()
+        >>>
+        >>> # each element shows the time spent per function
+        >>> print(len(cache))
+        1
     """
 
     def timer_accumulator(func):

@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 # File containing different initial DNA configurations
 
@@ -688,11 +688,29 @@ class DnaConfiguration:
                 (bond, [(strand_index, dna_id), (bead, 0)]),
             ]
             if angle is not None:
-                bais += [
-                    (angle, [(strand_index, dna_id - 2), (strand_index, dna_id - 1), (bead, 0)]),
-                    (angle, [(strand_index, dna_id - 1), (bead, 0), (strand_index, dna_id)]),
-                    (angle, [(bead, 0), (strand_index, dna_id), (strand_index, dna_id + 1)]),
-                ]
+                left_angle = (
+                    angle,
+                    [(strand_index, dna_id - 2), (strand_index, dna_id - 1), (bead, 0)],
+                )
+                middle_angle = (
+                    angle,
+                    [(strand_index, dna_id - 1), (bead, 0), (strand_index, dna_id)],
+                )
+                right_angle = (
+                    angle,
+                    [(bead, 0), (strand_index, dna_id), (strand_index, dna_id + 1)],
+                )
+
+                if dna_id > 1:
+                    bais.append(left_angle)
+
+                # NOTE: This requires dna_id > 0, which should be the case
+                # since the polymer.split() call above throws an error if dna_id == 0.
+                assert dna_id > 0
+                bais.append(middle_angle)
+
+                if dna_id < self.dna_strands[strand_index].full_list_length() - 1:
+                    bais.append(right_angle)
 
             # move to correct distances
             bead.positions[0, 0] += bead_size
@@ -1024,7 +1042,7 @@ class Obstacle(DnaConfiguration):
             (0, dna_bead_to_tether_id),
             25,
             dna_parameters.DNA_bond_length,
-            dna_parameters.DNA_mass,
+            dna_parameters.DNA_mass / 2.0,
             dna_parameters.bond,
             dna_parameters.ssangle,
             Tether.Obstacle(),
@@ -1149,7 +1167,7 @@ class ObstacleSafety(DnaConfiguration):
             (0, dna_bead_to_tether_id),
             35,
             dna_parameters.DNA_bond_length,
-            dna_parameters.DNA_mass,
+            dna_parameters.DNA_mass / 2.0,
             dna_parameters.bond,
             dna_parameters.ssangle,
             Tether.Obstacle(),
@@ -1228,7 +1246,7 @@ class AdvancedObstacleSafety(DnaConfiguration):
             (0, dna_bead_to_tether_id),
             35,
             dna_parameters.DNA_bond_length,
-            dna_parameters.DNA_mass,
+            dna_parameters.DNA_mass / 2.0,
             dna_parameters.bond,
             dna_parameters.ssangle,
             Tether.Obstacle(),

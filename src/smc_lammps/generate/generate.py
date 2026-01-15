@@ -1,6 +1,6 @@
 # Copyright (c) 2021 Stefanos Nomidis
 # Copyright (c) 2022 Arwin Goossens
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 import math
 from pathlib import Path
@@ -148,15 +148,6 @@ DNA_total_length = DNA_bond_length * nDNA
 # Equal to R:   Minimum diameter = sqrt(3)    = 1.73 R
 # Equal to R/2: Minimum diameter = sqrt(15)/2 = 1.94 R
 SMC_spacing = par.sigma_SMC_DNA / 2
-
-
-##################
-# Simulation box #
-##################
-
-
-# Width of cubic simulation box (nm)
-box_width = 4 * DNA_total_length
 
 
 ################################## Interactions #################################
@@ -327,7 +318,6 @@ mSMC = smc_creator.get_mass_per_atom(SMC_total_mass)
 
 # SET UP DATAFILE GENERATOR
 gen = Generator()
-gen.set_system_size(box_width)
 gen.use_charges = par.use_charges
 if gen.use_charges:
     # prevents inf/nan in coul calculations
@@ -372,6 +362,12 @@ smc_1 = SMC(
 
 dna_config.set_smc(smc_1)
 
+# lock the SMC position relative to the DNA polymer
+closest_id = get_closest(dna_config.dna_strands[0].full_list(), smc_positions.r_lower_site[1])
+dna_config.dna_strands[0].add_tagged_atom_groups(
+    dna_config.dna_strands[0].get_id_from_list_index(closest_id), *smc_1.get_groups()
+)
+
 extra_mols_smc: list[int] = []
 extra_mols_dna: list[int] = []
 
@@ -401,7 +397,11 @@ if par.add_RNA_polymerase:
 
 spaced_beads: list[AtomIdentifier] = []
 if par.spaced_beads_interval is not None:
-    spaced_bead_type = AtomType(DNA_bead_mass)
+    # get mass based on size
+    # (0.22 = arbitrary factor chosen to approximate nucleosome mass at 5.5 nm radius)
+    spaced_bead_type = AtomType(
+        0.22 * DNA_bead_mass * (2.0 * par.spaced_beads_size / DNA_bond_length) ** 3
+    )
 
     # get spacing
     start_id = par.spaced_beads_interval
@@ -422,11 +422,16 @@ if par.spaced_beads_interval is not None:
         mol_spaced_bead = MoleculeId.get_next()
         if par.spaced_beads_type == 0:
             extra_mols_dna.append(mol_spaced_bead)
+            # use the same bond strength for now
+            k_bond_spaced_bead = k_bond_DNA
             bead_dna_bond = BAI_Type(
                 BAI_Kind.BOND,
                 "fene/expand",
-                f"{k_bond_DNA} {par.spaced_beads_size} {0.0} {0.0} {par.spaced_beads_size}\n",
+                f"{k_bond_spaced_bead} {par.spaced_beads_size} {0.0} {0.0} {par.spaced_beads_size}\n",
             )
+
+            k_angle_spaced_bead = DNA_persistence_length * kBT / par.spaced_beads_size
+            spaced_bead_angle = BAI_Type(BAI_Kind.ANGLE, "cosine", f"{k_angle_spaced_bead}\n")
             spaced_beads.append(
                 dna_config.add_bead_to_dna(
                     spaced_bead_type,
@@ -434,7 +439,7 @@ if par.spaced_beads_interval is not None:
                     0,
                     st_dna_id,
                     bead_dna_bond,
-                    dna_angle,
+                    spaced_bead_angle,
                     par.spaced_beads_size,
                 )
             )
@@ -605,8 +610,15 @@ if isinstance(dna_config, (dna.ObstacleSafety, dna.AdvancedObstacleSafety, dna.S
 all_dna_atoms = []
 for strand in dna_config.dna_strands:
     all_dna_atoms += [grp.positions for grp in strand.atom_groups]
-center = np.average(np.concat(all_dna_atoms, axis=0), axis=0)
+
+positions = np.concatenate(all_dna_atoms, axis=0)
+center = np.average(positions, axis=0)
+
 gen.move_all_atoms(-center)
+
+# compare to origin (which is now the center) to find furthest distance
+max_distance = np.max(np.abs(positions))
+gen.set_system_size(2 * max_distance)
 
 lammps_path = path / "lammps"
 lammps_path.mkdir(exist_ok=True)

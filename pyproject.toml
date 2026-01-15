@@ -1,6 +1,6 @@
 [project]
 name = "smc-lammps"
-version = "0.2.0"
+version = "0.2.1"
 description = "Simulate DNA loop extrusion by SMCs using LAMMPS"
 readme = "README.md"
 license = "MIT"
@@ -39,13 +39,75 @@ smc-lammps = "smc_lammps:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.tox]
+requires = ["tox>=4.33"]
+env_list = ["3.14t", "3.14", "3.13", "docs", "doctest", "linkcheck"]
+
+[tool.tox.env_run_base]
+description = "Run test under {base_python}"
+commands = [["pytest"]]
+allowlist_externals = ["pytest"]
+
+[tool.tox.env.docs]
+description = "Build sphinx html documentation"
+dependency_groups = [
+    "docs"
+]
+commands = [
+    ["sphinx-build", "-W", "-b", "html", "-d", "{envtmpdir}/doctree", "docs/source", "{envtmpdir}/build/html"]
+]
+allowlist_externals = ["sphinx-build"]
+
+[tool.tox.env.doctest]
+description = "Run sphinx doctests"
+dependency_groups = [
+    "docs"
+]
+commands = [
+    ["sphinx-build", "-W", "-b", "doctest", "-d", "{envtmpdir}/doctree", "docs/source", "{envtmpdir}/build/doctest"]
+]
+allowlist_externals = ["sphinx-build"]
+
+[tool.tox.env.linkcheck]
+description = "Run sphinx linkcheck"
+dependency_groups = [
+    "docs"
+]
+commands = [
+    ["sphinx-build", "-W", "-b", "linkcheck", "-d", "{envtmpdir}/doctree", "docs/source", "{envtmpdir}/build/linkcheck"]
+]
+allowlist_externals = ["sphinx-build"]
+
+[tool.pytest]
+minversion = "9.0"
+addopts = ["-ra", "-q", "--import-mode=importlib"]
+testpaths = [
+    "tests",
+]
+strict = "true"
+
 [dependency-groups]
 dev = [
   {include-group = "lint"},
+  {include-group = "test"},
+  {include-group = "docs"},
+  {include-group = "docs-extra"},
+  "tox-uv>=1.29.0",
 ]
 lint = [
     "ruff>=0.13.1",
 ]
+test = [
+    "pytest>=9.0.2",
+]
+docs = [
+    "furo>=2025.12.19",
+    "sphinx>=9.1.0",
+]
+docs-extra = [
+    "sphinx-autobuild>=2025.8.25",
+]
 analysis = [
+    "ipympl>=0.9.8",
     "notebook>=7.4.5",
 ]

@@ -14,6 +14,10 @@ class Polymer:
         self.tagged_atoms: dict[
             int, list[AtomIdentifier]
         ] = {}  # maps an absolute index in the polymer to a list of tagged atoms
+        # atom groups that should move whenever the polymer is moved
+        self.tagged_atom_groups: dict[
+            int, list[AtomGroup]
+        ] = {}  # maps an absolute index in the polymer to a list of tagged atom groups
         self.add(*atom_groups)
 
     def add(self, *atom_groups: AtomGroup) -> None:
@@ -24,6 +28,12 @@ class Polymer:
         if id not in self.tagged_atoms:
             self.tagged_atoms[id] = []
         self.tagged_atoms[id] += list(atom_ids)
+
+    def add_tagged_atom_groups(self, polymer_atom: AtomIdentifier, *atom_groups: AtomGroup) -> None:
+        id = self.get_absolute_index(polymer_atom)
+        if id not in self.tagged_atom_groups:
+            self.tagged_atom_groups[id] = []
+        self.tagged_atom_groups[id] += list(atom_groups)
 
     def split(self, split: AtomIdentifier) -> tuple[AtomGroup, AtomGroup]:
         """split the polymer in two pieces, with the split atom id part of the second group.
@@ -83,6 +93,10 @@ class Polymer:
                 if rng.start <= id - start_id < rng.stop:
                     for atom_id in self.tagged_atoms[id]:
                         atom_id[0].positions[atom_id[1]] += shift
+            for id in self.tagged_atom_groups:
+                if rng.start <= id - start_id < rng.stop:
+                    for atom_group in self.tagged_atom_groups[id]:
+                        atom_group.positions += shift
 
         for grp in remaining:
             if last_index < len(grp.positions):

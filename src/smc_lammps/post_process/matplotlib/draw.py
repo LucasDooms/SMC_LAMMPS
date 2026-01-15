@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Lucas Dooms
+# Copyright (c) 2025-2026 Lucas Dooms
 
 from functools import partial
 from pathlib import Path
@@ -20,7 +20,7 @@ from smc_lammps.reader.lammps_data import ID_TYPE
 def get_runtime_lines(
     ax: Axes,
     path: Path,
-    indices_array: list[list[ID_TYPE]],
+    indices_array: Sequence[list[ID_TYPE]],
     tscale: float = 1.0,
     iscale: float = 1.0,
     cut_at_axes: bool = True,
@@ -100,6 +100,7 @@ def get_colored_axis_segments(
     ends: Sequence[float],
     line_width=3.0,
     zorder=0.5,
+    y_offset=5.0,
 ) -> LineCollection:
     if not (len(colors) == len(starts) == len(ends)):
         raise ValueError(
@@ -108,7 +109,7 @@ def get_colored_axis_segments(
 
     segments: list[list[tuple[float, float]]] = []
     for start, end in zip(starts, ends):
-        segments.append([(start, 5.0), (end, 5.0)])
+        segments.append([(start, y_offset), (end, y_offset)])
 
     lc = LineCollection(
         segments,

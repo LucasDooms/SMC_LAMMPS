@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 import math
 from dataclasses import dataclass, fields
@@ -17,17 +17,35 @@ from smc_lammps.generate.structures.structure_creator import (
 
 @dataclass
 class SMC_Pos:
+    """
+    Stores all the positions of the beads of an SMC.
+
+    .. Note::
+        Unused segments are stored as empty arrays.
+    """
+
     r_arm_dl: Nx3Array
+    """Lower left arm."""
     r_arm_ul: Nx3Array
+    """Upper right arm."""
     r_arm_ur: Nx3Array
+    """Lower right arm."""
     r_arm_dr: Nx3Array
+    """Lower left arm."""
     r_ATP: Nx3Array
+    """ATP bridge."""
     r_kleisin: Nx3Array
+    """Kleisin ring."""
     r_upper_site: Nx3Array
+    """TODO"""
     r_middle_site: Nx3Array
+    """TODO"""
     r_lower_site: Nx3Array
+    """TODO"""
     r_hinge: Nx3Array
+    """TODO"""
     r_side_site: Nx3Array
+    """TODO"""
 
     def iter(self) -> list[Any]:
         """Returns a list of all fields"""
@@ -45,40 +63,67 @@ class SMC_Pos:
 
 @dataclass
 class SMC_Creator:
-    """Computes the positions of all SMC beads"""
+    """
+    Generates the positions of all SMC beads.
+
+    The final SMC is oriented towards the ``+x`` direction (movement direction),
+    is oriented in the ``+y`` direction the bottom-to-top (Kleisin to hinge).
+    The ``z`` direction is symmetric.
+
+    The interactions are added in :py:class:`smc_lammps.generate.structures.smc.smc.SMC`.
+    """
 
     SMC_spacing: float
+    """The spacing between coarse-grained beads (nm)."""
 
-    # Horizontal distance between top binding sites (units bead spacing)
     upper_site_h: float
-    # Vertical distance of top binding sites from hinge (units of bead spacing)
+    """Horizontal distance between top binding sites (units bead spacing)."""
     upper_site_v: float
-    # Horizontal distance between middle binding sites (units bead spacing)
+    """Vertical distance of top binding sites from hinge (units of bead spacing)."""
     middle_site_h: float
-    # Vertical distance of middle binding sites from bridge (units of bead spacing)
+    """Horizontal distance between middle binding sites (units bead spacing)."""
     middle_site_v: float
-    # Horizontal distance between bottom binding sites (units bead spacing)
+    """Vertical distance of middle binding sites from bridge (units of bead spacing)."""
     lower_site_h: float
-    # Distance of bottom binding sites from kleisin (units of bead spacing)
+    """Horizontal distance between bottom binding sites (units bead spacing)."""
     lower_site_v: float
+    """Distance of bottom binding sites from kleisin (units of bead spacing)."""
 
     arm_length: float
+    """Length of one SMC arm (nm). This includes both (lower and upper) segments connected by the elbow."""
     bridge_width: float
+    """Width of the ATP bridge, which is the distance between the bottom-most arm beads (nm)."""
     use_toroidal_hinge: bool
+    """Whether to use the toroidal hinge or the normal hinge.
+    The toroidal hinge is used for tethered obstacle bypass."""
     # Not used if use_toroidal_hinge = False
     hinge_radius: float
     hinge_opening: float
 
     add_side_site: bool
+    """Whether to add an additional binding site on the lower right arm or not.
+    This is used for strand swapping."""
 
     kleisin_radius: float
+    """The radius of the (semi-circular) Kleisin (nm)."""
 
     folding_angle_APO: float
+    """The angle between the arms and Kleisin in the APO state (degrees)."""
 
     seed: int = 5894302289572
+    """A random seed.
+    This is used when applying random shifts between the different segments to prevent exact overlap which can cause issues in LAMMPS."""
     small_noise: float = 1e-5
+    """Amount to shift overlapping segments by (units of bead spacing). See :py:attr:`seed` for more information."""
 
     def get_arms(self) -> tuple[Nx3Array, Nx3Array, Nx3Array, Nx3Array]:
+        """Generates the positions of the two arms in four segments.
+
+        Each of the two arms is split between the upper (``u``, between elbow and hinge), and the lower (``d``, between ATP bridge and elbow) segments. This makes 4 total segments, which are all straight lines.
+
+        Returns:
+            Tuple of (lower left `dl`, upper left `ul`, upper right `ur`, lower right `dr`).
+        """
         # Number of beads forming each arm segment (err on the high side)
         n_arm_segments = math.ceil(self.arm_length / (2 * self.SMC_spacing))
 
@@ -114,6 +159,13 @@ class SMC_Creator:
         return r_arm_dl, r_arm_ul, r_arm_ur, r_arm_dr
 
     def get_bridge(self) -> Nx3Array:
+        """Generates the positions of the ATP bridge.
+
+        The bridge is a single straight segment.
+
+        Returns:
+            Positions of the bridge.
+        """
         # Number of beads forming the ATP ring (err on the high side)
         n_ATP = math.ceil(self.bridge_width / self.SMC_spacing)
 
@@ -133,13 +185,22 @@ class SMC_Creator:
         return r_ATP
 
     def get_heads_kleisin(self) -> Nx3Array:
-        # Circle-arc radius
-        # radius = (self.HKradius**2 + (self.bridgeWidth / 2.0)**2) / (2.0 * self.HKradius)
+        """Generates the positions of the Kleisin compartment.
+
+        The Kleisin is a segment of a circle, with a cut-out at the bridge location.
+
+        Returns:
+            Positions of the Kleisin ring.
+
+        Raises:
+            ValueError: The kleisin radius is incompatible with the bridge width.
+        """
+        # circle-arc radius
         bridge_radius = self.bridge_width / 2.0
         radius = self.kleisin_radius
         if radius < bridge_radius:
             raise ValueError(
-                f"The kleisin radius ({radius}) is too small (< {bridge_radius}) based on the bridgeWidth {self.bridge_width}"
+                f"The kleisin radius ({radius}) is too small (< {bridge_radius}) based on the bridge_width {self.bridge_width}"
             )
 
         # from the y-axis
@@ -180,7 +241,20 @@ class SMC_Creator:
         inner_spacing: float,
         outer_spacing: float,
     ) -> Nx3Array:
-        """create a line of beads surrounded by a protective shell/shield"""
+        """Generates a line of beads surrounded by a protective shell/shield.
+
+        This is used to allow binding from a specific direction,
+        where the inner beads are attractive and the outer beads repulsive.
+
+        Args:
+            n_inner_beads: Number of inner beads to generate.
+            n_outer_beads_per_inner_bead: Number of outer beads surrounding each inner bead in the main shell.
+            inner_spacing: The distance between neighboring inner beads.
+            outer_spacing: The distance between an inner bead and the nearest outer beads surrounding it.
+
+        Returns:
+            Positions of the beads in order of (inner beads, shell beads, shell left, shell right).
+        """
         axis = np.array([1, 0, 0])
         # Inner/Attractive beads
         inner_beads = get_straight_segment(n_inner_beads, direction=axis) * inner_spacing
@@ -211,6 +285,15 @@ class SMC_Creator:
 
     @staticmethod
     def transpose_rotate_transpose(rotation, *arrays: Nx3Array) -> tuple[Nx3Array, ...]:
+        """Rotates the points in an (N, 3) array.
+
+        Args:
+            rotation : Rotation matrix.
+            arrays: Arrays to apply rotation to.
+
+        Returns:
+            Arrays of rotated 3D points.
+        """
         return tuple(rotation.dot(arr.transpose()).transpose() for arr in arrays)
 
     def get_interaction_sites(
@@ -415,4 +498,12 @@ class SMC_Creator:
         return self.generated_positions
 
     def get_mass_per_atom(self, total_mass: float) -> float:
+        """Returns the mass that should be assigned to each atom.
+
+        Args:
+            total_mass: The total mass of the SMC.
+
+        Returns:
+            Mass of one bead.
+        """
         return total_mass / sum(self.generated_positions.map(len))
