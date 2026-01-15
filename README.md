@@ -21,7 +21,7 @@ pip install smc-lammps
 ```sh
 git clone https://github.com/LucasDooms/SMC_LAMMPS.git
 cd SMC_LAMMPS
-uv sync
+uv sync --no-dev
 # alternatively, to include optional dependencies
 uv sync --all-groups
 source .venv/bin/activate
@@ -34,6 +34,9 @@ git clone https://github.com/LucasDooms/SMC_LAMMPS.git
 cd SMC_LAMMPS
 python3 -m venv .venv
 source .venv/bin/activate
+# get exact versions (recommended)
+pip install -r requirements.txt
+# or, install from pyproject.toml file
 pip install -e .
 ```
 
