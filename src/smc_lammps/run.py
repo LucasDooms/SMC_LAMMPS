@@ -1004,7 +1004,7 @@ def parse(argv: list[str]) -> Namespace:
 def main():
     """The entry point for the smc-lammps cli.
 
-    Use `smc-lammps -h` for help.
+    Use ``smc-lammps -h`` for help.
 
     See :py:func:`smc_lammps.run.get_parser` for the parser definition.
     """

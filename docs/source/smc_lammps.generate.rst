@@ -34,6 +34,8 @@ smc\_lammps.generate.generator module
    :show-inheritance:
    :undoc-members:
 
+.. autofunction:: smc_lammps.generate.generator.Generator._set_up_atom_group_map
+
 smc\_lammps.generate.parameters\_template module
 ------------------------------------------------
 

@@ -728,7 +728,7 @@ class Generator:
     def get_atom_index(self, atom_id: AtomIdentifier) -> int:
         """Returns the absolute LAMMPS index for an atom.
 
-        .. :Attention:
+        .. Attention::
             You must call :py:func:`write_atoms` before using this method.
         """
         if not self.atom_group_map:
@@ -743,7 +743,7 @@ class Generator:
     def _set_up_atom_group_map(self) -> None:
         """Sets the :py:attr:`atom_group_map` based on the current atom groups.
 
-        .. :Attention:
+        .. Attention::
             The atom groups must not change after calling this function.
         """
         index_offset = 1
@@ -782,7 +782,14 @@ class Generator:
                 )
 
     def write_atoms(self, file: TextIO) -> None:
-        """Writes the Atoms header and all atom positions to a file."""
+        """Writes the Atoms header and all atom positions to a file.
+
+        .. Attention::
+            This calls :py:meth:`_set_up_atom_group_map`, read the note there.
+
+        Args:
+            file: File to write to.
+        """
         self.check_charges()
         file.write(self.get_atoms_header())
 
