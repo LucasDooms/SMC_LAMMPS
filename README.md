@@ -125,6 +125,13 @@ make -C docs html
 
 Now open `docs/build/html/index.html` in a browser or use `python -m http.server -d docs/build/html` and browse to `http://localhost:8000`.
 
+#### Autobuild
+
+To view new changes made to the documentation automatically, you can use `sphinx-autobuild`
+```bash
+sphinx-autobuild -b html --watch src/smc_lammps docs/source docs/build/html
+```
+
 #### Doctests
 
 Run the doctests using

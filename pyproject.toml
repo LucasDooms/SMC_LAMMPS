@@ -91,6 +91,7 @@ dev = [
   {include-group = "lint"},
   {include-group = "test"},
   {include-group = "docs"},
+  {include-group = "docs-extra"},
   "tox-uv>=1.29.0",
 ]
 lint = [
@@ -102,6 +103,9 @@ test = [
 docs = [
     "furo>=2025.12.19",
     "sphinx>=9.1.0",
+]
+docs-extra = [
+    "sphinx-autobuild>=2025.8.25",
 ]
 analysis = [
     "ipympl>=0.9.8",
