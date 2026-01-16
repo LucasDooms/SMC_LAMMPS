@@ -33,7 +33,7 @@ from smc_lammps.generate.lammps.util import atomIds_to_LAMMPS_ids
 from smc_lammps.generate.structures.dna import dna
 from smc_lammps.generate.structures.smc.smc import SMC
 from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator
-from smc_lammps.generate.util import create_phase_wrapper, get_closest, get_parameters
+from smc_lammps.generate.util import create_phase_wrapper, get_closest, load_parameters
 
 
 def parse_inputs(argv: list[str]) -> tuple[Path, Parameters]:
@@ -44,11 +44,7 @@ def parse_inputs(argv: list[str]) -> tuple[Path, Parameters]:
     if not path.exists():
         raise ValueError(f"Path '{path}' not found!")
 
-    path_parameters = path / "parameters.py"
-    if not path_parameters.exists():
-        raise ValueError(f"Could not find parameters.py: {path_parameters}")
-
-    par = get_parameters(path_parameters)
+    par = load_parameters(path)
 
     # change seed if arg 2 provided
     if len(argv) > 2:
