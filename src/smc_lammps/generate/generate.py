@@ -5,6 +5,7 @@
 import math
 from pathlib import Path
 from sys import argv
+from typing import Any
 
 import numpy as np
 from numpy.random import default_rng
@@ -773,29 +774,36 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
 #################################################################################
 
 
-def get_variables_for_lammps() -> list[str]:
-    """returns variable names that are needed in LAMMPS script"""
-    return [
-        "T",
-        "gamma",
-        "seed",
-        "output_steps",
-        "epsilon3",
-        "sigma",
-        "timestep",
-        "smc_force",
-        "site_cycle_period",
-        "site_toggle_delay",
-        "site_cycle_when",
-    ]
+def get_variables_for_lammps(parameters: Parameters) -> dict[str, Any]:
+    """Returns the variable names and values that are needed in the LAMMPS script.
+
+    Args:
+        parameters: Input parameters.
+
+    Returns:
+        Dictionary mapping a variable name for LAMMPS to the (python) value.
+    """
+    return {
+        "T": parameters.T,
+        "gamma": parameters.gamma,
+        "seed": parameters.seed,
+        "output_steps": parameters.output_steps,
+        "epsilon3": parameters.epsilon3,
+        "sigma": parameters.sigma,
+        "timestep": parameters.timestep,
+        "smc_force": parameters.smc_force,
+        "site_cycle_period": parameters.site_cycle_period,
+        "site_toggle_delay": parameters.site_toggle_delay,
+        "site_cycle_when": parameters.site_cycle_when,
+    }
 
 
 with open(lammps_path / "parameterfile", "w", encoding="utf-8") as parameterfile:
     parameterfile.write("# LAMMPS parameter file\n\n")
 
-    params = get_variables_for_lammps()
+    params = get_variables_for_lammps(par)
     for key in params:
-        parameterfile.write(get_def_dynamically(key, getattr(par, key)))
+        parameterfile.write(get_def_dynamically(key, params[key]))
 
     # write molecule ids
     # NOTE: indices are allowed to be the same, LAMMPS will ignore duplicates
