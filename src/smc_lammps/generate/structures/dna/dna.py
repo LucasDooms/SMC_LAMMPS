@@ -787,9 +787,10 @@ class Line(DnaConfiguration):
 
         strand = self.dna_strands[0]
 
-        if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
+        if par.force is not None:
+            if par.force != 0.0:
+                ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
+                ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
         else:
             ppp.end_points += [strand.first_id(), strand.last_id]
 
@@ -840,16 +841,17 @@ class Folded(DnaConfiguration):
 
         strand = self.dna_strands[0]
 
-        if par.force:
-            # 2 half strength forces at both ends pointing right (+x)
-            ppp.stretching_forces_array[(par.force / 2.0, 0, 0)] = [
-                strand.first_id(),
-                strand.last_id(),
-            ]
-            # 1 full strength force pointing left (-x) at midway point (fold)
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [
-                strand.get_percent_id(0.5),
-            ]
+        if par.force is not None:
+            if par.force != 0.0:
+                # 2 half strength forces at both ends pointing right (+x)
+                ppp.stretching_forces_array[(par.force / 2.0, 0, 0)] = [
+                    strand.first_id(),
+                    strand.last_id(),
+                ]
+                # 1 full strength force pointing left (-x) at midway point (fold)
+                ppp.stretching_forces_array[(-par.force, 0, 0)] = [
+                    strand.get_percent_id(0.5),
+                ]
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
@@ -904,10 +906,11 @@ class RightAngle(DnaConfiguration):
 
         strand = self.dna_strands[0]
 
-        if par.force:
-            # FIX: total net force is nonzero, may cause issues?
-            ppp.stretching_forces_array[(0, par.force, 0)] = [strand.first_id()]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
+        if par.force is not None:
+            if par.force != 0.0:
+                # FIX: total net force is nonzero, may cause issues?
+                ppp.stretching_forces_array[(0, par.force, 0)] = [strand.first_id()]
+                ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
@@ -966,18 +969,20 @@ class Doubled(DnaConfiguration):
 
         # get dna beads to freeze
         for strand in self.dna_strands:
-            if par.force:
-                # 2 half strength forces at both ends pointing right (+x)
-                ppp.stretching_forces_array[(par.force / 2.0, 0, 0)] = [
-                    strand.first_id(),
-                    strand.last_id(),
-                ]
-                # 1 full strength force pointing left (-x) at midway point (fold)
-                ppp.stretching_forces_array[(-par.force, 0, 0)] = [
-                    strand.get_percent_id(0.5),
-                ]
+            if par.force is not None:
+                if par.force != 0.0:
+                    # 2 half strength forces at both ends pointing right (+x)
+                    ppp.stretching_forces_array[(par.force / 2.0, 0, 0)] = [
+                        strand.first_id(),
+                        strand.last_id(),
+                    ]
+                    # 1 full strength force pointing left (-x) at midway point (fold)
+                    ppp.stretching_forces_array[(-par.force, 0, 0)] = [
+                        strand.get_percent_id(0.5),
+                    ]
             else:
                 ppp.end_points += [strand.first_id(), strand.last_id()]
+
             # TODO: fix for DOUBLED DNA, gives same bead twice
             ppp.freeze_indices += [
                 strand.get_id_from_list_index(
@@ -1064,9 +1069,10 @@ class Obstacle(DnaConfiguration):
 
         strand = self.dna_strands[0]
 
-        if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
+        if par.force is not None:
+            if par.force != 0.0:
+                ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
+                ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
@@ -1113,9 +1119,10 @@ class Safety(DnaConfiguration):
 
         strand = self.dna_strands[0]
 
-        if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
+        if par.force is not None:
+            if par.force != 0.0:
+                ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
+                ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
@@ -1189,9 +1196,10 @@ class ObstacleSafety(DnaConfiguration):
 
         strand = self.dna_strands[0]
 
-        if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
+        if par.force is not None:
+            if par.force != 0.0:
+                ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
+                ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
@@ -1269,9 +1277,10 @@ class AdvancedObstacleSafety(DnaConfiguration):
 
         strand = self.dna_strands[0]
 
-        if par.force:
-            ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
-            ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
+        if par.force is not None:
+            if par.force != 0.0:
+                ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
+                ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
         else:
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
