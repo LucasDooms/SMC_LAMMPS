@@ -15,7 +15,7 @@ class Parameters:
     T = 300.0
     "Simulation temperature (K)"
 
-    kB = 0.013806504
+    kB = 0.01380649
     "Boltzmann's constant (pN nm / K)"
 
     gamma = 0.5
