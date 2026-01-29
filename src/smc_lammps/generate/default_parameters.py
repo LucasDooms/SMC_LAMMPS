@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 from dataclasses import dataclass
 from typing import Any
@@ -11,12 +11,6 @@ class Parameters:
     """
 
     ################ General parameters ################
-
-    loop = 100
-    "Initial loop size (DNA beads)"
-
-    diameter = 20
-    "Diameter of initial loop (nm)"
 
     T = 300.0
     "Simulation temperature (K)"
@@ -45,9 +39,6 @@ class Parameters:
     force = 0.800
     """Stretching forces (pN) (set to any falsy value for no forces)
     WARNING: currently: if no forces -> ends are frozen"""
-
-    runs = 10
-    "Number of independent runs"
 
     ##################### SMC cycle #######################
 
