@@ -36,7 +36,11 @@ dependencies = [
   "rich>=14.0.0",
   "scipy>=1.15.2",
 ]
-urls.Repository = "https://github.com/LucasDooms/SMC_LAMMPS.git"
+
+[project.urls]
+Repository = "https://github.com/LucasDooms/SMC_LAMMPS.git"
+Documentation = "https://lucasdooms.github.io/SMC_LAMMPS"
+Changelog = "https://github.com/LucasDooms/SMC_LAMMPS/blob/main/CHANGELOG.md"
 
 [project.scripts]
 smc-lammps = "smc_lammps:main"
