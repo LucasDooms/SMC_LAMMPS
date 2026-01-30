@@ -48,7 +48,7 @@ COPY pyproject.toml pyproject.toml
 COPY README.md README.md
 COPY src/smc_lammps src/smc_lammps
 
-RUN uv sync --locked --no-editable \
+RUN uv sync --locked --no-editable --no-dev --group=analysis \
     && cd ${BUILD_DIR} && make install-python && cd / \
     # remove pip after lammps install \
     && uv pip uninstall pip \
