@@ -67,6 +67,8 @@ To use the `src/smc_lammps/post_process/visualize.py` script, you will need VMD,
 see https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD.
 
 ## Docker Installation
+<details>
+<summary>Alternative: install smc-lammps and LAMMPS in a docker container</summary>
 
 You can also use docker to run the code.
 
@@ -93,6 +95,8 @@ docker run -it -v .:/data -p 127.0.0.1:8888:8888 ghcr.io/lucasdooms/smc-lammps j
 and open the displayed link `http://127.0.0.1:8888/tree?token=...` in your browser.
 
 Note: the docker image does not include VMD.
+
+</details>
 
 ## Usage
 
