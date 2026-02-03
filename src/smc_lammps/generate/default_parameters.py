@@ -69,7 +69,7 @@ class Parameters:
     add_stopper_bead: bool = False
     "Add a bead that prevents the SMC from slipping off of the wrong end of the DNA."
 
-    add_RNA_polymerase: bool = True
+    add_RNA_polymerase: bool = False
     "Add a bead at the DNA-tether site, see also :py:attr:`RNA_polymerase_size`."
 
     RNA_polymerase_size: float = 5.0
