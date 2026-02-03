@@ -231,7 +231,7 @@ numpy==2.4.1
     #   matplotlib
     #   scipy
     #   smc-lammps
-packaging==25.0
+packaging==26.0
     # via
     #   ipykernel
     #   jupyter-events
