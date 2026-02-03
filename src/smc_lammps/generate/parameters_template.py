@@ -21,8 +21,7 @@ p.N = 300
 
 # Or set max_steps
 p.cycles = None
-total_steps_per_cycle = p.steps_APO + p.steps_ADP + p.steps_ATP
-p.max_steps = 20 * total_steps_per_cycle
+p.max_steps = 20 * p.average_steps_per_cycle()
 
 # Hinge acts as one rigid part
 p.rigid_hinge = True
