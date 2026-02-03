@@ -136,6 +136,10 @@ pytest
 
 ### Documentation
 
+#### Dependencies
+
+To build the documentation, you will need to install `graphviz`, e.g. `sudo apt update && sudo apt install graphviz` on Debian/Ubuntu.
+
 #### Build
 
 Build the documentation using

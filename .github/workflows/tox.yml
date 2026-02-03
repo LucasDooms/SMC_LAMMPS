@@ -10,6 +10,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # required to build docs
+      - name: Install graphviz
+        run: sudo apt install graphviz
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
