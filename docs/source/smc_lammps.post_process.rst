@@ -12,7 +12,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   smc_lammps.post_process.matplotlib
+   smc_lammps.post_process.plotting
 
 Submodules
 ----------

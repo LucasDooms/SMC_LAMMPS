@@ -1,7 +1,7 @@
-smc\_lammps.post\_process.matplotlib package
+smc\_lammps.post\_process.plotting package
 ============================================
 
-.. automodule:: smc_lammps.post_process.matplotlib
+.. automodule:: smc_lammps.post_process.plotting
    :members:
    :show-inheritance:
    :undoc-members:
@@ -9,10 +9,10 @@ smc\_lammps.post\_process.matplotlib package
 Submodules
 ----------
 
-smc\_lammps.post\_process.matplotlib.draw module
+smc\_lammps.post\_process.plotting.draw module
 ------------------------------------------------
 
-.. automodule:: smc_lammps.post_process.matplotlib.draw
+.. automodule:: smc_lammps.post_process.plotting.draw
    :members:
    :show-inheritance:
    :undoc-members:
