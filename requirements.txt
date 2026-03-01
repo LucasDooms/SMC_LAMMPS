@@ -344,7 +344,7 @@ scipy==1.17.0
     # via smc-lammps
 send2trash==2.1.0
     # via jupyter-server
-setuptools==80.10.2
+setuptools==82.0.0
     # via jupyterlab
 six==1.17.0
     # via
