@@ -422,7 +422,7 @@ uv==0.9.28
     # via tox-uv
 uvicorn==0.40.0
     # via sphinx-autobuild
-virtualenv==20.36.1
+virtualenv==21.1.0
     # via tox
 watchfiles==1.1.1
     # via sphinx-autobuild
