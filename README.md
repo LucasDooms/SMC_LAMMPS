@@ -8,6 +8,9 @@
 
 ## Installation
 
+Below are instructions to install the `smc-lammps` python package
+and a separate [LAMMPS](https://docs.lammps.org/) executable used to perform simulations.
+
 ### Python
 
 #### From PyPI
@@ -64,21 +67,36 @@ To use the `src/smc_lammps/post_process/visualize.py` script, you will need VMD,
 see https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD.
 
 ## Docker Installation
+<details>
+<summary>Alternative: install smc-lammps and LAMMPS in a docker container</summary>
 
-You can also use docker to run the code. First build the image
+You can also use docker to run the code.
+
+Either download the image using
 ```sh
-docker build -t smc-lammps .
+docker pull ghcr.io/lucasdooms/smc-lammps:latest
 ```
+or build it locally with `docker build -t smc-lammps .`
+(replacing `ghcr.io/lucasdooms/smc-lammps` with `smc-lammps` for the instructions below).
+
 Now you can run an interactive session using
 ```sh
-docker run -it -v .:/data smc-lammps
+docker run -it -v .:/data ghcr.io/lucasdooms/smc-lammps
 ```
 Or, to run directly (see [Usage](#usage))
 ```sh
-docker run -v .:/data smc-lammps smc-lammps ...
+docker run -v .:/data ghcr.io/lucasdooms/smc-lammps smc-lammps ...
 ```
 
+To run a jupyter notebook session, use
+```sh
+docker run -it -v .:/data -p 127.0.0.1:8888:8888 ghcr.io/lucasdooms/smc-lammps jupyter notebook --allow-root --no-browser --ServerApp.ip=0.0.0.0 /data
+```
+and open the displayed link `http://127.0.0.1:8888/tree?token=...` in your browser.
+
 Note: the docker image does not include VMD.
+
+</details>
 
 ## Usage
 
@@ -118,6 +136,10 @@ pytest
 
 ### Documentation
 
+#### Dependencies
+
+To build the documentation, you will need to install `graphviz`, e.g. `sudo apt update && sudo apt install graphviz` on Debian/Ubuntu.
+
 #### Build
 
 Build the documentation using
@@ -147,4 +169,4 @@ make -C docs doctest
 Original code by Stefanos Nomidis (https://github.com/sknomidis/SMC_LAMMPS).  
 Modifications by Arwin Goossens.  
 All commits in this repository by Lucas Dooms.  
-Released under [MIT license](LICENSE)
+Released under [MIT license](LICENSE).

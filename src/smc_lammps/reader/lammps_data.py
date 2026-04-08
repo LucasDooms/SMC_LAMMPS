@@ -143,8 +143,7 @@ class LammpsData:
         Args:
             keep: Filter definition, a function from (id, type, pos) -> bool.
         """
-        keep = np.vectorize(keep)
-        keep_indices = keep(self.ids, self.types, self.positions)
+        keep_indices = keep(self.ids, self.types, self.positions)  # type: ignore
 
         self.ids = self.ids[keep_indices]
         self.types = self.types[keep_indices]

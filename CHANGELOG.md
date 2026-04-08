@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.2.2] - 2026-04-08
+
+### Changed
+
+- Various improvements to the documentation.
+- Removed some unused parameters.
+
+### Fixed
+
+- DNA endpoints are no longer fixed when setting `force = 0`.
+- Renamed the `matplotlib` folder to `plotting` to avoid name conflicts.
+
 ## [0.2.1] - 2026-01-15
 
 ### Added
@@ -15,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - New `--keep-every-n` flag to remove timesteps from trajectory files.
 
 ### Changed
+
 - The `spaced_beads` angle interaction is now adjusted based on the `spaced_beads_size`.
 
 ### Fixed

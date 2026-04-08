@@ -14,7 +14,7 @@ import numpy as np
 
 from smc_lammps.console import warn
 from smc_lammps.generate.generator import COORD_TYPE, Nx3Array
-from smc_lammps.generate.util import get_parameters
+from smc_lammps.generate.util import load_parameters
 from smc_lammps.post_process.types import ID_TAG_PAIR
 from smc_lammps.post_process.util import (
     get_indices_array,
@@ -325,7 +325,7 @@ def create_plot(
 ) -> None:
     import matplotlib.pyplot as plt
 
-    parameters = get_parameters(path / "parameters.py")
+    parameters = load_parameters(path)
     tscale, iscale, tunits, iunits = get_scaling(use_real_units, parameters)
 
     fig, ax = plt.subplots(1, 1, dpi=160)

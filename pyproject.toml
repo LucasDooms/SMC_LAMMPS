@@ -1,6 +1,6 @@
 [project]
 name = "smc-lammps"
-version = "0.2.1"
+version = "0.2.2"
 description = "Simulate DNA loop extrusion by SMCs using LAMMPS"
 readme = "README.md"
 license = "MIT"
@@ -21,7 +21,13 @@ authors = [
 maintainers = [
   { name = "Lucas Dooms", email = "lucas.dooms@kuleuven.be" },
 ]
-classifiers = [ "Programming Language :: Python :: 3 :: Only", "Programming Language :: Python :: 3.13" ]
+classifiers = [
+    "Topic :: Scientific/Engineering :: Physics",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
 dependencies = [
   "argcomplete>=3.6.2",
   "click>=8.2.1",
@@ -30,7 +36,11 @@ dependencies = [
   "rich>=14.0.0",
   "scipy>=1.15.2",
 ]
-urls.Repository = "https://github.com/LucasDooms/SMC_LAMMPS.git"
+
+[project.urls]
+Repository = "https://github.com/LucasDooms/SMC_LAMMPS.git"
+Documentation = "https://lucasdooms.github.io/SMC_LAMMPS"
+Changelog = "https://github.com/LucasDooms/SMC_LAMMPS/blob/main/CHANGELOG.md"
 
 [project.scripts]
 smc-lammps = "smc_lammps:main"

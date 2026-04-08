@@ -21,25 +21,23 @@ p.N = 300
 
 # Or set max_steps
 p.cycles = None
-total_steps_per_cycle = p.steps_APO + p.steps_ADP + p.steps_ATP
-p.max_steps = 20 * total_steps_per_cycle
+p.max_steps = 20 * p.average_steps_per_cycle()
 
-# Hinge acts as one rigid part
+# Use simple hinge
+p.use_toroidal_hinge = False
+
+# If toroidal hinge is used, it acts as a rigid ring
 p.rigid_hinge = True
-
-# Small obstacle on DNA at tether location
-p.add_RNA_polymerase = False
-# p.RNA_polymerase_type = 1
-# p.RNA_polymerase_size = 5.0
 
 # Apply a weak force on the ends of the DNA
 p.force = 0.05
 
 # Choose a configuration
-# p.dna_config = "advanced_obstacle_safety"
+p.dna_config = "line"
+# p.dna_config = "folded"
+# p.dna_config = "obstacle"
 # p.dna_config = "obstacle_safety"
-p.dna_config = "obstacle"
-# p.dna_config = "line"
+# p.dna_config = "advanced_obstacle_safety"
 
 # Prevent SMC from falling off the DNA
 p.add_stopper_bead = True

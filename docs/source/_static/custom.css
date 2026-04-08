@@ -1,0 +1,17 @@
+/* Invert graphviz diagrams in dark mode */
+
+/* Explicit dark mode */
+body[data-theme="dark"] .graphviz img,
+body[data-theme="dark"] .graphviz svg,
+body[data-theme="dark"] .graphviz object {
+    filter: invert(1) hue-rotate(180deg);
+}
+
+/* Auto mode (follows system preference) */
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .graphviz img,
+    body:not([data-theme="light"]) .graphviz svg,
+    body:not([data-theme="light"]) .graphviz object {
+        filter: invert(1) hue-rotate(180deg);
+    }
+}
