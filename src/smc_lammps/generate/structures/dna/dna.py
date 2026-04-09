@@ -792,7 +792,7 @@ class Line(DnaConfiguration):
                 ppp.stretching_forces_array[(par.force, 0, 0)] = [strand.first_id()]
                 ppp.stretching_forces_array[(-par.force, 0, 0)] = [strand.last_id()]
         else:
-            ppp.end_points += [strand.first_id(), strand.last_id]
+            ppp.end_points += [strand.first_id(), strand.last_id()]
 
         ppp.freeze_indices += [
             strand.get_id_from_list_index(
