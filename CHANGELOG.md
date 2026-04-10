@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fixed error when setting `force = None` for `Line` DNA.
+- The `force` value now works at the DNA end points when setting `add_stopper_bead = True`.
 
 ## [0.2.2] - 2026-04-08
 

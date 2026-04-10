@@ -667,6 +667,7 @@ class DnaConfiguration:
         angle: None | BAI_Type,  # only used if bond is not None
         bead_size: float,
     ) -> AtomIdentifier:
+        """Places a bead inside of the DNA strand by cutting it into two pieces and putting bonds between the bead and DNA."""
         dna_atom = self.dna_strands[strand_index].get_id_from_list_index(dna_id)
         # place on a DNA bead
         location = pos_from_id(dna_atom)
@@ -706,10 +707,13 @@ class DnaConfiguration:
 
                 # NOTE: This requires dna_id > 0, which should be the case
                 # since the polymer.split() call above throws an error if dna_id == 0.
-                assert dna_id > 0
+                assert self.dna_strands[strand_index].handle_negative_index(dna_id) > 0
                 bais.append(middle_angle)
 
-                if dna_id < self.dna_strands[strand_index].full_list_length() - 1:
+                if (
+                    self.dna_strands[strand_index].handle_negative_index(dna_id)
+                    < self.dna_strands[strand_index].full_list_length() - 1
+                ):
                     bais.append(right_angle)
 
             # move to correct distances
@@ -723,6 +727,74 @@ class DnaConfiguration:
             )
 
             self.update_tether_bond(dna_atom, (bead, 0))
+
+        self.beads.append(bead)
+        self.bead_sizes.append(bead_size)
+        self.bead_bonds += bais
+
+        # ensure the bead position updates with the polymer
+        self.dna_strands[strand_index].add_tagged_atoms(dna_atom, (bead, 0))
+
+        return (bead, 0)
+
+    def attach_bead_to_dna(
+        self,
+        bead_type: AtomType,
+        mol_index: int,
+        strand_index: int,
+        dna_id: int,
+        bond: BAI_Type,
+        angle: None | BAI_Type,  # only used if at the end of the DNA
+        bead_size: float,
+        bond_length: float,
+    ) -> AtomIdentifier:
+        """Attaches a bead externally to the DNA without changing the DNA topology."""
+        dna_atom = self.dna_strands[strand_index].get_id_from_list_index(dna_id)
+        # place on a DNA bead
+        location = pos_from_id(dna_atom)
+
+        # create a bead
+        bead = AtomGroup(location.reshape(1, 3), bead_type, mol_index)
+
+        bais = []
+
+        # add bond
+        bais += [
+            (bond, [(strand_index, dna_id), (bead, 0)]),
+        ]
+
+        norm_dna_id = self.dna_strands[strand_index].handle_negative_index(dna_id)
+        if norm_dna_id == 0:
+            # direction from the bead to the DNA
+            dir = 1
+        elif norm_dna_id == self.dna_strands[strand_index].full_list_length() - 1:
+            dir = -1
+        else:
+            dir = 0
+
+        if angle is not None and dir != 0:
+            new_angle = (
+                angle,
+                [(strand_index, dna_id + dir), (strand_index, dna_id), (bead, 0)],
+            )
+            bais.append(new_angle)
+
+        def get_direction(dir):
+            # get direction of DNA to move bead along
+            two_at_end = self.dna_strands[strand_index].full_list()[
+                norm_dna_id : norm_dna_id + 2 * dir : dir
+            ]
+            direction = two_at_end[1, :] - two_at_end[0, :]
+            return direction
+
+        # move bead away from DNA
+        if dir == 0:
+            direction = get_direction(-1) + get_direction(1)
+        else:
+            direction = get_direction(dir)
+
+        direction /= np.linalg.norm(direction)
+        bead.positions[0, :] -= direction * bond_length
 
         self.beads.append(bead)
         self.bead_sizes.append(bead_size)

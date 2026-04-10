@@ -468,14 +468,21 @@ if par.spaced_beads_interval is not None:
 
 if par.add_stopper_bead:
     mol_stopper = MoleculeId.get_next()
-    extra_mols_smc.append(mol_stopper)
-    stopper_type = AtomType(0.01 * DNA_bead_mass)
+    extra_mols_dna.append(mol_stopper)
+    stopper_type = AtomType(DNA_bead_mass)
     stopper_size = 25.0
 
     stopper_ids = dna_config.get_stopper_ids()
     for st_dna_id in stopper_ids:
-        dna_config.add_bead_to_dna(
-            stopper_type, mol_stopper, st_dna_id[0], st_dna_id[1], None, None, stopper_size
+        dna_config.attach_bead_to_dna(
+            stopper_type,
+            mol_stopper,
+            st_dna_id[0],
+            st_dna_id[1],
+            dna_bond,
+            stiff_dna_angle,
+            stopper_size,
+            DNA_bond_length,
         )
 
 
@@ -829,6 +836,16 @@ with open(lammps_path / "parameterfile", "w", encoding="utf-8") as parameterfile
     )
 
     parameterfile.write("\n")
+
+    # check for conflicting molecule overrides
+    for s_id, g_id, mol_id in dna_config.molecule_overrides:
+        override_atom_id = dna_config.dna_strands[s_id].get_id_from_list_index(g_id)
+        if override_atom_id in ppp.end_points:
+            warn(
+                "The molecule id of a DNA end point was overwritten.\n"
+                "The external forces or freezes in LAMMPS will not work as expected.\n\n"
+                "This is likely caused by an attached bead such as a stopper bead.\n"
+            )
 
     # turn into LAMMPS indices
     end_points_LAMMPS = atomIds_to_LAMMPS_ids(gen, ppp.end_points)
