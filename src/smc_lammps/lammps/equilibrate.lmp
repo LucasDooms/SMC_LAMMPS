@@ -1,8 +1,15 @@
+print "----------- EQUILIBRATION -----------" screen yes
+
 group frozen ${indices}
 
 fix frz frozen setforce 0 0 0
 
-# Equilibrate in the APO-state
-run 300000
+# short equilibration with reduced potentials to avoid instabilities
+include lammps/states/all_off
+run 50000
 
 unfix frz
+
+# longer equilibration in APO state
+include lammps/states/apo
+run 300000

@@ -655,6 +655,21 @@ site_cond = par.site_cycle_period == 0 or par.add_side_site
 use_lower_site_off = [lower_site_off] if site_cond else []
 use_lower_site_on = [lower_site_on] if site_cond else []
 
+# This is for energy minimization / equilibration.
+create_phase_wrapper(
+    states_path / "all_off",
+    [
+        bridge_soft_on,
+        hinge_attraction_off,
+        middle_site_off,
+        *use_lower_site_off,
+        smc_1.elbows_off,
+        smc_1.arms_close,
+        smc_1.kleisin_unfolds1,
+        smc_1.kleisin_unfolds2,
+    ],
+)
+
 if par.site_cycle_period > 0:
     create_phase_wrapper(
         states_path / "cycle_site_on",
