@@ -302,8 +302,9 @@ dna_parameters = dna.DnaParameters(
     bond=dna_bond,
     angle=dna_angle,
     ssangle=ssdna_angle,
+    extension=par.extension,
 )
-dna_config = dna_config_class.get_dna_config(dna_parameters, smc_positions.r_lower_site, par)
+dna_config = dna_config_class.get_dna_config(dna_parameters, smc_positions, par)
 
 #################################################################################
 #                                Print to file                                  #

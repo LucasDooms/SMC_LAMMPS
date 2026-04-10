@@ -66,6 +66,15 @@ class Parameters:
     dna_config: str = "folded"
     "Initial DNA configuration to generate."
 
+    extension: float = 1.0
+    """The relative DNA extension: ratio of end-to-end distance to contour length.
+
+    This must be a value in the range (0.0, 1.0].
+
+    .. Note::
+        This should only be used with ``dna_config = "line"``.
+    """
+
     add_stopper_bead: bool = False
     "Add a bead that prevents the SMC from slipping off of the wrong end of the DNA."
 

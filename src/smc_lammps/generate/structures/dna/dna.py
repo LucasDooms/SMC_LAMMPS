@@ -27,6 +27,7 @@ from smc_lammps.generate.structures import structure_creator
 from smc_lammps.generate.structures.dna import dna_creator
 from smc_lammps.generate.structures.polymer import Polymer
 from smc_lammps.generate.structures.smc.smc import SMC
+from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator, SMC_Pos
 from smc_lammps.generate.util import get_closest, pos_from_id
 
 type StrandId = tuple[int, int]  # strand_id, id
@@ -42,6 +43,7 @@ class DnaParameters:
     bond: BAI_Type
     angle: BAI_Type
     ssangle: BAI_Type
+    extension: float
 
     def create_dna_polymer(self, dna_positions: Sequence[Nx3Array]) -> Polymer:
         return Polymer(
@@ -462,7 +464,9 @@ class DnaConfiguration:
         return self.all_dna_groups + self.beads
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> DnaConfiguration:
+    def get_dna_config(
+        cls, dna_parameters: DnaParameters, positions: SMC_Pos, par
+    ) -> DnaConfiguration:
         return NotImplemented
 
     def get_post_process_parameters(self) -> PostProcessParameters:
@@ -830,24 +834,22 @@ class Line(DnaConfiguration):
         super().__init__(dna_strands, dna_parameters)
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> Line:
-        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
+    def get_dna_config(cls, dna_parameters: DnaParameters, positions: SMC_Pos, par) -> Line:
+        default_dna_pos = positions.r_lower_site[1] + np.array([0, par.cutoff6, 0])
 
         # 1.
         [r_DNA] = dna_creator.get_dna_coordinates_straight(
             dna_parameters.nDNA, dna_parameters.DNA_bond_length
         )
+        (r_DNA, rotation) = dna_creator.kink_dna_at_extension(r_DNA, dna_parameters.extension)
+
+        positions.apply(lambda pos: SMC_Creator.transpose_rotate_transpose(rotation, pos)[0])
 
         # 2.
         # make sure SMC contains DNA
         goal = default_dna_pos
-        start = np.array(
-            [
-                r_DNA[int(len(r_DNA) / 1.3)][0] + 10.0 * dna_parameters.DNA_bond_length,
-                r_DNA[-1][1],
-                0,
-            ]
-        )
+        dna_index = int(len(r_DNA) / 1.3)
+        start = r_DNA[dna_index]
         shift = (goal - start).reshape(1, 3)
         r_DNA += shift
 
@@ -889,9 +891,9 @@ class Folded(DnaConfiguration):
         self.dna_center = dna_center
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> Folded:
+    def get_dna_config(cls, dna_parameters: DnaParameters, positions: SMC_Pos, par) -> Folded:
         # place your DNA here, inside the SMC
-        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
+        default_dna_pos = positions.r_lower_site[1] + np.array([0, par.cutoff6, 0])
 
         # 1.
         [r_DNA], dna_center = dna_creator.get_dna_coordinates_twist(
@@ -954,9 +956,9 @@ class RightAngle(DnaConfiguration):
         self.dna_center = dna_center
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> RightAngle:
+    def get_dna_config(cls, dna_parameters: DnaParameters, positions: SMC_Pos, par) -> RightAngle:
         # place your DNA here, inside the SMC
-        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
+        default_dna_pos = positions.r_lower_site[1] + np.array([0, par.cutoff6, 0])
 
         # 1.
         [r_DNA], dna_center = dna_creator.get_dna_coordinates(
@@ -987,7 +989,7 @@ class RightAngle(DnaConfiguration):
             ppp.end_points += [strand.first_id(), strand.last_id()]
 
         # find closest DNA bead to siteD
-        # closest_DNA_index = get_closest(self.dna_groups[0].positions, r_lower_site[1])
+        # closest_DNA_index = get_closest(self.dna_groups[0].positions, positions.r_lower_site[1])
 
         ppp.dna_indices_list[0] = [(strand.first_id(), strand.get_percent_id(0.5))]
 
@@ -1003,9 +1005,9 @@ class Doubled(DnaConfiguration):
         self.dna_center = dna_center
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> Doubled:
+    def get_dna_config(cls, dna_parameters: DnaParameters, positions: SMC_Pos, par) -> Doubled:
         # place your DNA here, inside the SMC
-        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
+        default_dna_pos = positions.r_lower_site[1] + np.array([0, par.cutoff6, 0])
 
         # 1.
         r_DNA_list, dna_center = dna_creator.get_dna_coordinates_doubled(
@@ -1089,9 +1091,9 @@ class Obstacle(DnaConfiguration):
         self.dna_start_index = dna_start_index
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> Obstacle:
+    def get_dna_config(cls, dna_parameters: DnaParameters, positions: SMC_Pos, par) -> Obstacle:
         # place your DNA here, inside the SMC
-        default_dna_pos = r_lower_site[1] + np.array([0, par.cutoff6, 0])
+        default_dna_pos = positions.r_lower_site[1] + np.array([0, par.cutoff6, 0])
 
         # 1.
         [r_DNA] = dna_creator.get_dna_coordinates_straight(
@@ -1167,7 +1169,7 @@ class Safety(DnaConfiguration):
         self.dna_safety_belt_index = dna_safety_belt_index
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> Safety:
+    def get_dna_config(cls, dna_parameters: DnaParameters, positions: SMC_Pos, par) -> Safety:
         # 1.
         [r_DNA], belt_location, dna_safety_belt_index, _ = (
             dna_creator.get_dna_coordinates_safety_belt(
@@ -1177,7 +1179,7 @@ class Safety(DnaConfiguration):
 
         # 2.
         # make sure SMC contains DNA
-        shift = r_lower_site[1] - belt_location
+        shift = positions.r_lower_site[1] - belt_location
         shift[1] -= 0.65 * par.cutoff6 + 0.5 * par.cutoff6  # TODO: if siteDup
         r_DNA += shift
 
@@ -1226,7 +1228,9 @@ class ObstacleSafety(DnaConfiguration):
         self.dna_safety_belt_index = dna_safety_belt_index
 
     @classmethod
-    def get_dna_config(cls, dna_parameters: DnaParameters, r_lower_site, par) -> ObstacleSafety:
+    def get_dna_config(
+        cls, dna_parameters: DnaParameters, positions: SMC_Pos, par
+    ) -> ObstacleSafety:
         # 1.
         [r_DNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = (
             dna_creator.get_dna_coordinates_safety_belt(
@@ -1236,7 +1240,7 @@ class ObstacleSafety(DnaConfiguration):
 
         # 2.
         # make sure SMC contains DNA
-        shift = r_lower_site[1] - belt_location
+        shift = positions.r_lower_site[1] - belt_location
         shift[1] -= 0.65 * par.cutoff6 + 0.5 * par.cutoff6  # TODO: if siteDup
         r_DNA += shift
 
@@ -1304,7 +1308,7 @@ class AdvancedObstacleSafety(DnaConfiguration):
 
     @classmethod
     def get_dna_config(
-        cls, dna_parameters: DnaParameters, r_lower_site, par
+        cls, dna_parameters: DnaParameters, positions: SMC_Pos, par
     ) -> AdvancedObstacleSafety:
         # 1.
         # [rDNA], belt_location, dna_safety_belt_index, dna_bead_to_tether_id = dna_creator.get_dna_coordinates_advanced_safety_belt(dna_parameters.nDNA, dna_parameters.DNAbondLength)
@@ -1316,7 +1320,7 @@ class AdvancedObstacleSafety(DnaConfiguration):
 
         # 2.
         # make sure SMC contains DNA
-        shift = r_lower_site[1] - belt_location
+        shift = positions.r_lower_site[1] - belt_location
         shift[1] -= 1.35 * par.cutoff6 + 0.5 * par.cutoff6  # TODO: if siteDup
         r_DNA += shift
 
