@@ -624,7 +624,7 @@ gen.move_all_atoms(-center)
 
 # compare to origin (which is now the center) to find furthest distance
 max_distance = np.max(np.abs(positions))
-gen.set_system_size(2 * max_distance)
+gen.set_system_size(3 * max_distance)
 
 lammps_path = path / "lammps"
 lammps_path.mkdir(exist_ok=True)
