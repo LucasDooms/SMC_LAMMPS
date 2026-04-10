@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The DNA indices where spaced beads have been inserted are now saved to `post_processing_parameters.py`.
+
 ### Fixed
 
 - Fixed error when setting `force = None` for `Line` DNA.

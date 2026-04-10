@@ -393,6 +393,7 @@ if par.add_RNA_polymerase:
     )
 
 spaced_beads: list[AtomIdentifier] = []
+spaced_bead_ids: list[int] = []
 if par.spaced_beads_interval is not None:
     # get mass based on size
     # (0.22 = arbitrary factor chosen to approximate nucleosome mass at 5.5 nm radius)
@@ -772,6 +773,13 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     file.write(f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n")
     file.write("\n")
     file.write(f"spaced_bead_indices = {atomIds_to_LAMMPS_ids(gen, spaced_beads)}\n")
+    file.write("\n")
+    dna_spaced_atom_ids = [
+        dna_config.dna_strands[0].get_id_from_list_index(x) for x in spaced_bead_ids
+    ]
+    file.write(
+        f"dna_spaced_beads_insert_indices = {atomIds_to_LAMMPS_ids(gen, dna_spaced_atom_ids)}\n"
+    )
     file.write("\n")
     file.write(f"runtimes = {runtimes}\n")
 
