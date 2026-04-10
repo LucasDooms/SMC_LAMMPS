@@ -29,7 +29,9 @@ class SMC:
     Otherwise, the two parts of the hinge are connected by bonds."""
 
     pos: SMC_Pos
-    """The positions of the beads comprising the SMC."""
+    """This is **read only**.
+    The positions of the beads comprising the SMC.
+    """
 
     t_arms_heads: AtomType
     """Type of arms."""
