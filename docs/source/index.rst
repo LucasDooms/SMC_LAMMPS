@@ -18,7 +18,7 @@ The diagram below shows the basic program flow of `smc-lammps`_.
 .. raw:: html
 
    <div style="position: relative;">
-   <div style="position: absolute; top: 0; right: 0; font-size: 0.85em;">
+   <div style="position: absolute; top: 0; right: 0; font-size: 0.85em; z-index: 1000;">
    <span style="color: #5ba4b5;">■ smc-lammps</span>
    &nbsp;&nbsp;
    <span style="color: #e67e22;">■ LAMMPS</span>
