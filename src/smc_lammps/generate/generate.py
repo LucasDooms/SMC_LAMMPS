@@ -516,8 +516,8 @@ if par.add_stopper_bead:
         )
 
 # place ssDNA
-start: int = 100
-length: int = 20 # amount of beads
+start: int = 20
+length: int = par.N - 40 # amount of beads
 
 dna_config.change_dna_stiffness(
     0, start, start + length, dna_bond, ssdna_angle
