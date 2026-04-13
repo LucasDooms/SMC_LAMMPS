@@ -455,6 +455,21 @@ if par.spaced_beads_interval is not None:
                     par.spaced_beads_size,
                 )
             )
+        elif par.spaced_beads_type == 2:
+            bead_bond_close = BAI_Type(BAI_Kind.BOND, "harmonic", f"{k_bond_DNA} {0.0}\n")
+            extra_mols_dna.append(mol_spaced_bead)
+            spaced_beads.append(
+                dna_config.attach_bead_to_dna(
+                    spaced_bead_type,
+                    mol_spaced_bead,
+                    0,
+                    st_dna_id,
+                    bead_bond_close,
+                    None,
+                    par.spaced_beads_size,
+                    0.0
+                )
+            )
         else:
             raise ValueError(f"unknown spaced_beads_type, {par.spaced_beads_type}")
 

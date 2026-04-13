@@ -102,8 +102,13 @@ class Parameters:
     spaced_beads_custom_stiffness: float = 1.0
     "Multiple of the default DNA stiffness."
 
-    spaced_beads_type: int = 1
-    "Type of beads to use, ``0`` -> fene/expand bonds, ``1`` -> rigid molecules."
+    spaced_beads_type: int = 2
+    """ Type of beads to use.
+        - ``0`` -- beads are interspersed between DNA segments with fene/expand bonds
+        - ``1`` -- beads are placed on top of the DNA forming rigid molecules (WARNING: likely to cause crashes)
+        - ``2`` -- beads are placed on top of the DNA and attached with harmonic bonds (default)
+    \\
+    """
 
     ##################### Geometry #####################
 
