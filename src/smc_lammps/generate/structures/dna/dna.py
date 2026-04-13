@@ -791,14 +791,15 @@ class DnaConfiguration:
             direction = two_at_end[1, :] - two_at_end[0, :]
             return direction
 
-        # move bead away from DNA
-        if dir == 0:
-            direction = get_direction(-1) + get_direction(1)
-        else:
-            direction = get_direction(dir)
+        if bond_length != 0.0:
+            # move bead away from DNA
+            if dir == 0:
+                direction = get_direction(-1) + get_direction(1)
+            else:
+                direction = get_direction(dir)
 
-        direction /= np.linalg.norm(direction)
-        bead.positions[0, :] -= direction * bond_length
+            direction /= np.linalg.norm(direction)
+            bead.positions[0, :] -= direction * bond_length
 
         self.beads.append(bead)
         self.bead_sizes.append(bead_size)
