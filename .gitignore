@@ -15,6 +15,7 @@ post_processing_parameters.py
 *.lammpstrj
 *.lammpstrj.*
 log.lammps
+log.lammps.*
 tmp.lammps.variable
 
 # vmd
