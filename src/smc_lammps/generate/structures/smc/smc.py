@@ -38,7 +38,7 @@ class SMC:
     t_kleisin: AtomType
     """Type of Kleisin."""
     t_shield: AtomType
-    """Type of repusilve shield atoms in interaction sites."""
+    """Type of repulsive shield atoms in interaction sites."""
     t_hinge: AtomType
     """Type of hinge."""
     t_atp: AtomType
@@ -320,6 +320,20 @@ class SMC:
             self.side_site_arm_grp,
         ]
         return [grp for grp in grps if grp.positions.size != 0]
+
+    def get_type_map(self) -> dict[str, AtomType]:
+        return {
+            "arms_heads": self.t_arms_heads,
+            "kleisin": self.t_kleisin,
+            "shield": self.t_shield,
+            "hinge": self.t_hinge,
+            "atp": self.t_atp,
+            "upper_site": self.t_upper_site,
+            "middle_site": self.t_middle_site,
+            "lower_site": self.t_lower_site,
+            "ref_site": self.t_ref_site,
+            "side_site": self.t_side_site,
+        }
 
     def get_repulsive_groups(self) -> list[AtomGroup]:
         """Returns a list of groups that should have a repulsive LJ interaction

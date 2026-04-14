@@ -467,7 +467,7 @@ if par.spaced_beads_interval is not None:
                     bead_bond_close,
                     None,
                     par.spaced_beads_size,
-                    0.0
+                    0.0,
                 )
             )
         else:
@@ -802,6 +802,21 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     file.write("\n")
     file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.all_dna_groups))}\n")
     file.write(f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n")
+    file.write("\n")
+
+    def get_indices_skip_errors(t: AtomType) -> int | None:
+        try:
+            return t.index
+        except AtomType.UnusedIndex:
+            pass
+        return None
+
+    smc_type_map = {
+        key: index
+        for key, t in smc_1.get_type_map().items()
+        if (index := get_indices_skip_errors(t)) is not None
+    }
+    file.write(f"SMC_type_map = {smc_type_map}\n")
     file.write("\n")
     file.write(f"spaced_bead_indices = {atomIds_to_LAMMPS_ids(gen, spaced_beads)}\n")
     file.write("\n")
