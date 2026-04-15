@@ -1,11 +1,13 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 import argparse
 import subprocess
 from collections import defaultdict
 from pathlib import Path
-from runpy import run_path
 from typing import Sequence
+
+from smc_lammps.generate.util import get_parameters
+from smc_lammps.post_process.util import get_post_processing_parameters
 
 # WARN: VMD uses zero-indexed arrays!
 
@@ -34,7 +36,8 @@ parser.add_argument(
 args = parser.parse_args()
 path = Path(args.directory)
 
-ppp = run_path((path / "post_processing_parameters.py").as_posix())
+par = get_parameters(path / "parameters.py")
+ppp = get_post_processing_parameters(path)
 
 output_file = path / Path(args.file_name)
 if not output_file.exists():
