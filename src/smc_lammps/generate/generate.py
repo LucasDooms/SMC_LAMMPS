@@ -424,10 +424,10 @@ if par.spaced_beads_interval is not None:
             )
         )
 
-    for st_dna_id in spaced_bead_ids:
+    if par.spaced_beads_type == 0:
         mol_spaced_bead = MoleculeId.get_next()
-        if par.spaced_beads_type == 0:
-            extra_mols_dna.append(mol_spaced_bead)
+        extra_mols_dna.append(mol_spaced_bead)
+        for st_dna_id in spaced_bead_ids:
             # use the same bond strength for now
             k_bond_spaced_bead = k_bond_DNA
             bead_dna_bond = BAI_Type(
@@ -449,7 +449,10 @@ if par.spaced_beads_interval is not None:
                     par.spaced_beads_size,
                 )
             )
-        elif par.spaced_beads_type == 1:
+    elif par.spaced_beads_type == 1:
+        for st_dna_id in spaced_bead_ids:
+            # get a new molecule id each time
+            mol_spaced_bead = MoleculeId.get_next()
             extra_mols_smc.append(mol_spaced_bead)
             spaced_beads.append(
                 dna_config.add_bead_to_dna(
@@ -462,9 +465,11 @@ if par.spaced_beads_interval is not None:
                     par.spaced_beads_size,
                 )
             )
-        elif par.spaced_beads_type == 2:
+    elif par.spaced_beads_type == 2:
+        mol_spaced_bead = MoleculeId.get_next()
+        extra_mols_dna.append(mol_spaced_bead)
+        for st_dna_id in spaced_bead_ids:
             bead_bond_close = BAI_Type(BAI_Kind.BOND, "harmonic", f"{k_bond_DNA} {0.0}\n")
-            extra_mols_dna.append(mol_spaced_bead)
             spaced_beads.append(
                 dna_config.attach_bead_to_dna(
                     spaced_bead_type,
@@ -477,10 +482,11 @@ if par.spaced_beads_interval is not None:
                     0.0,
                 )
             )
-        else:
-            raise ValueError(f"unknown spaced_beads_type, {par.spaced_beads_type}")
+    else:
+        raise ValueError(f"unknown spaced_beads_type, {par.spaced_beads_type}")
 
-        if par.spaced_beads_custom_stiffness != 1.0:
+    if par.spaced_beads_custom_stiffness != 1.0:
+        for st_dna_id in spaced_bead_ids:
             offset = int(par.spaced_beads_size / DNA_bond_length)
             try:
                 dna_config.change_dna_stiffness(
@@ -488,7 +494,7 @@ if par.spaced_beads_interval is not None:
                 )
             except ValueError as e:
                 print(e)
-                raise ValueError("Overlapping stiffness ranges not supported yet.")
+                raise RuntimeError("Overlapping stiffness ranges not supported yet.")
 
 if par.add_stopper_bead:
     mol_stopper = MoleculeId.get_next()
