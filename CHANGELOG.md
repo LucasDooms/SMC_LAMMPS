@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - The DNA indices where spaced beads have been inserted are now saved to `post_processing_parameters.py`.
 - New `extension` parameter controls the relative extension of the DNA (for `Line` configuration only).
 - New `spaced_beads_type = 2` which uses harmonic bonds instead of a rigid molecule to hold beads in place.
+- The colors of SMC parts in VMD are now set consistently based on the type id.
 
 ### Fixed
 

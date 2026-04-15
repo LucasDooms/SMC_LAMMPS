@@ -156,6 +156,7 @@ class Molecules:
         self.file.write(
             f"mol modselect {self.rep_index} {self.index} " + " and ".join(selections) + "\n"
         )
+        self.file.write(f"mol modcolor {self.rep_index} {self.index} Type\n")
 
     def add_dna_pieces(self, dna_pieces: Sequence[tuple[int, int]]) -> None:
         # color the pieces differently
@@ -169,17 +170,17 @@ class Molecules:
             )
             self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
-    def add_piece(self, rng: tuple[int, int]) -> None:
+    def add_piece(self, rng: tuple[int, int], color_id: int | None = None) -> None:
+        if color_id is None:
+            color_id = self.get_color_id()
         self.add_rep()
         self.file.write(
             f"mol modselect {self.rep_index} {self.index} index >= {rng[0] - 1} and index <= {rng[1] - 1}\n"
         )
-        self.file.write(
-            f"mol modcolor {self.rep_index} {self.index} colorID {self.get_color_id()}\n"
-        )
+        self.file.write(f"mol modcolor {self.rep_index} {self.index} colorID {color_id}\n")
         self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
-    def add_spaced_beads(self, spaced_beads: Sequence[int]) -> None:
+    def add_spaced_beads(self, spaced_beads: Sequence[int], radius: float) -> None:
         if not spaced_beads:
             return
 
@@ -188,8 +189,11 @@ class Molecules:
         self.file.write(f"mol modselect {self.rep_index} {self.index} index {vmd_indices}\n")
         # choose color based on index
         self.file.write(f"mol modcolor {self.rep_index} {self.index} PosX\n")
-        # TODO: get size dynamically
-        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 1.5\n")
+
+        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 1.0\n")
+
+        self.file.write(f'set sel [atomselect {mol.index} "index {vmd_indices}"]\n')
+        self.file.write(f"$sel set radius {radius}\n")
 
 
 mol = Molecules(path)
@@ -202,8 +206,27 @@ kleisins = ppp["kleisin_ids"]
 kleisin_rng = (min(kleisins), max(kleisins))
 mol.load_trajectory(output_file, [*ppp["dna_indices_list"], kleisin_rng])
 mol.add_dna_pieces(ppp["dna_indices_list"])
-mol.add_piece(kleisin_rng)
-mol.add_spaced_beads(ppp["spaced_bead_indices"])
+mol.add_piece(kleisin_rng, color_id=26)  # violet2
+mol.add_spaced_beads(ppp["spaced_bead_indices"], par.spaced_beads_size)
+
+# set colors based on 'Type'
+smc_type_map = ppp["SMC_type_map"]
+color_map = {
+    "arms_heads": "blue2",
+    "kleisin": "blue",
+    "hinge": "yellow",
+    "upper_site": "yellow",
+    "atp": "cyan",
+    "middle_site": "cyan",
+    "ref_site": "cyan",
+    "lower_site": "red",
+}
+mol.file.write("\n")
+mol.file.write("# === colors ===\n")
+mol.file.write("\n")
+for t in color_map:
+    if t in smc_type_map:
+        mol.file.write(f"color Type {smc_type_map[t]} {color_map[t]}\n")
 
 # run after all mols which should be smoothed have been added
 mol.set_all_smoothing(args.smoothing)
