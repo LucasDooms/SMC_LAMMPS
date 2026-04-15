@@ -354,7 +354,7 @@ def create_plot(
             ax.plot(times, positions, label=f"DNA {i}")
 
     if plot_cycle:
-        from smc_lammps.post_process.matplotlib.draw import (
+        from smc_lammps.post_process.plotting.draw import (
             fill_between_runtime_lines,
             get_runtime_lines,
         )
