@@ -13,6 +13,7 @@ from numpy.random import default_rng
 from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.generate.generator import (
+    AtomGroup,
     AtomIdentifier,
     AtomType,
     BAI_Kind,
@@ -389,6 +390,12 @@ if par.add_RNA_polymerase:
         st_dna_id = dna_config.tether.dna_tether_id
     else:
         st_dna_id = (0, int(0.5 * dna_config.dna_strands[0].full_list_length()))
+
+    if isinstance(st_dna_id[0], AtomGroup):
+        raise RuntimeError(
+            "cannot add RNA polymerase since tether is already bound to another bead"
+        )
+
     dna_config.add_bead_to_dna(
         bead_type, mol_bead, st_dna_id[0], st_dna_id[1], bead_bond, bead_angle, bead_size
     )
