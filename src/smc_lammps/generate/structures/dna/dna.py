@@ -582,6 +582,7 @@ class DnaConfiguration:
         for (bead, bead_size), smc_grp in product(
             zip(self.beads, self.bead_sizes), self.smc.get_repulsive_groups()
         ):
+            # TODO: Avoid adding the same type multiple times here by filtering unique values first.
             pair_inter.add_interaction(
                 bead.type,
                 smc_grp.type,

@@ -350,6 +350,7 @@ class SMC:
             self.atp_grp,
             self.hinge_l_grp,
             self.hinge_r_grp,
+            self.upper_site_grp,
         ]
         return [grp for grp in grps if grp.positions.size != 0]
 
