@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from abc import abstractmethod
 from dataclasses import dataclass
 from itertools import product
 from typing import Sequence
@@ -102,6 +103,7 @@ class Tether:
         def get_all_groups(self) -> list[AtomGroup]:
             return []
 
+        @abstractmethod
         def add_interactions(
             self,
             pair_inter: PairWise,
@@ -464,6 +466,7 @@ class DnaConfiguration:
         return self.all_dna_groups + self.beads
 
     @classmethod
+    @abstractmethod
     def get_dna_config(
         cls, dna_parameters: DnaParameters, positions: SMC_Pos, par
     ) -> DnaConfiguration:
