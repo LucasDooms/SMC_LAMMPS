@@ -630,7 +630,7 @@ class DnaConfiguration:
         to_id: int,
         bond: BAI_Type,
         angle: BAI_Type,
-    ) -> None:
+    ) -> AtomGroup:
         from_ = self.dna_strands[strand_index].get_id_from_list_index(from_id)
         left, middle = self.dna_strands[strand_index].split(from_)
 
@@ -664,6 +664,8 @@ class DnaConfiguration:
         middle.polymer_angle_type = angle
 
         self.bead_bonds += bais
+
+        return middle
 
     def add_bead_to_dna(
         self,

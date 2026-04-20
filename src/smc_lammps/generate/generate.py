@@ -411,7 +411,9 @@ if par.spaced_beads_interval is not None:
 
     # get spacing
     stop_id = get_closest(dna_config.dna_strands[0].full_list(), smc_positions.r_lower_site[1]) - 40
-    start_id = stop_id - par.spaced_beads_interval * (int(par.spaced_beads_smc_clearance / DNA_bond_length) + 3 * 16)
+    start_id = stop_id - par.spaced_beads_interval * (
+        int(par.spaced_beads_smc_clearance / DNA_bond_length) + 3 * 16
+    )
     clearance = math.ceil(par.spaced_beads_smc_clearance / DNA_bond_length)
     spaced_bead_ids = list(range(start_id, stop_id - clearance, par.spaced_beads_interval))
 
@@ -488,7 +490,11 @@ if par.spaced_beads_interval is not None:
     if par.spaced_beads_custom_stiffness != 1.0:
         offset = int(par.spaced_beads_size / DNA_bond_length)
         try:
-            dna_config.change_dna_stiffness(0, start_id, stop_id, dna_bond, stiff_dna_angle)
+            stiff_group = dna_config.change_dna_stiffness(
+                0, start_id, stop_id, dna_bond, stiff_dna_angle
+            )
+            # create a new inert type (no interactions)
+            stiff_group.type = AtomType(stiff_group.type.mass, unused=stiff_group.type.unused)
         except ValueError as e:
             print(e)
             raise RuntimeError("Overlapping stiffness ranges not supported yet.")
