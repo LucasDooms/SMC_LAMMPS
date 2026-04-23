@@ -410,17 +410,17 @@ if par.spaced_beads_interval is not None:
     )
 
     # get spacing
-    stop_id = get_closest(dna_config.dna_strands[0].full_list(), smc_positions.r_lower_site[1]) - 40
+    clearance = math.ceil(par.spaced_beads_smc_clearance / DNA_bond_length)
+    stop_id = get_closest(dna_config.dna_strands[0].full_list(), smc_positions.r_lower_site[1]) - clearance
     start_id = stop_id - par.spaced_beads_interval * (
         int(par.spaced_beads_smc_clearance / DNA_bond_length) + 3 * 16
     )
-    clearance = math.ceil(par.spaced_beads_smc_clearance / DNA_bond_length)
-    spaced_bead_ids = list(range(start_id, stop_id - clearance, par.spaced_beads_interval))
+    spaced_bead_ids = list(range(start_id, stop_id, par.spaced_beads_interval))
 
     if par.spaced_beads_full_dna:
         spaced_bead_ids += list(
             range(
-                stop_id + clearance,
+                stop_id + 2*clearance,
                 dna_config.dna_strands[0].full_list_length(),
                 par.spaced_beads_interval,
             )
@@ -488,7 +488,6 @@ if par.spaced_beads_interval is not None:
         raise ValueError(f"unknown spaced_beads_type, {par.spaced_beads_type}")
 
     if par.spaced_beads_custom_stiffness != 1.0:
-        offset = int(par.spaced_beads_size / DNA_bond_length)
         try:
             stiff_group = dna_config.change_dna_stiffness(
                 0, start_id, stop_id, dna_bond, stiff_dna_angle
