@@ -206,20 +206,20 @@ kleisins = ppp["kleisin_ids"]
 kleisin_rng = (min(kleisins), max(kleisins))
 mol.load_trajectory(output_file, [*ppp["dna_indices_list"], kleisin_rng])
 mol.add_dna_pieces(ppp["dna_indices_list"])
-mol.add_piece(kleisin_rng, color_id=26)  # violet2
+mol.add_piece(kleisin_rng, color_id=23)  # blue2
 mol.add_spaced_beads(ppp["spaced_bead_indices"], par.spaced_beads_size)
 
 # set colors based on 'Type'
 smc_type_map = ppp["SMC_type_map"]
 color_map = {
     "arms_heads": "blue2",
-    "kleisin": "blue",
-    "hinge": "yellow",
-    "upper_site": "yellow",
-    "atp": "cyan",
-    "middle_site": "cyan",
-    "ref_site": "cyan",
-    "lower_site": "red",
+    "kleisin": "blue2",
+    "hinge": "orange",
+    "upper_site": "orange",
+    "atp": "blue2",
+    "middle_site": "blue2",
+    "ref_site": "blue2",
+    "lower_site": "blue2",
 }
 mol.file.write("\n")
 mol.file.write("# === colors ===\n")
