@@ -831,6 +831,12 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     }
     file.write(f"SMC_type_map = {smc_type_map}\n")
     file.write("\n")
+    SMC_group_ranges = {
+        name: tuple(atomIds_to_LAMMPS_ids(gen, [(grp, 0), (grp, -1)]))
+        for name, grp in smc_1.get_named_groups().items()
+    }
+    file.write(f"SMC_ranges = {SMC_group_ranges}\n")
+    file.write("\n")
     file.write(f"spaced_bead_indices = {atomIds_to_LAMMPS_ids(gen, spaced_beads)}\n")
     file.write("\n")
     dna_spaced_atom_ids = [

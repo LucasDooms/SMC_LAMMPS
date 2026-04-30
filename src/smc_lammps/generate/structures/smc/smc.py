@@ -299,27 +299,30 @@ class SMC:
     def has_side_site(self) -> bool:
         return self.pos.r_side_site.size != 0
 
+    def get_named_groups(self) -> dict[str, AtomGroup]:
+        grps = {
+            "arm_dl": self.arm_dl_grp,
+            "arm_ul": self.arm_ul_grp,
+            "arm_ur": self.arm_ur_grp,
+            "arm_dr": self.arm_dr_grp,
+            "hk": self.hk_grp,
+            "atp": self.atp_grp,
+            "upper_site": self.upper_site_grp,
+            "upper_site_arm": self.upper_site_arm_grp,
+            "middle_site": self.middle_site_grp,
+            "middle_site_atp": self.middle_site_atp_grp,
+            "middle_site_ref": self.middle_site_ref_grp,
+            "lower_site": self.lower_site_grp,
+            "lower_site_arm": self.lower_site_arm_grp,
+            "hinge_l": self.hinge_l_grp,
+            "hinge_r": self.hinge_r_grp,
+            "side_site": self.side_site_grp,
+            "side_site_arm": self.side_site_arm_grp,
+        }
+        return {key: grp for key, grp in grps.items() if grp.positions.size != 0}
+
     def get_groups(self) -> list[AtomGroup]:
-        grps = [
-            self.arm_dl_grp,
-            self.arm_ul_grp,
-            self.arm_ur_grp,
-            self.arm_dr_grp,
-            self.hk_grp,
-            self.atp_grp,
-            self.upper_site_grp,
-            self.upper_site_arm_grp,
-            self.middle_site_grp,
-            self.middle_site_atp_grp,
-            self.middle_site_ref_grp,
-            self.lower_site_grp,
-            self.lower_site_arm_grp,
-            self.hinge_l_grp,
-            self.hinge_r_grp,
-            self.side_site_grp,
-            self.side_site_arm_grp,
-        ]
-        return [grp for grp in grps if grp.positions.size != 0]
+        return list(self.get_named_groups().values())
 
     def get_type_map(self) -> dict[str, AtomType]:
         return {
