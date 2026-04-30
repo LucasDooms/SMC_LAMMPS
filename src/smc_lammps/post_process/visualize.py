@@ -32,6 +32,12 @@ parser.add_argument(
     help="trajectory smoothing window size (default=0)",
     default=0,
 )
+parser.add_argument(
+    "--hide",
+    action="store_true",
+    help="hide SMC binding sites (default=False)",
+    default=False,
+)
 
 args = parser.parse_args()
 path = Path(args.directory)
@@ -202,11 +208,27 @@ if args.file_name == fn_arg.default:
     for p in path.glob("marked_bead*.lammpstrj"):
         mol.create_new_marked(p)
 
-kleisins = ppp["kleisin_ids"]
-kleisin_rng = (min(kleisins), max(kleisins))
-mol.load_trajectory(output_file, [*ppp["dna_indices_list"], kleisin_rng])
+excluded_smc_parts = ["hk", "atp", "upper_site_arm"]
+if args.hide:
+    excluded_smc_parts += [
+        "middle_site",
+        "middle_site_atp",
+        "middle_site_ref",
+        "lower_site",
+        "lower_site_arm",
+    ]
+
+mol.load_trajectory(
+    output_file, ppp["dna_indices_list"] + [ppp["SMC_ranges"][part] for part in excluded_smc_parts]
+)
 mol.add_dna_pieces(ppp["dna_indices_list"])
-mol.add_piece(kleisin_rng, color_id=23)  # blue2
+
+mol.add_piece(ppp["SMC_ranges"]["hk"], color_id=23)  # blue2
+mol.add_piece(ppp["SMC_ranges"]["upper_site_arm"], color_id=3)  # orange
+
+if not args.hide:
+    mol.add_piece(ppp["SMC_ranges"]["atp"], color_id=13)  # mauve
+
 mol.add_spaced_beads(ppp["spaced_bead_indices"], par.spaced_beads_size)
 
 # set colors based on 'Type'
@@ -226,6 +248,7 @@ mol.file.write("# === colors ===\n")
 mol.file.write("\n")
 for t in color_map:
     if t in smc_type_map:
+        # NOTE: There is a bug in VMD < 2.0.0 where types >= 10 do not work for coloring.
         mol.file.write(f"color Type {smc_type_map[t]} {color_map[t]}\n")
 
 # run after all mols which should be smoothed have been added
