@@ -39,9 +39,9 @@ beautifulsoup4==4.14.3
     #   nbconvert
 bleach==6.3.0
     # via nbconvert
-cachetools==7.0.6
+cachetools==7.0.5
     # via tox
-certifi==2026.4.22
+certifi==2026.2.25
     # via
     #   httpcore
     #   httpx
@@ -86,7 +86,7 @@ executing==2.2.1
     # via stack-data
 fastjsonschema==2.21.2
     # via nbformat
-filelock==3.29.0
+filelock==3.25.2
     # via
     #   python-discovery
     #   tox
@@ -104,7 +104,7 @@ httpcore==1.0.9
     # via httpx
 httpx==0.28.1
     # via jupyterlab
-idna==3.13
+idna==3.11
     # via
     #   anyio
     #   httpx
@@ -117,7 +117,7 @@ iniconfig==2.3.0
 ipykernel==7.2.0
     # via jupyterlab
 ipympl==0.10.0
-ipython==9.13.0
+ipython==9.12.0
     # via
     #   ipykernel
     #   ipympl
@@ -162,7 +162,7 @@ jupyter-core==5.9.1
     #   nbclient
     #   nbconvert
     #   nbformat
-jupyter-events==0.12.1
+jupyter-events==0.12.0
     # via jupyter-server
 jupyter-lsp==2.3.1
     # via jupyterlab
@@ -230,7 +230,7 @@ numpy==2.4.4
     #   matplotlib
     #   scipy
     #   smc-lammps
-packaging==26.2
+packaging==26.0
     # via
     #   ipykernel
     #   jupyter-events
@@ -254,7 +254,7 @@ pillow==12.2.0
     # via
     #   ipympl
     #   matplotlib
-platformdirs==4.9.6
+platformdirs==4.9.4
     # via
     #   jupyter-core
     #   python-discovery
@@ -264,7 +264,7 @@ pluggy==1.6.0
     # via
     #   pytest
     #   tox
-prometheus-client==0.25.0
+prometheus-client==0.24.1
     # via jupyter-server
 prompt-toolkit==3.0.52
     # via ipython
@@ -386,7 +386,7 @@ terminado==0.18.1
     # via
     #   jupyter-server
     #   jupyter-server-terminals
-tinycss2==1.5.1
+tinycss2==1.4.0
     # via bleach
 tomli-w==1.2.0
     # via tox
@@ -420,17 +420,17 @@ traitlets==5.14.3
     #   nbformat
 typing-extensions==4.15.0
     # via beautifulsoup4
-tzdata==2026.2
+tzdata==2026.1
     # via arrow
 uri-template==1.3.0
     # via jsonschema
 urllib3==2.6.3
     # via requests
-uv==0.11.8
+uv==0.11.4
     # via tox-uv
-uvicorn==0.46.0
+uvicorn==0.44.0
     # via sphinx-autobuild
-virtualenv==21.3.0
+virtualenv==21.2.0
     # via tox
 watchfiles==1.1.1
     # via sphinx-autobuild
