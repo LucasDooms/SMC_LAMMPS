@@ -208,16 +208,16 @@ if args.file_name == fn_arg.default:
     for p in path.glob("marked_bead*.lammpstrj"):
         mol.create_new_marked(p)
 
-excluded_smc_parts = ["hk", "atp", "upper_site_arm"]
+excluded_smc_parts = ["hk", "atp", "upper_site_arm", "middle_site_atp"]
 if args.hide:
     excluded_smc_parts += [
         "middle_site",
-        "middle_site_atp",
         "middle_site_ref",
         "lower_site",
         "lower_site_arm",
     ]
 
+print(ppp["dna_indices_list"] + [ppp["SMC_ranges"][part] for part in excluded_smc_parts])
 mol.load_trajectory(
     output_file, ppp["dna_indices_list"] + [ppp["SMC_ranges"][part] for part in excluded_smc_parts]
 )
@@ -228,6 +228,7 @@ mol.add_piece(ppp["SMC_ranges"]["upper_site_arm"], color_id=3)  # orange
 
 if not args.hide:
     mol.add_piece(ppp["SMC_ranges"]["atp"], color_id=13)  # mauve
+    mol.add_piece(ppp["SMC_ranges"]["middle_site_atp"], color_id=13)  # mauve
 
 mol.add_spaced_beads(ppp["spaced_bead_indices"], par.spaced_beads_size)
 
@@ -239,8 +240,8 @@ color_map = {
     "hinge": "orange",
     "upper_site": "orange",
     "atp": "blue2",
-    "middle_site": "blue2",
-    "ref_site": "blue2",
+    "middle_site": "mauve",
+    "ref_site": "mauve",
     "lower_site": "blue2",
 }
 mol.file.write("\n")
