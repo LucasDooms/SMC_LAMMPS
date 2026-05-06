@@ -158,7 +158,7 @@ class Molecules:
         # remove from ranges
         selections = []
         for rng in remove_ranges:
-            selections.append(f"index < {rng[0] - 1} or index > {rng[1] - 1}")
+            selections.append(f"(index < {rng[0] - 1} or index > {rng[1] - 1})")
         self.file.write(
             f"mol modselect {self.rep_index} {self.index} " + " and ".join(selections) + "\n"
         )
