@@ -153,7 +153,7 @@ class Molecules:
     ) -> None:
         self.create_new(file)
         # show everything, slightly smaller
-        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 0.4\n")
+        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 0.5\n")
 
         # remove from ranges
         selections = []
@@ -176,7 +176,7 @@ class Molecules:
             )
             self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
-    def add_piece(self, rng: tuple[int, int], color_id: int | None = None) -> None:
+    def add_piece(self, rng: tuple[int, int], color_id: int | None = None, style: str = "vdw 0.5") -> None:
         if color_id is None:
             color_id = self.get_color_id()
         self.add_rep()
@@ -184,7 +184,7 @@ class Molecules:
             f"mol modselect {self.rep_index} {self.index} index >= {rng[0] - 1} and index <= {rng[1] - 1}\n"
         )
         self.file.write(f"mol modcolor {self.rep_index} {self.index} colorID {color_id}\n")
-        self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
+        self.file.write(f"mol modstyle {self.rep_index} {self.index} {style}\n")
 
     def add_spaced_beads(self, spaced_beads: Sequence[int], radius: float) -> None:
         if not spaced_beads:
