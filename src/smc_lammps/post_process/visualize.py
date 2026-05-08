@@ -3,6 +3,7 @@
 import argparse
 import subprocess
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
 from typing import Sequence
 
@@ -176,7 +177,9 @@ class Molecules:
             )
             self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
-    def add_piece(self, rng: tuple[int, int], color_id: int | None = None, style: str = "vdw 0.5") -> None:
+    def add_piece(
+        self, rng: tuple[int, int], color_id: int | None = None, style: str = "vdw 0.5"
+    ) -> None:
         if color_id is None:
             color_id = self.get_color_id()
         self.add_rep()
@@ -217,14 +220,26 @@ if args.hide:
         "lower_site_arm",
     ]
 
-print(ppp["dna_indices_list"] + [ppp["SMC_ranges"][part] for part in excluded_smc_parts])
-mol.load_trajectory(
-    output_file, ppp["dna_indices_list"] + [ppp["SMC_ranges"][part] for part in excluded_smc_parts]
-)
+
+def helper(d, key, func):
+    if key in d:
+        func(d[key])
+
+
+raw_exclusions = excluded_smc_parts
+exclusions = deepcopy(ppp["dna_indices_list"])
+for ex in raw_exclusions:
+    helper(ppp["SMC_ranges"], ex, lambda val: exclusions.append(val))
+
+mol.load_trajectory(output_file, exclusions)
 mol.add_dna_pieces(ppp["dna_indices_list"])
 
 mol.add_piece(ppp["SMC_ranges"]["hk"], color_id=23)  # blue2
-mol.add_piece(ppp["SMC_ranges"]["upper_site_arm"], color_id=3)  # orange
+helper(
+    ppp["SMC_ranges"],
+    "upper_site_arm",
+    lambda val: mol.add_piece(val, color_id=3),  # orange
+)
 
 if not args.hide:
     mol.add_piece(ppp["SMC_ranges"]["atp"], color_id=13)  # mauve
