@@ -341,7 +341,7 @@ rich==15.0.0
     # via smc-lammps
 roman-numerals==4.1.0
     # via sphinx
-rpds-py==0.30.0
+rpds-py==2026.5.1
     # via
     #   jsonschema
     #   referencing
