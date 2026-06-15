@@ -484,7 +484,7 @@ class SMC_Creator:
         if extra_rotation is not None:
             rotation = Rotation.from_rotvec(extra_rotation).as_matrix()
             self.generated_positions.apply(
-                lambda pos: self.transpose_rotate_transpose(rotation, pos)
+                lambda pos: self.transpose_rotate_transpose(rotation, pos)[0]
             )
 
         # apply random shifts to prevent non-numeric atom coordinates errors due to exact overlap

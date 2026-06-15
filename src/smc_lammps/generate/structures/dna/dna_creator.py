@@ -3,7 +3,11 @@
 import math
 
 import numpy as np
+from numpy.typing import ArrayLike
+from scipy.spatial.transform import Rotation
 
+from smc_lammps.generate.generator import Nx3Array
+from smc_lammps.generate.structures.smc.smc_creator import SMC_Creator
 from smc_lammps.generate.structures.structure_creator import (
     attach,
     attach_chain,
@@ -20,6 +24,43 @@ def check_length(length: int):
             f"""DNA is not long enough to form this configuration, please increase the DNA length.
                 Found invalid length: {length}."""
         )
+
+
+def kink_dna_at_extension(rDNA: Nx3Array, extension: float) -> tuple[Nx3Array, ArrayLike]:
+    """Creates the desired extension by kinking the DNA into a triangle.
+
+    .. Attention::
+        This assumes that the DNA is **linear**.
+    """
+    if extension <= 0.0:
+        raise ValueError("Extension must be strictly positive.")
+
+    if extension > 1.0:
+        raise ValueError("Extension must be smaller than or equal to 1.")
+
+    if extension == 1.0:
+        return rDNA, Rotation.from_rotvec([0.0, 0.0, 0.0]).as_matrix()
+
+    half = len(rDNA) // 2
+    original_spacing = rDNA[half] - rDNA[half - 1]
+
+    angle = np.acos(extension)
+
+    rotate_around_z_axis = Rotation.from_rotvec(-angle * np.array([0.0, 0.0, 1.0])).as_matrix()
+    rDNA[:half] = (
+        SMC_Creator.transpose_rotate_transpose(rotate_around_z_axis, rDNA[:half] - rDNA[0])[0]
+        + rDNA[0]
+    )
+    rotate_around_z_axis = Rotation.from_rotvec(angle * np.array([0.0, 0.0, 1.0])).as_matrix()
+    rDNA[half:] = (
+        SMC_Creator.transpose_rotate_transpose(rotate_around_z_axis, rDNA[half:] - rDNA[-1])[0]
+        + rDNA[-1]
+    )
+
+    # move together
+    rDNA[:half] += rDNA[half] - rDNA[half - 1] - original_spacing
+
+    return rDNA, rotate_around_z_axis
 
 
 def get_dna_coordinates_straight(nDNA: int, DNAbondLength: float):

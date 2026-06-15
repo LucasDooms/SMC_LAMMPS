@@ -216,6 +216,12 @@ if __name__ == "__main__":
             parameters["left_bead_id"],
             parameters["right_bead_id"],
         ]
+    elif use_reference == "bridge":
+        ref_ids: list[int] = [
+            parameters["top_left_bead_id"],
+            parameters["kleisin_ids"][0],
+            parameters["kleisin_ids"][-1],
+        ]
     else:
         raise ValueError(f"Unknown reference option {use_reference}")
 

@@ -13,6 +13,7 @@ from numpy.random import default_rng
 from smc_lammps.console import warn
 from smc_lammps.generate.default_parameters import Parameters
 from smc_lammps.generate.generator import (
+    AtomGroup,
     AtomIdentifier,
     AtomType,
     BAI_Kind,
@@ -302,8 +303,9 @@ dna_parameters = dna.DnaParameters(
     bond=dna_bond,
     angle=dna_angle,
     ssangle=ssdna_angle,
+    extension=par.extension,
 )
-dna_config = dna_config_class.get_dna_config(dna_parameters, smc_positions.r_lower_site, par)
+dna_config = dna_config_class.get_dna_config(dna_parameters, smc_positions, par)
 
 #################################################################################
 #                                Print to file                                  #
@@ -388,11 +390,18 @@ if par.add_RNA_polymerase:
         st_dna_id = dna_config.tether.dna_tether_id
     else:
         st_dna_id = (0, int(0.5 * dna_config.dna_strands[0].full_list_length()))
+
+    if isinstance(st_dna_id[0], AtomGroup):
+        raise RuntimeError(
+            "cannot add RNA polymerase since tether is already bound to another bead"
+        )
+
     dna_config.add_bead_to_dna(
         bead_type, mol_bead, st_dna_id[0], st_dna_id[1], bead_bond, bead_angle, bead_size
     )
 
 spaced_beads: list[AtomIdentifier] = []
+spaced_bead_ids: list[int] = []
 if par.spaced_beads_interval is not None:
     # get mass based on size
     # (0.22 = arbitrary factor chosen to approximate nucleosome mass at 5.5 nm radius)
@@ -415,10 +424,10 @@ if par.spaced_beads_interval is not None:
             )
         )
 
-    for st_dna_id in spaced_bead_ids:
+    if par.spaced_beads_type == 0:
         mol_spaced_bead = MoleculeId.get_next()
-        if par.spaced_beads_type == 0:
-            extra_mols_dna.append(mol_spaced_bead)
+        extra_mols_dna.append(mol_spaced_bead)
+        for st_dna_id in spaced_bead_ids:
             # use the same bond strength for now
             k_bond_spaced_bead = k_bond_DNA
             bead_dna_bond = BAI_Type(
@@ -440,7 +449,10 @@ if par.spaced_beads_interval is not None:
                     par.spaced_beads_size,
                 )
             )
-        elif par.spaced_beads_type == 1:
+    elif par.spaced_beads_type == 1:
+        for st_dna_id in spaced_bead_ids:
+            # get a new molecule id each time
+            mol_spaced_bead = MoleculeId.get_next()
             extra_mols_smc.append(mol_spaced_bead)
             spaced_beads.append(
                 dna_config.add_bead_to_dna(
@@ -453,10 +465,28 @@ if par.spaced_beads_interval is not None:
                     par.spaced_beads_size,
                 )
             )
-        else:
-            raise ValueError(f"unknown spaced_beads_type, {par.spaced_beads_type}")
+    elif par.spaced_beads_type == 2:
+        mol_spaced_bead = MoleculeId.get_next()
+        extra_mols_dna.append(mol_spaced_bead)
+        for st_dna_id in spaced_bead_ids:
+            bead_bond_close = BAI_Type(BAI_Kind.BOND, "harmonic", f"{k_bond_DNA} {0.0}\n")
+            spaced_beads.append(
+                dna_config.attach_bead_to_dna(
+                    spaced_bead_type,
+                    mol_spaced_bead,
+                    0,
+                    st_dna_id,
+                    bead_bond_close,
+                    None,
+                    par.spaced_beads_size,
+                    0.0,
+                )
+            )
+    else:
+        raise ValueError(f"unknown spaced_beads_type, {par.spaced_beads_type}")
 
-        if par.spaced_beads_custom_stiffness != 1.0:
+    if par.spaced_beads_custom_stiffness != 1.0:
+        for st_dna_id in spaced_bead_ids:
             offset = int(par.spaced_beads_size / DNA_bond_length)
             try:
                 dna_config.change_dna_stiffness(
@@ -464,18 +494,25 @@ if par.spaced_beads_interval is not None:
                 )
             except ValueError as e:
                 print(e)
-                raise ValueError("Overlapping stiffness ranges not supported yet.")
+                raise RuntimeError("Overlapping stiffness ranges not supported yet.")
 
 if par.add_stopper_bead:
     mol_stopper = MoleculeId.get_next()
-    extra_mols_smc.append(mol_stopper)
-    stopper_type = AtomType(0.01 * DNA_bead_mass)
+    extra_mols_dna.append(mol_stopper)
+    stopper_type = AtomType(DNA_bead_mass)
     stopper_size = 25.0
 
     stopper_ids = dna_config.get_stopper_ids()
     for st_dna_id in stopper_ids:
-        dna_config.add_bead_to_dna(
-            stopper_type, mol_stopper, st_dna_id[0], st_dna_id[1], None, None, stopper_size
+        dna_config.attach_bead_to_dna(
+            stopper_type,
+            mol_stopper,
+            st_dna_id[0],
+            st_dna_id[1],
+            dna_bond,
+            stiff_dna_angle,
+            stopper_size,
+            DNA_bond_length,
         )
 
 
@@ -615,7 +652,7 @@ gen.move_all_atoms(-center)
 
 # compare to origin (which is now the center) to find furthest distance
 max_distance = np.max(np.abs(positions))
-gen.set_system_size(2 * max_distance)
+gen.set_system_size(3 * max_distance)
 
 lammps_path = path / "lammps"
 lammps_path.mkdir(exist_ok=True)
@@ -646,6 +683,21 @@ states_path.mkdir(exist_ok=True)
 site_cond = par.site_cycle_period == 0 or par.add_side_site
 use_lower_site_off = [lower_site_off] if site_cond else []
 use_lower_site_on = [lower_site_on] if site_cond else []
+
+# This is for energy minimization / equilibration.
+create_phase_wrapper(
+    states_path / "all_off",
+    [
+        bridge_soft_on,
+        hinge_attraction_off,
+        middle_site_off,
+        *use_lower_site_off,
+        smc_1.elbows_off,
+        smc_1.arms_close,
+        smc_1.kleisin_unfolds1,
+        smc_1.kleisin_unfolds2,
+    ],
+)
 
 if par.site_cycle_period > 0:
     create_phase_wrapper(
@@ -764,7 +816,35 @@ with open(path / "post_processing_parameters.py", "w", encoding="utf-8") as file
     file.write(f"DNA_types = {list(set(grp.type.index for grp in dna_config.all_dna_groups))}\n")
     file.write(f"SMC_types = {list(set(grp.type.index for grp in smc_1.get_groups()))}\n")
     file.write("\n")
+
+    def get_indices_skip_errors(t: AtomType) -> int | None:
+        try:
+            return t.index
+        except AtomType.UnusedIndex:
+            pass
+        return None
+
+    smc_type_map = {
+        key: index
+        for key, t in smc_1.get_type_map().items()
+        if (index := get_indices_skip_errors(t)) is not None
+    }
+    file.write(f"SMC_type_map = {smc_type_map}\n")
+    file.write("\n")
+    SMC_group_ranges = {
+        name: tuple(atomIds_to_LAMMPS_ids(gen, [(grp, 0), (grp, -1)]))
+        for name, grp in smc_1.get_named_groups().items()
+    }
+    file.write(f"SMC_ranges = {SMC_group_ranges}\n")
+    file.write("\n")
     file.write(f"spaced_bead_indices = {atomIds_to_LAMMPS_ids(gen, spaced_beads)}\n")
+    file.write("\n")
+    dna_spaced_atom_ids = [
+        dna_config.dna_strands[0].get_id_from_list_index(x) for x in spaced_bead_ids
+    ]
+    file.write(
+        f"dna_spaced_beads_insert_indices = {atomIds_to_LAMMPS_ids(gen, dna_spaced_atom_ids)}\n"
+    )
     file.write("\n")
     file.write(f"runtimes = {runtimes}\n")
 
@@ -829,6 +909,16 @@ with open(lammps_path / "parameterfile", "w", encoding="utf-8") as parameterfile
     )
 
     parameterfile.write("\n")
+
+    # check for conflicting molecule overrides
+    for s_id, g_id, mol_id in dna_config.molecule_overrides:
+        override_atom_id = dna_config.dna_strands[s_id].get_id_from_list_index(g_id)
+        if override_atom_id in ppp.end_points:
+            warn(
+                "The molecule id of a DNA end point was overwritten.\n"
+                "The external forces or freezes in LAMMPS will not work as expected.\n\n"
+                "This is likely caused by an attached bead such as a stopper bead.\n"
+            )
 
     # turn into LAMMPS indices
     end_points_LAMMPS = atomIds_to_LAMMPS_ids(gen, ppp.end_points)

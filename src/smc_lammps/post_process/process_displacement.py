@@ -115,30 +115,17 @@ def remove_outside_planar_n_gon(
         data.delete_side_of_plane(side_plane, Plane.Side.INSIDE)
 
 
-def handle_dna_bead(
-    full_data: LammpsData, filtered_dna: LammpsData, parameters, step
-) -> tuple[ID_TYPE, Nx3Array, list[ID_TAG_PAIR]]:
-    """Finds the DNA beads that are within the SMC ring and updates the indices, positions lists."""
-    fallback = (
-        ID_TYPE(-1),
-        full_data.positions[-1],
-        [(-1, "invalid")],
-    )
-    if len(filtered_dna.positions) == 0:
-        return fallback
-
-    pos_top_left = full_data.get_position_from_index(parameters["top_left_bead_id"])
-    pos_top_right = full_data.get_position_from_index(parameters["top_right_bead_id"])
-    pos_left = full_data.get_position_from_index(parameters["left_bead_id"])
-    pos_right = full_data.get_position_from_index(parameters["right_bead_id"])
-    pos_middle_left = full_data.get_position_from_index(parameters["middle_left_bead_id"])
-    pos_middle_right = full_data.get_position_from_index(parameters["middle_right_bead_id"])
-    pos_kleisins = np.array(
-        [full_data.get_position_from_index(i) for i in parameters["kleisin_ids"]], dtype=COORD_TYPE
-    )
-
-    delta = 0.6 * parameters["dna_spacing"]
-
+def find_dna_in_smc_interior(
+    delta: float,
+    filtered_dna: LammpsData,
+    pos_top_left: Nx3Array,
+    pos_top_right: Nx3Array,
+    pos_left: Nx3Array,
+    pos_right: Nx3Array,
+    pos_middle_left: Nx3Array,
+    pos_middle_right: Nx3Array,
+    pos_kleisins: Nx3Array,
+) -> LammpsData:
     def add_slice(data: LammpsData, points: Nx3Array):
         dup = deepcopy(filtered_dna)
         remove_outside_planar_n_gon(
@@ -188,7 +175,50 @@ def handle_dna_bead(
     # kleisin
     add_slice(dna_in_smc, pos_kleisins)
 
-    if len(dna_in_smc.positions) == 0:
+    return dna_in_smc
+
+
+def handle_dna_bead(
+    full_data: LammpsData, filtered_dna: LammpsData, parameters, step
+) -> tuple[ID_TYPE, Nx3Array, list[ID_TAG_PAIR]]:
+    """Finds the DNA beads that are within the SMC ring and updates the indices, positions lists."""
+    fallback = (
+        ID_TYPE(-1),
+        full_data.positions[-1],
+        [(-1, "invalid")],
+    )
+    if len(filtered_dna.positions) == 0:
+        return fallback
+
+    pos_top_left = full_data.get_position_from_index(parameters["top_left_bead_id"])
+    pos_top_right = full_data.get_position_from_index(parameters["top_right_bead_id"])
+    pos_left = full_data.get_position_from_index(parameters["left_bead_id"])
+    pos_right = full_data.get_position_from_index(parameters["right_bead_id"])
+    pos_middle_left = full_data.get_position_from_index(parameters["middle_left_bead_id"])
+    pos_middle_right = full_data.get_position_from_index(parameters["middle_right_bead_id"])
+    pos_kleisins = np.array(
+        [full_data.get_position_from_index(i) for i in parameters["kleisin_ids"]], dtype=COORD_TYPE
+    )
+
+    delta = 0.6 * parameters["dna_spacing"]
+    for _ in range(5):
+        dna_in_smc = find_dna_in_smc_interior(
+            delta,
+            filtered_dna=filtered_dna,
+            pos_top_left=pos_top_left,
+            pos_top_right=pos_top_right,
+            pos_left=pos_left,
+            pos_right=pos_right,
+            pos_middle_left=pos_middle_left,
+            pos_middle_right=pos_middle_right,
+            pos_kleisins=pos_kleisins,
+        )
+
+        if len(dna_in_smc.positions) != 0:
+            break
+
+        delta += 0.2 * parameters["dna_spacing"]
+    else:
         print(f"No DNA found! Timestep: {step}")
         return fallback
 
@@ -354,7 +384,7 @@ def create_plot(
             ax.plot(times, positions, label=f"DNA {i}")
 
     if plot_cycle:
-        from smc_lammps.post_process.matplotlib.draw import (
+        from smc_lammps.post_process.plotting.draw import (
             fill_between_runtime_lines,
             get_runtime_lines,
         )

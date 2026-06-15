@@ -1,11 +1,14 @@
-# Copyright (c) 2024-2025 Lucas Dooms
+# Copyright (c) 2024-2026 Lucas Dooms
 
 import argparse
 import subprocess
 from collections import defaultdict
+from copy import deepcopy
 from pathlib import Path
-from runpy import run_path
 from typing import Sequence
+
+from smc_lammps.generate.util import get_parameters
+from smc_lammps.post_process.util import get_post_processing_parameters
 
 # WARN: VMD uses zero-indexed arrays!
 
@@ -30,11 +33,18 @@ parser.add_argument(
     help="trajectory smoothing window size (default=0)",
     default=0,
 )
+parser.add_argument(
+    "--hide",
+    action="store_true",
+    help="hide SMC binding sites (default=False)",
+    default=False,
+)
 
 args = parser.parse_args()
 path = Path(args.directory)
 
-ppp = run_path((path / "post_processing_parameters.py").as_posix())
+par = get_parameters(path / "parameters.py")
+ppp = get_post_processing_parameters(path)
 
 output_file = path / Path(args.file_name)
 if not output_file.exists():
@@ -144,15 +154,16 @@ class Molecules:
     ) -> None:
         self.create_new(file)
         # show everything, slightly smaller
-        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 0.4\n")
+        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 0.5\n")
 
         # remove from ranges
         selections = []
         for rng in remove_ranges:
-            selections.append(f"index < {rng[0] - 1} or index > {rng[1] - 1}")
+            selections.append(f"(index < {rng[0] - 1} or index > {rng[1] - 1})")
         self.file.write(
             f"mol modselect {self.rep_index} {self.index} " + " and ".join(selections) + "\n"
         )
+        self.file.write(f"mol modcolor {self.rep_index} {self.index} Type\n")
 
     def add_dna_pieces(self, dna_pieces: Sequence[tuple[int, int]]) -> None:
         # color the pieces differently
@@ -166,17 +177,19 @@ class Molecules:
             )
             self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
 
-    def add_piece(self, rng: tuple[int, int]) -> None:
+    def add_piece(
+        self, rng: tuple[int, int], color_id: int | None = None, style: str = "vdw 0.5"
+    ) -> None:
+        if color_id is None:
+            color_id = self.get_color_id()
         self.add_rep()
         self.file.write(
             f"mol modselect {self.rep_index} {self.index} index >= {rng[0] - 1} and index <= {rng[1] - 1}\n"
         )
-        self.file.write(
-            f"mol modcolor {self.rep_index} {self.index} colorID {self.get_color_id()}\n"
-        )
-        self.file.write(f"mol modstyle {self.rep_index} {self.index} cpk 1.4\n")
+        self.file.write(f"mol modcolor {self.rep_index} {self.index} colorID {color_id}\n")
+        self.file.write(f"mol modstyle {self.rep_index} {self.index} {style}\n")
 
-    def add_spaced_beads(self, spaced_beads: Sequence[int]) -> None:
+    def add_spaced_beads(self, spaced_beads: Sequence[int], radius: float) -> None:
         if not spaced_beads:
             return
 
@@ -185,8 +198,11 @@ class Molecules:
         self.file.write(f"mol modselect {self.rep_index} {self.index} index {vmd_indices}\n")
         # choose color based on index
         self.file.write(f"mol modcolor {self.rep_index} {self.index} PosX\n")
-        # TODO: get size dynamically
-        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 1.5\n")
+
+        self.file.write(f"mol modstyle {self.rep_index} {self.index} vdw 1.0\n")
+
+        self.file.write(f'set sel [atomselect {mol.index} "index {vmd_indices}"]\n')
+        self.file.write(f"$sel set radius {radius}\n")
 
 
 mol = Molecules(path)
@@ -195,12 +211,61 @@ if args.file_name == fn_arg.default:
     for p in path.glob("marked_bead*.lammpstrj"):
         mol.create_new_marked(p)
 
-kleisins = ppp["kleisin_ids"]
-kleisin_rng = (min(kleisins), max(kleisins))
-mol.load_trajectory(output_file, [*ppp["dna_indices_list"], kleisin_rng])
+excluded_smc_parts = ["hk", "atp", "upper_site_arm", "middle_site_atp"]
+if args.hide:
+    excluded_smc_parts += [
+        "middle_site",
+        "middle_site_ref",
+        "lower_site",
+        "lower_site_arm",
+    ]
+
+
+def helper(d, key, func):
+    if key in d:
+        func(d[key])
+
+
+raw_exclusions = excluded_smc_parts
+exclusions = deepcopy(ppp["dna_indices_list"])
+for ex in raw_exclusions:
+    helper(ppp["SMC_ranges"], ex, lambda val: exclusions.append(val))
+
+mol.load_trajectory(output_file, exclusions)
 mol.add_dna_pieces(ppp["dna_indices_list"])
-mol.add_piece(kleisin_rng)
-mol.add_spaced_beads(ppp["spaced_bead_indices"])
+
+mol.add_piece(ppp["SMC_ranges"]["hk"], color_id=23)  # blue2
+helper(
+    ppp["SMC_ranges"],
+    "upper_site_arm",
+    lambda val: mol.add_piece(val, color_id=3),  # orange
+)
+
+if not args.hide:
+    mol.add_piece(ppp["SMC_ranges"]["atp"], color_id=13)  # mauve
+    mol.add_piece(ppp["SMC_ranges"]["middle_site_atp"], color_id=13)  # mauve
+
+mol.add_spaced_beads(ppp["spaced_bead_indices"], par.spaced_beads_size)
+
+# set colors based on 'Type'
+smc_type_map = ppp["SMC_type_map"]
+color_map = {
+    "arms_heads": "blue2",
+    "kleisin": "blue2",
+    "hinge": "orange",
+    "upper_site": "orange",
+    "atp": "blue2",
+    "middle_site": "mauve",
+    "ref_site": "mauve",
+    "lower_site": "blue2",
+}
+mol.file.write("\n")
+mol.file.write("# === colors ===\n")
+mol.file.write("\n")
+for t in color_map:
+    if t in smc_type_map:
+        # NOTE: There is a bug in VMD < 2.0.0 where types >= 10 do not work for coloring.
+        mol.file.write(f"color Type {smc_type_map[t]} {color_map[t]}\n")
 
 # run after all mols which should be smoothed have been added
 mol.set_all_smoothing(args.smoothing)

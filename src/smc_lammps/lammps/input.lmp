@@ -111,6 +111,11 @@ if $(is_defined(variable,excluded)) then &
 # Set integration timestep
 timestep ${timestep}
 
+# variable debug equal 1
+if $(is_defined(variable,debug)) then &
+    "dump debug_movie all custom 100 ${output_path}/${output_file_name} id type x y z" &
+    "dump_modify debug_movie sort id pbc yes"
+
 if $(!v_is_restart) then &
     "include ${lammps_root_dir}/equilibrate.lmp" &
     "reset_timestep 0"

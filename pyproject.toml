@@ -1,6 +1,6 @@
 [project]
 name = "smc-lammps"
-version = "0.2.2"
+version = "0.2.3"
 description = "Simulate DNA loop extrusion by SMCs using LAMMPS"
 readme = "README.md"
 license = "MIT"
