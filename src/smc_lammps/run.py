@@ -120,7 +120,7 @@ def get_parser() -> argparse.ArgumentParser:
     pp_vis = post_processing.add_mutually_exclusive_group()
     pp_vis.add_argument('-v', '--visualize', action='store_true', help='open VMD after all scripts have finished')
     pp_vis.add_argument('-vd', '--visualize-datafile', action='store_true', help='shows the initial structure in VMD')
-    pp_vis.add_argument('-vf', '--visualize-follow', nargs='?', choices=['arms', 'kleisin'], help='same as --visualize, but follows the SMC tracking either the arms or kleisin, default: \'arms\'', const='arms', default=None)
+    pp_vis.add_argument('-vf', '--visualize-follow', nargs='?', choices=['arms', 'kleisin', 'bridge'], help='same as --visualize, but follows the SMC tracking either the arms or kleisin, default: \'arms\'', const='arms', default=None)
 
     other = parser.add_argument_group(title='other options')
     other.add_argument('-n', '--ignore-errors', action='store_true', help='keep running even if the previous script exited with a non-zero error code')
