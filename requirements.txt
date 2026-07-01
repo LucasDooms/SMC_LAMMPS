@@ -13,7 +13,7 @@ anyio==4.13.0
     #   watchfiles
 appnope==0.1.4 ; sys_platform == 'darwin'
     # via ipykernel
-argcomplete==3.6.3
+argcomplete==3.7.0
     # via smc-lammps
 argon2-cffi==25.1.0
     # via jupyter-server
@@ -52,7 +52,7 @@ cffi==2.0.0
     #   pyzmq
 charset-normalizer==3.4.7
     # via requests
-click==8.4.1
+click==8.4.2
     # via
     #   smc-lammps
     #   uvicorn
@@ -148,6 +148,10 @@ jsonschema==4.26.0
     #   nbformat
 jsonschema-specifications==2025.9.1
     # via jsonschema
+jupyter-builder==1.0.2
+    # via
+    #   jupyterlab
+    #   notebook
 jupyter-client==8.9.1
     # via
     #   ipykernel
@@ -156,6 +160,7 @@ jupyter-client==8.9.1
 jupyter-core==5.9.1
     # via
     #   ipykernel
+    #   jupyter-builder
     #   jupyter-client
     #   jupyter-server
     #   jupyterlab
@@ -175,7 +180,7 @@ jupyter-server==2.19.0
     #   notebook-shim
 jupyter-server-terminals==0.5.4
     # via jupyter-server
-jupyterlab==4.5.8
+jupyterlab==4.6.1
     # via notebook
 jupyterlab-pygments==0.3.0
     # via nbconvert
@@ -218,12 +223,12 @@ nbformat==5.10.4
     #   nbconvert
 nest-asyncio2==1.7.2
     # via ipykernel
-notebook==7.5.7
+notebook==7.6.0
 notebook-shim==0.2.4
     # via
     #   jupyterlab
     #   notebook
-numpy==2.4.6
+numpy==2.5.0
     # via
     #   contourpy
     #   ipympl
@@ -294,7 +299,7 @@ pyparsing==3.3.2
     # via matplotlib
 pyproject-api==1.10.1
     # via tox
-pytest==9.1.0
+pytest==9.1.1
 python-dateutil==2.9.0.post0
     # via
     #   arrow
@@ -345,13 +350,11 @@ rpds-py==2026.5.1
     # via
     #   jsonschema
     #   referencing
-ruff==0.15.17
-scipy==1.17.1
+ruff==0.15.20
+scipy==1.18.0
     # via smc-lammps
 send2trash==2.1.0
     # via jupyter-server
-setuptools==82.0.1
-    # via jupyterlab
 six==1.17.0
     # via
     #   python-dateutil
@@ -411,6 +414,7 @@ traitlets==5.15.1
     #   ipympl
     #   ipython
     #   ipywidgets
+    #   jupyter-builder
     #   jupyter-client
     #   jupyter-core
     #   jupyter-events
