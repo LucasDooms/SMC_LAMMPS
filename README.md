@@ -1,5 +1,7 @@
 # DNA Loop Extrusion by SMCCs in LAMMPS
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21098585.svg)](https://doi.org/10.5281/zenodo.21098585)
+
 <details>
 <summary>Loop extrusion simulation
 </summary>
