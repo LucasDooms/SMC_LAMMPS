@@ -5,7 +5,7 @@ accessible-pygments==0.0.5
     # via furo
 alabaster==1.0.0
     # via sphinx
-anyio==4.14.2
+anyio==4.13.0
     # via
     #   httpx
     #   jupyter-server
@@ -21,7 +21,7 @@ argon2-cffi-bindings==25.1.0
     # via argon2-cffi
 arrow==1.4.0
     # via isoduration
-asttokens==3.0.2
+asttokens==3.0.1
     # via stack-data
 async-lru==2.3.0
     # via jupyterlab
@@ -39,18 +39,18 @@ beautifulsoup4==4.15.0
     #   nbconvert
 bleach==6.4.0
     # via nbconvert
-cachetools==7.1.6
+cachetools==7.1.4
     # via tox
-certifi==2026.7.22
+certifi==2026.5.20
     # via
     #   httpcore
     #   httpx
     #   requests
-cffi==2.1.0
+cffi==2.0.0
     # via
     #   argon2-cffi-bindings
     #   pyzmq
-charset-normalizer==3.4.9
+charset-normalizer==3.4.7
     # via requests
 click==8.4.2
     # via
@@ -80,13 +80,13 @@ defusedxml==0.7.1
     # via nbconvert
 distlib==0.4.3
     # via virtualenv
-docutils==0.23
+docutils==0.22.4
     # via sphinx
 executing==2.2.1
     # via stack-data
-fastjsonschema==2.22.1
+fastjsonschema==2.21.2
     # via nbformat
-filelock==3.32.0
+filelock==3.29.4
     # via
     #   python-discovery
     #   tox
@@ -117,7 +117,7 @@ iniconfig==2.3.0
 ipykernel==7.3.0
     # via jupyterlab
 ipympl==0.10.0
-ipython==9.15.0
+ipython==9.14.1
     # via
     #   ipykernel
     #   ipympl
@@ -137,7 +137,7 @@ jinja2==3.1.6
     #   jupyterlab-server
     #   nbconvert
     #   sphinx
-json5==0.15.0
+json5==0.14.0
     # via jupyterlab-server
 jsonpointer==3.1.1
     # via jsonschema
@@ -148,6 +148,10 @@ jsonschema==4.26.0
     #   nbformat
 jsonschema-specifications==2025.9.1
     # via jsonschema
+jupyter-builder==1.2.1
+    # via
+    #   jupyterlab
+    #   notebook
 jupyter-client==8.9.1
     # via
     #   ipykernel
@@ -156,6 +160,7 @@ jupyter-client==8.9.1
 jupyter-core==5.9.1
     # via
     #   ipykernel
+    #   jupyter-builder
     #   jupyter-client
     #   jupyter-server
     #   jupyterlab
@@ -166,7 +171,7 @@ jupyter-events==0.12.1
     # via jupyter-server
 jupyter-lsp==2.3.1
     # via jupyterlab
-jupyter-server==2.20.0
+jupyter-server==2.19.0
     # via
     #   jupyter-lsp
     #   jupyterlab
@@ -205,7 +210,7 @@ matplotlib-inline==0.2.2
     #   ipython
 mdurl==0.1.2
     # via markdown-it-py
-mistune==3.3.4
+mistune==3.2.1
     # via nbconvert
 nbclient==0.11.0
     # via nbconvert
@@ -250,11 +255,11 @@ parso==0.8.7
     # via jedi
 pexpect==4.9.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
     # via ipython
-pillow==12.3.0
+pillow==12.2.0
     # via
     #   ipympl
     #   matplotlib
-platformdirs==4.11.0
+platformdirs==4.10.0
     # via
     #   jupyter-core
     #   python-discovery
@@ -264,9 +269,9 @@ pluggy==1.6.0
     # via
     #   pytest
     #   tox
-prometheus-client==0.26.0
+prometheus-client==0.25.0
     # via jupyter-server
-prompt-toolkit==3.0.53
+prompt-toolkit==3.0.52
     # via ipython
 psutil==7.2.2
     # via
@@ -292,7 +297,7 @@ pygments==2.20.0
     #   sphinx
 pyparsing==3.3.2
     # via matplotlib
-pyproject-api==1.11.0
+pyproject-api==1.10.1
     # via tox
 pytest==9.1.1
 python-dateutil==2.9.0.post0
@@ -300,7 +305,7 @@ python-dateutil==2.9.0.post0
     #   arrow
     #   jupyter-client
     #   matplotlib
-python-discovery==1.5.0
+python-discovery==1.4.2
     # via
     #   tox
     #   virtualenv
@@ -341,7 +346,7 @@ rich==15.0.0
     # via smc-lammps
 roman-numerals==4.1.0
     # via sphinx
-rpds-py==2026.6.3
+rpds-py==2026.5.1
     # via
     #   jsonschema
     #   referencing
@@ -350,15 +355,13 @@ scipy==1.18.0
     # via smc-lammps
 send2trash==2.1.0
     # via jupyter-server
-setuptools==82.0.1
-    # via jupyterlab
 six==1.17.0
     # via
     #   python-dateutil
     #   rfc3339-validator
 snowballstemmer==3.1.1
     # via sphinx
-soupsieve==2.9.1
+soupsieve==2.8.4
     # via beautifulsoup4
 sphinx==9.1.0
     # via
@@ -400,7 +403,7 @@ tornado==6.5.7
     #   jupyterlab
     #   notebook
     #   terminado
-tox==4.58.0
+tox==4.55.1
     # via tox-uv-bare
 tox-uv==1.36.0
 tox-uv-bare==1.36.0
@@ -411,6 +414,7 @@ traitlets==5.15.1
     #   ipympl
     #   ipython
     #   ipywidgets
+    #   jupyter-builder
     #   jupyter-client
     #   jupyter-core
     #   jupyter-events
@@ -420,25 +424,25 @@ traitlets==5.15.1
     #   nbclient
     #   nbconvert
     #   nbformat
-typing-extensions==4.16.0
+typing-extensions==4.15.0
     # via
     #   beautifulsoup4
     #   jupyter-client
-tzdata==2026.3
+tzdata==2026.2
     # via arrow
 uri-template==1.3.0
     # via jsonschema
 urllib3==2.7.0
     # via requests
-uv==0.12.0
+uv==0.11.21
     # via tox-uv
-uvicorn==0.51.0
+uvicorn==0.49.0
     # via sphinx-autobuild
-virtualenv==21.7.0
+virtualenv==21.5.0
     # via tox
 watchfiles==1.2.0
     # via sphinx-autobuild
-wcwidth==0.8.2
+wcwidth==0.8.1
     # via prompt-toolkit
 webcolors==25.10.0
     # via jsonschema
@@ -448,7 +452,7 @@ webencodings==0.5.1
     #   tinycss2
 websocket-client==1.9.0
     # via jupyter-server
-websockets==16.1.1
+websockets==16.0
     # via sphinx-autobuild
 widgetsnbextension==4.0.15
     # via ipywidgets
