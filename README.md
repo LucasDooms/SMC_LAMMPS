@@ -2,7 +2,13 @@
 
 [![bioRxiv](https://img.shields.io/badge/bioRxiv-preprint-B31B1B)](https://doi.org/10.64898/2026.07.07.736920) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21098585.svg)](https://doi.org/10.5281/zenodo.21098585)
 
-
+<a href="https://media.githubusercontent.com/media/LucasDooms/SMC_LAMMPS/refs/heads/main/assets/poster.pdf">
+<img src="assets/preview.png" width="150"/>
+<br/>
+View the poster
+</a>
+<br/>
+<br/>
 <details>
 <summary>Loop extrusion simulation
 </summary>
